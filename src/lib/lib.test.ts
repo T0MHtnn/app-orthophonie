@@ -56,3 +56,19 @@ describe('fillTemplate', () => {
   it('remplace les champs connus et laisse les autres', () =>
     expect(fillTemplate('Bonjour {aidant}, {inconnu}', { aidant: 'Marie' })).toBe('Bonjour Marie, {inconnu}'));
 });
+
+import { splitSubject, textToEmailHtml } from './email-format';
+
+describe('emails', () => {
+  it('extrait l’objet de la première ligne', () => {
+    expect(splitSubject('Objet : Une place\n\nBonjour', 'défaut')).toEqual({ subject: 'Une place', body: 'Bonjour' });
+    expect(splitSubject('Bonjour', 'défaut')).toEqual({ subject: 'défaut', body: 'Bonjour' });
+  });
+  it('échappe le HTML et rend les liens cliquables', () => {
+    const html = textToEmailHtml('Salut <script>x</script>\n\nhttps://exemple.fr/patient\n\n* un\n* deux', 'Cabinet');
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+    expect(html).toContain('<a href="https://exemple.fr/patient"');
+    expect(html).toContain('<li>deux</li>');
+  });
+});

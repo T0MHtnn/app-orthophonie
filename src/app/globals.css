@@ -148,3 +148,5 @@ fieldset.plain { border: 0; padding: 0; margin: 0; min-width: 0; }
 .login-cta { background: var(--accent-soft); border-color: transparent; }
 .request { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; padding: 14px 0; border-top: 1px solid var(--line); }
 .request:first-of-type { border-top: 0; }
+.locked { background: var(--warn-soft); border-color: transparent; }
+.locked h2 { color: var(--warn); }

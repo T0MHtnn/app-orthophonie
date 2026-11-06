@@ -2,6 +2,8 @@
 
 import type { FormState } from '@/components/form';
 import { getAuthContext } from '@/lib/auth';
+import { sendEmail } from '@/lib/email';
+import { siteUrl } from '@/lib/env';
 import { createClient } from '@/lib/supabase/server';
 import { fieldErrors, waitlistFormSchema } from '@/lib/validation';
 
@@ -31,7 +33,8 @@ export async function submitWaitlist(slug: string, _prev: FormState, formData: F
   // On renvoie tout ce qui a été saisi (cases et listes comprises) pour le réafficher en cas d'erreur.
   const echo = Object.fromEntries(FIELDS.filter((k) => typeof raw[k] === 'string').map((k) => [k, String(raw[k])]));
 
-  if (!(await getAuthContext())) return { message: 'Votre session a expiré. Reconnectez-vous pour envoyer votre inscription.', values: echo };
+  const ctx = await getAuthContext();
+  if (!ctx) return { message: 'Votre session a expiré. Reconnectez-vous pour envoyer votre inscription.', values: echo };
 
   const parsed = waitlistFormSchema.safeParse(raw);
   if (!parsed.success) return { message: 'Certains champs sont à corriger (encadrés en rouge).', errors: fieldErrors(parsed.error), values: echo };
@@ -61,5 +64,20 @@ export async function submitWaitlist(slug: string, _prev: FormState, formData: F
   if (error) console.error('submit_waitlist_entry', error.code, error.message);
   if (error) return { message: 'L’inscription n’a pas pu être enregistrée. Vérifiez les champs puis réessayez.', values: echo };
   if (!data) return { message: 'Les inscriptions sont fermées pour le moment.', values: echo };
+
+  // Accusé de réception. Volontairement sans le motif ni les notes (données de santé).
+  const { data: practices } = await supabase.rpc('get_public_practice', { p_slug: slug });
+  const practiceName = practices?.[0]?.name ?? 'le cabinet';
+  await sendEmail({
+    to: { email: d.email || ctx.email },
+    subject: `Votre inscription sur la liste d’attente – ${practiceName}`,
+    text: [
+      'Bonjour,',
+      `Votre demande pour ${d.patientFirstName} est bien enregistrée sur la liste d’attente de ${practiceName}.`,
+      'Vous serez contacté dès qu’une place se libère. Vous pouvez suivre votre demande à tout moment depuis votre espace :',
+      `${siteUrl}/patient`,
+      'Si vous ne souhaitez plus cette prise en charge, vous pouvez retirer votre demande depuis votre espace.',
+    ].join('\n\n'),
+  });
   return success;
 }

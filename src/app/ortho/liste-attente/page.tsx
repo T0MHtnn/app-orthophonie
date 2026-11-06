@@ -6,13 +6,13 @@ import { requireOrtho } from '@/lib/auth';
 import { DEFAULT_EMAIL_TEMPLATE } from '@/lib/defaults';
 import { siteUrl } from '@/lib/env';
 import { createClient } from '@/lib/supabase/server';
-import { fillTemplate } from '@/lib/text';
-import { deleteEntry, markContacted, updateStatus } from './actions';
+import { buildOfferEmail } from '@/lib/offer-email';
+import { deleteEntry, markContacted, sendOfferEmail, updateStatus } from './actions';
 import { AutoSubmitSelect, CopyButton } from './client';
 
 export const metadata: Metadata = { title: 'Liste d’attente' };
 
-const STATUS_LABEL: Record<WaitlistStatus, string> = { attente: 'En attente', contacte: 'Contacté', rdv: 'RDV pris', retire: 'Retiré' };
+const STATUS_LABEL: Record<WaitlistStatus, string> = { attente: 'En attente', contacte: 'Place proposée', rdv: 'Pris en charge', retire: 'Retiré' };
 
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Paris' });
 const fullName = (first: string | null, last: string | null) => [first, last].filter(Boolean).join(' ');
@@ -48,7 +48,12 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
         </div>
       </div>
 
-      {params.ok === 'contacte' && <p className="alert ok">Statut passé à « Contacté ».</p>}
+      {params.ok === 'contacte' && <p className="alert ok">Statut passé à « Place proposée ».</p>}
+      {params.ok === 'envoye' && <p className="alert ok">Email envoyé. Statut passé à « Place proposée ».</p>}
+      {params.erreur === 'envoi' && <p className="alert error">L’email n’a pas pu être envoyé. Réessayez, ou copiez le texte dans votre messagerie.</p>}
+      {params.erreur === 'email-config' && <p className="alert error">L’envoi d’emails n’est pas encore configuré (clé Brevo manquante). Copiez le texte dans votre messagerie en attendant.</p>}
+      {params.erreur === 'email' && <p className="alert error">Cette personne n’a pas laissé d’adresse email : contactez-la par téléphone.</p>}
+      <p className="hint">Passer une demande en « Pris en charge » débloque l’espace patient de la famille.</p>
       {params.ok === 'supprime' && <p className="alert ok">Inscription supprimée définitivement.</p>}
       {error && <p className="alert error">Impossible de charger la liste. Rechargez la page.</p>}
 
@@ -144,14 +149,7 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
 
 function EmailPreview({ entry, template, orthoName, practiceName }: { entry: WaitlistEntryRow; template: string; orthoName: string; practiceName: string }) {
   const caregiver = entry.caregiver_first_name || entry.patient_first_name;
-  const text = fillTemplate(template, {
-    aidant: caregiver,
-    patient: entry.patient_first_name,
-    // Le lien de réservation arrivera avec le module Planning.
-    lien: '[lien de réservation, disponible avec le module Planning]',
-    orthophoniste: orthoName,
-    cabinet: practiceName,
-  });
+  const text = buildOfferEmail(template, entry, orthoName, practiceName);
   const [subjectLine, ...rest] = text.split('\n');
   const subject = subjectLine?.replace(/^Objet\s*:\s*/i, '') ?? '';
   const body = rest.join('\n').trim();
@@ -170,6 +168,12 @@ function EmailPreview({ entry, template, orthoName, practiceName }: { entry: Wai
       </div>
       <pre className="email-body">{text}</pre>
       <div className="row">
+        {entry.email && (
+          <form action={sendOfferEmail}>
+            <input type="hidden" name="id" value={entry.id} />
+            <SubmitButton pendingText="Envoi…">Envoyer l’email</SubmitButton>
+          </form>
+        )}
         <CopyButton text={text} />
         {mailto && (
           <a className="btn" href={mailto}>
@@ -178,10 +182,10 @@ function EmailPreview({ entry, template, orthoName, practiceName }: { entry: Wai
         )}
         <form action={markContacted}>
           <input type="hidden" name="id" value={entry.id} />
-          <SubmitButton>Marquer comme contacté</SubmitButton>
+          <SubmitButton className="btn">Marquer comme contacté sans envoyer</SubmitButton>
         </form>
       </div>
-      <p className="hint">Le modèle se modifie dans les Réglages. L’envoi direct depuis l’app arrivera avec un service d’email conforme.</p>
+      <p className="hint">Si la famille répond, sa réponse arrive directement dans votre boîte email. Le modèle se modifie dans les Réglages.</p>
     </section>
   );
 }
