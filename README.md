@@ -28,7 +28,7 @@ Autres commandes :
 1. Créer un projet sur [supabase.com](https://supabase.com), **région Paris (eu-west-3)**, plan Free.
 2. **SQL Editor** → coller et exécuter `supabase/migrations/20261106120000_init.sql`.
    (Ou avec la CLI : `npx supabase link` puis `npx supabase db push`.)
-3. **Project Settings → API Keys** : copier l'URL, la clé *publishable* et la clé *secret* dans `.env.local`.
+3. **Project Settings → API Keys** : copier l'URL et la clé *publishable* dans `.env.local`.
 4. **Authentication → URL Configuration**
    - Site URL : `http://localhost:3000` (puis l'URL Vercel en ligne).
    - Redirect URLs : `http://localhost:3000/**` et `https://<votre-app>.vercel.app/**`.
@@ -40,7 +40,6 @@ Autres commandes :
    (pour « Reset password » : `&type=recovery&next=/compte/mot-de-passe`).
 7. **Authentication → Multi-Factor** : activer **TOTP** (gratuit).
 8. **Authentication → Providers → Google** (facultatif) : créer un identifiant OAuth sur [Google Cloud Console](https://console.cloud.google.com/apis/credentials), URI de redirection autorisée = celle affichée par Supabase (`https://<projet>.supabase.co/auth/v1/callback`), puis coller l'ID et le secret.
-9. Générer le sel des IP : `openssl rand -base64 48` → `IP_HASH_SECRET`.
 
 ### Valider un cabinet (rôle admin)
 
@@ -54,14 +53,14 @@ update public.practices set verified = true where slug = 'cabinet-de-maelle-foui
 
 1. Pousser le projet sur GitHub (le fichier `.env.local` est ignoré, ne jamais le commiter).
 2. Sur [vercel.com](https://vercel.com) : *Add New → Project* → importer le dépôt.
-3. *Environment Variables* : ajouter les 5 variables de `.env.example`, avec `NEXT_PUBLIC_SITE_URL=https://<votre-app>.vercel.app`.
+3. *Environment Variables* : ajouter les 3 variables de `.env.example`, avec `NEXT_PUBLIC_SITE_URL=https://<votre-app>.vercel.app`.
 4. Déployer. Les fonctions tournent à Paris (`vercel.json` → `cdg1`).
 5. Reporter l'URL Vercel dans Supabase (Site URL + Redirect URLs).
 
 ## Parcours
 
 - **Orthophoniste** : `/inscription` → email de confirmation → `/cabinet/creer` (nom, adresse publique, RPPS) → `/mfa/activer` (QR code) → `/ortho/liste-attente`.
-- **Famille** : `/c/<adresse-du-cabinet>` → lit le texte d'information, coche la case, remplit le formulaire.
+- **Famille** : `/c/<adresse-du-cabinet>` → crée un compte ou se connecte → lit le texte d'information, coche la case, remplit le formulaire → suit ou retire sa demande sur `/patient`.
 - **Ortho, liste d'attente** : filtre par motif, statut (en attente, contacté, RDV pris, retiré), « Proposer une place » prépare l'email à partir du modèle, suppression définitive (RGPD).
 - **Ortho, réglages** : nom du cabinet, ouverture des inscriptions, texte d'information, **modèle de l'email « place libérée »**.
 
@@ -73,11 +72,11 @@ src/
 ├── lib/
 │   ├── auth.ts              Contexte utilisateur, requireUser / requireOrtho
 │   ├── validation.ts        Schémas zod de toutes les entrées
-│   ├── security.ts          Redirections sûres, empreinte d'IP
+│   ├── security.ts          Redirections sûres
 │   ├── text.ts              Mise en forme des textes de l'ortho (sans HTML)
 │   ├── defaults.ts          Texte d'information et email type par défaut
-│   ├── env.ts, server-env.ts Variables d'environnement validées
-│   └── supabase/            Clients serveur (session) et admin (clé secrète)
+│   ├── env.ts               Variables d'environnement validées
+│   └── supabase/            Client serveur lié à la session
 ├── components/              Formulaires, affichage du texte d'information
 └── app/
     ├── (auth)/              Connexion, inscription, mot de passe oublié
@@ -86,7 +85,7 @@ src/
     ├── cabinet/creer/       Création du cabinet
     ├── c/[slug]/            Page publique de liste d'attente
     ├── ortho/               Espace ortho : liste d'attente, réglages
-    └── patient/             Espace patient (à venir)
+    └── patient/             Espace famille : suivi des demandes
 supabase/
 ├── migrations/              Schéma, RLS, fonctions
 └── tests/                   Tests de sécurité de la base

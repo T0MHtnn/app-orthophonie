@@ -1,5 +1,7 @@
 import { z } from 'zod';
+import { isAdultAge } from './age';
 export { slugify } from './slug';
+export { ADULT_AGE, isAdultAge } from './age';
 
 /**
  * Toutes les entrées utilisateur passent par ces schémas côté serveur.
@@ -67,23 +69,44 @@ const phoneSchema = z
   .trim()
   .regex(/^[0-9 +().-]{6,20}$/, 'Numéro de téléphone invalide');
 
+
 export const waitlistFormSchema = z
   .object({
     patientLastName: required(80, 'Nom du patient requis'),
     patientFirstName: required(80, 'Prénom du patient requis'),
-    patientAge: required(30, 'Âge du patient requis'),
+    ageValue: z.coerce
+      .number({ error: 'Âge requis' })
+      .int('Nombre entier')
+      .min(0, 'Âge invalide')
+      .max(120, 'Âge invalide'),
+    ageUnit: z.enum(['ans', 'mois'], { error: 'Unité invalide' }),
     caregiverLastName: text(80).optional().default(''),
     caregiverFirstName: text(80).optional().default(''),
     email: z.union([z.literal(''), emailSchema]).optional().default(''),
     phone: z.union([z.literal(''), phoneSchema]).optional().default(''),
-    pathology: z.string().regex(/^[a-z0-9-]{2,40}$/, 'Motif invalide'),
+    pathology: z.string({ error: 'Choisissez un motif' }).regex(/^[a-z0-9-]{2,40}$/, 'Choisissez un motif'),
     notes: text(2000).optional().default(''),
     acknowledged: z.literal('on', { error: 'Merci de confirmer avoir lu les informations' }),
     consent: z.literal('on', { error: 'Merci d’accepter le traitement de vos données' }),
     // Champ piège invisible : un humain le laisse vide.
     website: z.string().max(200).optional().default(''),
   })
-  .refine((v) => v.email !== '' || v.phone !== '', { message: 'Indiquez un email ou un téléphone', path: ['email'] });
+  .superRefine((v, ctx) => {
+    const adult = isAdultAge(String(v.ageValue), v.ageUnit);
+    if (!adult && !v.caregiverLastName) ctx.addIssue({ code: 'custom', path: ['caregiverLastName'], message: 'Requis pour un patient mineur' });
+    if (!adult && !v.caregiverFirstName) ctx.addIssue({ code: 'custom', path: ['caregiverFirstName'], message: 'Requis pour un patient mineur' });
+    if (v.ageUnit === 'mois' && v.ageValue > 36) ctx.addIssue({ code: 'custom', path: ['ageValue'], message: 'Au-delà de 36 mois, indiquez l’âge en années' });
+  })
+  .transform((v) => {
+    const adult = isAdultAge(String(v.ageValue), v.ageUnit);
+    return {
+      ...v,
+      patientAge: `${v.ageValue} ${v.ageUnit === 'ans' && v.ageValue <= 1 ? 'an' : v.ageUnit}`,
+      // Pour un patient majeur, les champs parent / aidant sont ignorés.
+      caregiverLastName: adult ? '' : v.caregiverLastName,
+      caregiverFirstName: adult ? '' : v.caregiverFirstName,
+    };
+  });
 
 export const practiceSettingsSchema = z.object({
   name: z.string().trim().min(2, 'Nom du cabinet trop court').max(120),

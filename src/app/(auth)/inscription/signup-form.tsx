@@ -4,12 +4,13 @@ import { useActionState } from 'react';
 import { Field, FormAlert, PasswordField, SubmitButton, type FormState } from '@/components/form';
 import { signup } from '../actions';
 
-export function SignupForm() {
+export function SignupForm({ defaultType = 'ortho', next = '' }: { defaultType?: 'ortho' | 'patient'; next?: string }) {
   const [state, action] = useActionState<FormState, FormData>(signup, {});
   if (state.ok) return <FormAlert state={state} />;
-  const type = state.values?.accountType ?? 'ortho';
+  const type = state.values?.accountType ?? defaultType;
   return (
-    <form action={action} className="stack" noValidate>
+    <form key={JSON.stringify(state.values ?? {})} action={action} className="stack" noValidate>
+      <input type="hidden" name="suivant" value={next} />
       <FormAlert state={state} />
       <fieldset className="choice" style={{ border: 0, padding: 0, margin: 0 }}>
         <legend className="sub" style={{ marginBottom: 6 }}>

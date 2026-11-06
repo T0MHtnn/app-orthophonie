@@ -39,12 +39,12 @@ export async function loginWithGoogle(): Promise<void> {
 }
 
 export async function signup(_prev: FormState, formData: FormData): Promise<FormState> {
-  const raw = values(formData, ['fullName', 'email', 'password', 'accountType']);
+  const raw = values(formData, ['fullName', 'email', 'password', 'accountType', 'suivant']);
   const parsed = signupSchema.safeParse(raw);
   if (!parsed.success) return { errors: fieldErrors(parsed.error), values: { ...raw, password: '' } };
 
   const { fullName, email, password, accountType } = parsed.data;
-  const next = accountType === 'ortho' ? '/cabinet/creer' : '/patient';
+  const next = accountType === 'ortho' ? '/cabinet/creer' : safeRedirectPath(formData.get('suivant'), '/patient');
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
     email,

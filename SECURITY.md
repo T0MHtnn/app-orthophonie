@@ -11,7 +11,7 @@ L'app traite des **données de santé** (motif de consultation, âge, notes). Le
 - **Double authentification exigée par la base** : les inscrits ne sont lisibles qu'avec une session `aal2`. Même avec un mot de passe volé, rien n'est lisible sans le téléphone.
 - **Rôle jamais pris côté client** : à l'inscription, tout le monde est « patient ». Le rôle « ortho » n'est donné que par `register_practice()`, après confirmation de l'email.
 - **Isolation des cabinets** : un ortho ne voit et ne modifie que les inscrits de son propre cabinet.
-- **Formulaire public** : aucune insertion directe possible. Seule la fonction `submit_waitlist_entry()`, appelable uniquement avec la clé secrète du serveur, insère. Elle revérifie que le cabinet est vérifié et ouvert, et limite le débit (5 inscriptions par heure et par IP, 200 par jour et par cabinet). L'IP n'est jamais stockée, seulement une empreinte HMAC.
+- **Liste d'attente** : inscription réservée aux comptes à l'email confirmé, via la seule fonction `submit_waitlist_entry()` (aucune insertion directe). Elle revérifie que le cabinet est vérifié et ouvert, refuse les doublons et limite le débit (5 inscriptions par heure et par compte, 200 par jour et par cabinet). Une famille ne voit et ne retire que ses propres demandes.
 - **Fonctions `SECURITY DEFINER`** avec `search_path` vide (protection contre le détournement de schéma).
 - **Journal d'audit** en ajout seul : qui a créé, modifié ou supprimé quoi, sans aucun contenu de santé.
 - Tests : `npm run test:db` couvre élévation de rôle, accès inter-cabinets, accès sans 2FA, insertion directe, limitation de débit, journal non effaçable.
@@ -29,7 +29,7 @@ L'app traite des **données de santé** (motif de consultation, âge, notes). Le
 - **Pas d'énumération de comptes** : mêmes messages que le compte existe ou non (connexion, inscription, mot de passe oublié).
 - **Mots de passe** : 12 caractères minimum, minuscules, majuscules et chiffres.
 - **Champ piège** anti-robots sur le formulaire public.
-- **Clé secrète isolée** dans `src/lib/supabase/admin.ts` et `src/lib/server-env.ts`, protégés par `server-only` (le build échoue si on les importe côté navigateur).
+- **Pas de clé secrète Supabase dans l'app** : tout passe par la session de l'utilisateur, donc sous la RLS.
 - **Polices auto-hébergées** : aucune requête vers un service tiers depuis le navigateur des familles.
 
 ## À faire avant d'accueillir de vrais patients

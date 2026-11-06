@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fillTemplate, parseInfoText } from './text';
-import { hashIp, safeRedirectPath } from './security';
+import { safeRedirectPath } from './security';
 import { isValidRpps, passwordSchema, slugify, waitlistFormSchema } from './validation';
 
 describe('safeRedirectPath', () => {
@@ -8,14 +8,6 @@ describe('safeRedirectPath', () => {
   it.each(['https://evil.fr', '//evil.fr', '/\\evil.fr', 'javascript:alert(1)', '/a\nb', 42, undefined])('refuse %s', (v) =>
     expect(safeRedirectPath(v, '/x')).toBe('/x'),
   );
-});
-
-describe('hashIp', () => {
-  it('ne contient pas l’IP et dépend du secret', () => {
-    const a = hashIp('203.0.113.7', 's'.repeat(32));
-    expect(a).not.toContain('203');
-    expect(a).not.toBe(hashIp('203.0.113.7', 't'.repeat(32)));
-  });
 });
 
 describe('isValidRpps', () => {
@@ -35,11 +27,21 @@ describe('slugify', () => {
 });
 
 describe('waitlistFormSchema', () => {
-  const base = { patientLastName: 'Dupont', patientFirstName: 'Léa', patientAge: '7 ans', pathology: 'langage-ecrit', acknowledged: 'on', consent: 'on' };
-  it('exige un moyen de contact', () => expect(waitlistFormSchema.safeParse(base).success).toBe(false));
-  it('accepte un email seul', () => expect(waitlistFormSchema.safeParse({ ...base, email: 'A@Example.com' }).success).toBe(true));
-  it('exige la case de lecture', () => expect(waitlistFormSchema.safeParse({ ...base, email: 'a@example.com', acknowledged: undefined }).success).toBe(false));
-  it('refuse un motif inventé', () => expect(waitlistFormSchema.safeParse({ ...base, email: 'a@example.com', pathology: '<script>' }).success).toBe(false));
+  const base = { patientLastName: 'Dupont', patientFirstName: 'Léa', ageValue: '7', ageUnit: 'ans', caregiverLastName: 'Dupont', caregiverFirstName: 'Marie', pathology: 'langage-ecrit', acknowledged: 'on', consent: 'on' };
+  it('le contact est facultatif (email du compte par défaut)', () => expect(waitlistFormSchema.safeParse(base).success).toBe(true));
+  it('accepte un email', () => expect(waitlistFormSchema.parse({ ...base, email: 'A@Example.com' }).email).toBe('a@example.com'));
+  it('exige le parent pour un mineur', () => {
+    const r = waitlistFormSchema.safeParse({ ...base, caregiverLastName: '', caregiverFirstName: '' });
+    expect(r.success).toBe(false);
+  });
+  it('ignore le parent pour un majeur', () => {
+    const r = waitlistFormSchema.parse({ ...base, ageValue: '34', caregiverLastName: 'X' });
+    expect(r.caregiverLastName).toBe('');
+    expect(r.patientAge).toBe('34 ans');
+  });
+  it('accepte un âge en mois', () => expect(waitlistFormSchema.parse({ ...base, ageValue: '18', ageUnit: 'mois' }).patientAge).toBe('18 mois'));
+  it('exige la case de lecture', () => expect(waitlistFormSchema.safeParse({ ...base, acknowledged: undefined }).success).toBe(false));
+  it('refuse un motif inventé', () => expect(waitlistFormSchema.safeParse({ ...base, pathology: '<script>' }).success).toBe(false));
 });
 
 describe('parseInfoText', () => {

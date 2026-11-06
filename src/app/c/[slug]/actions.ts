@@ -1,35 +1,48 @@
 'use server';
 
-import { headers } from 'next/headers';
 import type { FormState } from '@/components/form';
-import { clientIp, hashIp } from '@/lib/security';
-import { serverEnv } from '@/lib/server-env';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { getAuthContext } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/server';
 import { fieldErrors, waitlistFormSchema } from '@/lib/validation';
 
-const FIELDS = ['patientLastName', 'patientFirstName', 'patientAge', 'caregiverLastName', 'caregiverFirstName', 'email', 'phone', 'pathology', 'notes', 'acknowledged', 'consent', 'website'];
+const FIELDS = [
+  'patientLastName',
+  'patientFirstName',
+  'ageValue',
+  'ageUnit',
+  'caregiverLastName',
+  'caregiverFirstName',
+  'email',
+  'phone',
+  'pathology',
+  'notes',
+  'acknowledged',
+  'consent',
+  'website',
+];
 
 /**
- * Inscription publique. Ordre des contrôles :
- *   validation stricte → champ piège → empreinte d'IP → fonction SQL qui
- *   revérifie le cabinet (vérifié, ouvert) et applique la limitation de débit.
+ * Inscription sur la liste d'attente, par une famille connectée.
+ * Validation stricte → champ piège → fonction SQL qui revérifie le compte,
+ * le cabinet (vérifié, ouvert), les doublons et la limitation de débit.
  */
 export async function submitWaitlist(slug: string, _prev: FormState, formData: FormData): Promise<FormState> {
   const raw = Object.fromEntries(FIELDS.map((k) => [k, formData.get(k) ?? undefined]));
-  const parsed = waitlistFormSchema.safeParse(raw);
+  // On renvoie tout ce qui a été saisi (cases et listes comprises) pour le réafficher en cas d'erreur.
   const echo = Object.fromEntries(FIELDS.filter((k) => typeof raw[k] === 'string').map((k) => [k, String(raw[k])]));
-  if (!parsed.success) return { errors: fieldErrors(parsed.error), values: echo };
 
-  const success: FormState = { ok: true, message: 'Votre inscription est enregistrée. L’orthophoniste vous contactera dès qu’une place se libère.' };
+  if (!(await getAuthContext())) return { message: 'Votre session a expiré. Reconnectez-vous pour envoyer votre inscription.', values: echo };
+
+  const parsed = waitlistFormSchema.safeParse(raw);
+  if (!parsed.success) return { message: 'Certains champs sont à corriger (encadrés en rouge).', errors: fieldErrors(parsed.error), values: echo };
+
+  const success: FormState = { ok: true, message: 'Votre inscription est enregistrée. L’orthophoniste vous contactera dès qu’une place se libère. Vous pouvez suivre votre demande depuis votre espace.' };
   const d = parsed.data;
   if (d.website) return success; // robot : on fait comme si tout allait bien.
 
-  const { IP_HASH_SECRET } = serverEnv();
-  const ipHash = hashIp(clientIp(await headers()), IP_HASH_SECRET);
-
-  const { data, error } = await createAdminClient().rpc('submit_waitlist_entry', {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('submit_waitlist_entry', {
     p_slug: slug,
-    p_ip_hash: ipHash,
     p_patient_last_name: d.patientLastName,
     p_patient_first_name: d.patientFirstName,
     p_patient_age: d.patientAge,
@@ -41,7 +54,9 @@ export async function submitWaitlist(slug: string, _prev: FormState, formData: F
     p_notes: d.notes,
   });
 
-  if (error?.code === 'P0429') return { message: 'Trop de demandes depuis votre connexion. Réessayez dans une heure.', values: echo };
+  if (error?.code === 'P0429') return { message: 'Trop de demandes envoyées. Réessayez dans une heure.', values: echo };
+  if (error?.code === '23505') return { message: 'Ce patient est déjà inscrit sur la liste d’attente de ce cabinet.', values: echo };
+  if (error?.code === '42501') return { message: 'Confirmez d’abord votre adresse email (lien reçu à la création du compte).', values: echo };
   if (error) return { message: 'L’inscription n’a pas pu être enregistrée. Vérifiez les champs puis réessayez.', values: echo };
   if (!data) return { message: 'Les inscriptions sont fermées pour le moment.', values: echo };
   return success;

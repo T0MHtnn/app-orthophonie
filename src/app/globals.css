@@ -135,3 +135,16 @@ fieldset:disabled { opacity: 0.55; }
 .password-wrap input { padding-right: 44px; }
 .eye { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--muted); }
 .eye:hover, .eye[aria-pressed="true"] { color: var(--ink); background: var(--surface-2); }
+
+/* Erreurs de saisie : bordure rouge bien visible sur le champ ou la case concernés */
+.field [aria-invalid="true"] { border-color: var(--danger) !important; box-shadow: 0 0 0 1px var(--danger); }
+.check.invalid { outline: 2px solid var(--danger); outline-offset: 2px; border-radius: 8px; }
+.check.invalid input { outline: 2px solid var(--danger); }
+.error-text { color: var(--danger); font-size: 13px; margin-top: -6px; }
+fieldset.plain { border: 0; padding: 0; margin: 0; min-width: 0; }
+.field input:disabled { background: var(--surface-2); cursor: not-allowed; }
+.age-row { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 8px; }
+.age-row input, .age-row select { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.login-cta { background: var(--accent-soft); border-color: transparent; }
+.request { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; padding: 14px 0; border-top: 1px solid var(--line); }
+.request:first-of-type { border-top: 0; }

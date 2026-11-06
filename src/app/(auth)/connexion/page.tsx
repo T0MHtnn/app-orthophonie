@@ -26,7 +26,8 @@ export default async function ConnexionPage({ searchParams }: { searchParams: Pr
         {notice && <p className={`alert ${notice.kind}`}>{notice.text}</p>}
         <LoginForm next={safeRedirectPath(params.suivant, '/')} />
         <p className="hint">
-          Pas encore de compte ? <Link href="/inscription">Créer un compte</Link>
+          Pas encore de compte ?{' '}
+          <Link href={params.suivant ? `/inscription?suivant=${encodeURIComponent(safeRedirectPath(params.suivant, '/'))}` : '/inscription'}>Créer un compte</Link>
         </p>
       </div>
     </main>

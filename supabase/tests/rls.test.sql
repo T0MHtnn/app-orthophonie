@@ -58,13 +58,16 @@ exception when insufficient_privilege then null;
 end $$;
 reset role;
 
--- 4. Le formulaire public : interdit à anon, possible pour service_role, seulement si le cabinet est vérifié.
+-- 4. Liste d'attente : inscription réservée aux comptes connectés et confirmés, cabinet vérifié uniquement.
 update public.practices set verified = true where slug = 'cabinet-a';
+insert into auth.users (id, email, email_confirmed_at) values
+  ('00000000-0000-0000-0000-0000000000f1', 'famille1@example.com', now()),
+  ('00000000-0000-0000-0000-0000000000f2', 'famille2@example.com', now());
 select set_config('request.jwt.claims', '{"role":"anon"}', false);
 set role anon;
 do $$ begin
-  perform public.submit_waitlist_entry('cabinet-a', 'h', 'Dupont', 'Léa', '7 ans', 'Dupont', 'Marie', 'm@example.com', null, 'langage-ecrit', null);
-  raise exception 'ÉCHEC 4a : anon peut appeler submit_waitlist_entry';
+  perform public.submit_waitlist_entry('cabinet-a', 'Dupont', 'Léa', '7 ans', 'Dupont', 'Marie', 'm@example.com', null, 'langage-ecrit', null);
+  raise exception 'ÉCHEC 4a : anon peut s''inscrire';
 exception when insufficient_privilege then null;
 end $$;
 do $$ begin
@@ -77,23 +80,45 @@ do $$ begin
 exception when insufficient_privilege then null;
 end $$;
 reset role;
-set role service_role;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000c', 'aal1');
+set role authenticated;
 do $$ begin
-  if not public.submit_waitlist_entry('cabinet-a', 'ip1', 'Dupont', 'Léa', '7 ans', 'Dupont', 'Marie', 'm@example.com', null, 'langage-ecrit', 'note') then
-    raise exception 'ÉCHEC 4e : inscription refusée';
+  perform public.submit_waitlist_entry('cabinet-a', 'X', 'Y', '7 ans', null, null, null, '06 00 00 00 00', 'voix', null);
+  raise exception 'ÉCHEC 4e : inscription sans email confirmé';
+exception when insufficient_privilege then null;
+end $$;
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1', 'aal1');
+set role authenticated;
+do $$ begin
+  if not public.submit_waitlist_entry('cabinet-a', 'Dupont', 'Léa', '7 ans', 'Dupont', 'Marie', '', null, 'langage-ecrit', 'note') then
+    raise exception 'ÉCHEC 4f : inscription refusée';
   end if;
-  if public.submit_waitlist_entry('cabinet-b', 'ip1', 'X', 'Y', '7 ans', null, null, 'x@example.com', null, 'voix', null) then
-    raise exception 'ÉCHEC 4f : inscription acceptée sur un cabinet non vérifié';
+  if public.submit_waitlist_entry('cabinet-b', 'X', 'Y', '7 ans', null, null, 'x@example.com', null, 'voix', null) then
+    raise exception 'ÉCHEC 4g : inscription acceptée sur un cabinet non vérifié';
+  end if;
+  begin
+    perform public.submit_waitlist_entry('cabinet-a', 'dupont', 'léa', '7 ans', null, null, null, '06 00 00 00 00', 'voix', null);
+    raise exception 'ÉCHEC 4h : doublon accepté';
+  exception when unique_violation then null;
+  end;
+end $$;
+reset role;
+do $$ begin
+  if (select email from public.waitlist_entries where patient_first_name = 'Léa') <> 'famille1@example.com' then
+    raise exception 'ÉCHEC 4i : email du compte non repris';
   end if;
 end $$;
 
--- 5. Limitation de débit : la 6e inscription de la même IP dans l'heure est refusée.
+-- 5. Limitation de débit : au-delà de 5 inscriptions par heure et par compte, refus.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1', 'aal1');
+set role authenticated;
 do $$ declare i int; begin
   for i in 2..5 loop
-    perform public.submit_waitlist_entry('cabinet-a', 'ip1', 'Nom', 'Prénom', '5 ans', null, null, null, '06 00 00 00 00', 'voix', null);
+    perform public.submit_waitlist_entry('cabinet-a', 'Nom', 'Enfant' || i, '5 ans', null, null, null, '06 00 00 00 00', 'voix', null);
   end loop;
   begin
-    perform public.submit_waitlist_entry('cabinet-a', 'ip1', 'Nom', 'Prénom', '5 ans', null, null, null, '06 00 00 00 00', 'voix', null);
+    perform public.submit_waitlist_entry('cabinet-a', 'Nom', 'Enfant10', '5 ans', null, null, null, '06 00 00 00 00', 'voix', null);
     raise exception 'ÉCHEC 5 : pas de limitation de débit';
   exception when sqlstate 'P0429' then null;
   end;
@@ -151,6 +176,25 @@ do $$ begin
   perform 1 from private.rate_limits;
   raise exception 'ÉCHEC 8 : rate_limits lisible';
 exception when insufficient_privilege then null;
+end $$;
+reset role;
+
+-- 9. Espace famille : on ne voit et ne retire que ses propres demandes.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f2', 'aal1');
+set role authenticated;
+do $$ begin
+  if (select count(*) from public.my_waitlist_entries()) <> 0 then raise exception 'ÉCHEC 9a : voit les demandes d''une autre famille'; end if;
+  if (select count(*) from public.waitlist_entries) <> 0 then raise exception 'ÉCHEC 9b : lecture directe de la table'; end if;
+  if public.withdraw_waitlist_entry((select id from public.waitlist_entries limit 1)) then raise exception 'ÉCHEC 9c : retire la demande d''un autre'; end if;
+end $$;
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1', 'aal1');
+set role authenticated;
+do $$ declare v uuid; begin
+  if (select count(*) from public.my_waitlist_entries()) <> 5 then raise exception 'ÉCHEC 9d : la famille ne voit pas ses demandes'; end if;
+  select id into v from public.my_waitlist_entries() where patient_first_name = 'Enfant2';
+  if not public.withdraw_waitlist_entry(v) then raise exception 'ÉCHEC 9e : retrait impossible'; end if;
+  if (select status from public.my_waitlist_entries() where id = v) <> 'retire' then raise exception 'ÉCHEC 9f : statut non mis à jour'; end if;
 end $$;
 reset role;
 

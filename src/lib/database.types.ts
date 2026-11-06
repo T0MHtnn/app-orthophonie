@@ -52,6 +52,7 @@ export type WaitlistEntryRow = {
   info_acknowledged_at: string;
   consent_at: string;
   contacted_at: string | null;
+  requester_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -83,7 +84,6 @@ export type Database = {
       submit_waitlist_entry: {
         Args: {
           p_slug: string;
-          p_ip_hash: string;
           p_patient_last_name: string;
           p_patient_first_name: string;
           p_patient_age: string;
@@ -96,6 +96,20 @@ export type Database = {
         };
         Returns: boolean;
       };
+      my_waitlist_entries: {
+        Args: Record<string, never>;
+        Returns: {
+          id: string;
+          practice_name: string;
+          patient_first_name: string;
+          patient_last_name: string;
+          pathology_label: string;
+          status: WaitlistStatus;
+          created_at: string;
+          contacted_at: string | null;
+        }[];
+      };
+      withdraw_waitlist_entry: { Args: { p_id: string }; Returns: boolean };
     };
     Enums: { user_role: UserRole; waitlist_status: WaitlistStatus };
     CompositeTypes: { [_ in never]: never };
