@@ -1,29 +1,17 @@
-'use client';
+import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { requireUser } from '@/lib/auth';
+import { PasswordForm } from './password-form';
 
-import Link from 'next/link';
-import { useActionState } from 'react';
-import { FormAlert, PasswordField, SubmitButton, type FormState } from '@/components/form';
-import { updatePassword } from '../../(auth)/actions';
+export const metadata: Metadata = { title: 'Nouveau mot de passe' };
 
-export default function NouveauMotDePassePage() {
-  const [state, action] = useActionState<FormState, FormData>(updatePassword, {});
-  return (
-    <main className="wrap auth-page">
-      <div className="card auth-card">
-        <h1>Nouveau mot de passe</h1>
-        <FormAlert state={state} />
-        {state.ok ? (
-          <Link href="/" className="btn primary">
-            Continuer
-          </Link>
-        ) : (
-          <form action={action} className="stack" noValidate>
-            <PasswordField label="Nouveau mot de passe" name="password" autoComplete="new-password" required minLength={12} error={state.errors?.password} />
-            <PasswordField label="Confirmer" name="confirm" autoComplete="new-password" required error={state.errors?.confirm} />
-            <SubmitButton>Enregistrer</SubmitButton>
-          </form>
-        )}
-      </div>
-    </main>
-  );
+/**
+ * Avec la double authentification activée, Supabase n'accepte un nouveau mot
+ * de passe que depuis une session aal2. Le lien « mot de passe oublié » ne
+ * connecte qu'en aal1 : on demande donc d'abord le code à 6 chiffres.
+ */
+export default async function NouveauMotDePassePage() {
+  const ctx = await requireUser();
+  if (ctx.hasMfa && ctx.aal !== 'aal2') redirect('/mfa/verifier?suivant=%2Fcompte%2Fmot-de-passe');
+  return <PasswordForm />;
 }
