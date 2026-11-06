@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
 /** État renvoyé par les server actions des formulaires. */
@@ -46,5 +47,47 @@ export function FormAlert({ state }: { state: FormState }) {
     <p className={`alert ${state.ok ? 'ok' : 'error'}`} role={state.ok ? 'status' : 'alert'}>
       {state.message}
     </p>
+  );
+}
+
+/** Champ mot de passe avec un bouton « œil » pour afficher ou masquer la saisie. */
+export function PasswordField({ label, name, error, ...input }: Omit<FieldProps, 'type'>) {
+  const [visible, setVisible] = useState(false);
+  const errorId = error ? `${name}-error` : undefined;
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <span className="password-wrap">
+        <input
+          name={name}
+          id={name}
+          type={visible ? 'text' : 'password'}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={errorId}
+          autoCapitalize="off"
+          spellCheck={false}
+          {...input}
+        />
+        <button
+          type="button"
+          className="eye"
+          onClick={() => setVisible((v) => !v)}
+          aria-pressed={visible}
+          aria-label={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+          title={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+            <circle cx="12" cy="12" r="3" />
+            {visible && <path d="M4 4l16 16" />}
+          </svg>
+        </button>
+      </span>
+      {error && (
+        <span className="error" id={errorId}>
+          {error}
+        </span>
+      )}
+    </label>
   );
 }

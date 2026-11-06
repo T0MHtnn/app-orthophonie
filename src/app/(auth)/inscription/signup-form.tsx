@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
-import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
+import { Field, FormAlert, PasswordField, SubmitButton, type FormState } from '@/components/form';
 import { signup } from '../actions';
 
 export function SignupForm() {
@@ -24,10 +24,9 @@ export function SignupForm() {
       </fieldset>
       <Field label="Nom et prénom" name="fullName" autoComplete="name" required defaultValue={state.values?.fullName} error={state.errors?.fullName} />
       <Field label="Email" name="email" type="email" autoComplete="email" required defaultValue={state.values?.email} error={state.errors?.email} />
-      <Field
+      <PasswordField
         label="Mot de passe"
         name="password"
-        type="password"
         autoComplete="new-password"
         required
         minLength={12}

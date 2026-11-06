@@ -1,0 +1,20 @@
+<!-- Objet : Réinitialisation de votre mot de passe – Cabinet d'orthophonie -->
+<div style="background:#f3f5f8;padding:32px 16px;font-family:Segoe UI,Arial,sans-serif;color:#1b2232">
+  <div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #dbe0e8;border-radius:10px;padding:28px">
+    <p style="margin:0 0 4px;font-size:13px;color:#5a6478">Cabinet d'orthophonie</p>
+    <h1 style="margin:0 0 16px;font-size:22px">Choisissez un nouveau mot de passe</h1>
+    <p style="margin:0 0 20px;font-size:15px;line-height:1.5">
+      Bonjour,<br>
+      Une demande de réinitialisation du mot de passe a été faite pour votre compte. Cliquez sur le bouton ci-dessous pour en choisir un nouveau.
+    </p>
+    <p style="margin:0 0 24px">
+      <a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=recovery"
+         style="display:inline-block;background:#2d55c8;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:8px">
+        Choisir un nouveau mot de passe
+      </a>
+    </p>
+    <p style="margin:0;font-size:13px;color:#5a6478;line-height:1.5">
+      Ce lien est valable 1 heure. Si vous n'avez rien demandé, ignorez cet email : votre mot de passe actuel reste valable.
+    </p>
+  </div>
+</div>

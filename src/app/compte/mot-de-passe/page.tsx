@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useActionState } from 'react';
-import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
+import { FormAlert, PasswordField, SubmitButton, type FormState } from '@/components/form';
 import { updatePassword } from '../../(auth)/actions';
 
 export default function NouveauMotDePassePage() {
@@ -18,8 +18,8 @@ export default function NouveauMotDePassePage() {
           </Link>
         ) : (
           <form action={action} className="stack" noValidate>
-            <Field label="Nouveau mot de passe" name="password" type="password" autoComplete="new-password" required minLength={12} error={state.errors?.password} />
-            <Field label="Confirmer" name="confirm" type="password" autoComplete="new-password" required error={state.errors?.confirm} />
+            <PasswordField label="Nouveau mot de passe" name="password" autoComplete="new-password" required minLength={12} error={state.errors?.password} />
+            <PasswordField label="Confirmer" name="confirm" autoComplete="new-password" required error={state.errors?.confirm} />
             <SubmitButton>Enregistrer</SubmitButton>
           </form>
         )}
