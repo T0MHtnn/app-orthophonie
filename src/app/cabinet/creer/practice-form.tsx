@@ -1,0 +1,43 @@
+'use client';
+
+import { useActionState, useState } from 'react';
+import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
+import { slugify } from '@/lib/slug';
+import { createPractice } from './actions';
+
+export function PracticeForm({ siteUrl, suggestedName }: { siteUrl: string; suggestedName: string }) {
+  const [state, action] = useActionState<FormState, FormData>(createPractice, {});
+  const [slug, setSlug] = useState(state.values?.slug ?? slugify(suggestedName));
+  const [touched, setTouched] = useState(false);
+
+  return (
+    <form action={action} className="stack" noValidate>
+      <FormAlert state={state} />
+      <Field
+        label="Nom du cabinet"
+        name="name"
+        required
+        defaultValue={state.values?.name ?? suggestedName}
+        error={state.errors?.name}
+        onChange={(e) => !touched && setSlug(slugify(e.target.value))}
+      />
+      <Field
+        label="Adresse de votre page publique"
+        name="slug"
+        required
+        value={slug}
+        onChange={(e) => {
+          setTouched(true);
+          setSlug(e.target.value.toLowerCase());
+        }}
+        error={state.errors?.slug}
+      />
+      <p className="hint">
+        Les familles s’inscriront sur {siteUrl}/c/<b>{slug || '…'}</b>
+      </p>
+      <Field label="Numéro RPPS" name="rpps" inputMode="numeric" required maxLength={14} defaultValue={state.values?.rpps} error={state.errors?.rpps} />
+      <p className="hint">Il sert à vérifier que vous êtes bien orthophoniste. Votre page publique s’ouvre après cette vérification.</p>
+      <SubmitButton pendingText="Création…">Créer mon cabinet</SubmitButton>
+    </form>
+  );
+}

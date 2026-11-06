@@ -1,0 +1,40 @@
+'use client';
+
+import { useActionState } from 'react';
+import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
+import { signup } from '../actions';
+
+export function SignupForm() {
+  const [state, action] = useActionState<FormState, FormData>(signup, {});
+  if (state.ok) return <FormAlert state={state} />;
+  const type = state.values?.accountType ?? 'ortho';
+  return (
+    <form action={action} className="stack" noValidate>
+      <FormAlert state={state} />
+      <fieldset className="choice" style={{ border: 0, padding: 0, margin: 0 }}>
+        <legend className="sub" style={{ marginBottom: 6 }}>
+          Je suis…
+        </legend>
+        <label>
+          <input type="radio" name="accountType" value="ortho" defaultChecked={type === 'ortho'} /> Orthophoniste
+        </label>
+        <label>
+          <input type="radio" name="accountType" value="patient" defaultChecked={type === 'patient'} /> Patient ou parent
+        </label>
+      </fieldset>
+      <Field label="Nom et prénom" name="fullName" autoComplete="name" required defaultValue={state.values?.fullName} error={state.errors?.fullName} />
+      <Field label="Email" name="email" type="email" autoComplete="email" required defaultValue={state.values?.email} error={state.errors?.email} />
+      <Field
+        label="Mot de passe"
+        name="password"
+        type="password"
+        autoComplete="new-password"
+        required
+        minLength={12}
+        error={state.errors?.password}
+      />
+      <p className="hint">12 caractères minimum, avec majuscules, minuscules et chiffres.</p>
+      <SubmitButton pendingText="Création…">Créer mon compte</SubmitButton>
+    </form>
+  );
+}
