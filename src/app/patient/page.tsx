@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { logout } from '@/app/(auth)/actions';
 import { SubmitButton } from '@/components/form';
 import type { WaitlistStatus } from '@/lib/database.types';
@@ -22,7 +21,6 @@ const formatDate = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { 
 /** Espace famille : suivi des demandes de liste d'attente. Le reste (séances, exercices) arrivera ici. */
 export default async function PatientPage() {
   const ctx = await requireUser();
-  if (ctx.profile.role === 'ortho') redirect('/ortho');
   const supabase = await createClient();
   const { data: requests } = await supabase.rpc('my_waitlist_entries');
 
@@ -69,7 +67,8 @@ export default async function PatientPage() {
       </section>
 
       <p className="hint">
-        <Link href="/compte/mot-de-passe">Changer mon mot de passe</Link> · Vous êtes orthophoniste ? <Link href="/cabinet/creer">Créer votre cabinet</Link>
+        <Link href="/compte/mot-de-passe">Changer mon mot de passe</Link> ·{' '}
+        {ctx.profile.role === 'ortho' ? <Link href="/ortho">Mon espace orthophoniste</Link> : <>Vous êtes orthophoniste ? <Link href="/cabinet/creer">Créer votre cabinet</Link></>}
       </p>
     </main>
   );

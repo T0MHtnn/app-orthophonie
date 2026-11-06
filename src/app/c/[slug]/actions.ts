@@ -57,6 +57,8 @@ export async function submitWaitlist(slug: string, _prev: FormState, formData: F
   if (error?.code === 'P0429') return { message: 'Trop de demandes envoyées. Réessayez dans une heure.', values: echo };
   if (error?.code === '23505') return { message: 'Ce patient est déjà inscrit sur la liste d’attente de ce cabinet.', values: echo };
   if (error?.code === '42501') return { message: 'Confirmez d’abord votre adresse email (lien reçu à la création du compte).', values: echo };
+  // Code et message Postgres seulement, jamais les données saisies.
+  if (error) console.error('submit_waitlist_entry', error.code, error.message);
   if (error) return { message: 'L’inscription n’a pas pu être enregistrée. Vérifiez les champs puis réessayez.', values: echo };
   if (!data) return { message: 'Les inscriptions sont fermées pour le moment.', values: echo };
   return success;

@@ -8,7 +8,7 @@ import { LoginForm } from './login-form';
 export const metadata: Metadata = { title: 'Connexion' };
 
 const NOTICES: Record<string, { kind: 'warn' | 'error' | 'ok'; text: string }> = {
-  inactivite: { kind: 'warn', text: 'Vous avez été déconnecté après 30 minutes d’inactivité, pour protéger les données de vos patients.' },
+  inactivite: { kind: 'warn', text: 'Vous avez été déconnecté après 30 minutes d’inactivité.' },
   google: { kind: 'error', text: 'La connexion avec Google a échoué. Réessayez.' },
   lien: { kind: 'error', text: 'Ce lien n’est plus valide. Demandez-en un nouveau.' },
 };

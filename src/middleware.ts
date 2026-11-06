@@ -77,10 +77,11 @@ export async function middleware(request: NextRequest) {
     return redirectTo('/connexion', { suivant: path });
   }
 
-  // Déconnexion automatique après inactivité, dans l'espace ortho (données de santé).
-  if (claims && path.startsWith('/ortho')) {
+  // Déconnexion automatique après 30 min d'inactivité dans l'espace ortho (données de santé).
+  // L'activité est comptée sur toutes les pages : naviguer ailleurs dans l'app n'est pas de l'inactivité.
+  if (claims) {
     const last = Number(request.cookies.get(IDLE_COOKIE)?.value ?? Date.now());
-    if (Date.now() - last > SESSION_IDLE_MINUTES * 60_000) {
+    if (path.startsWith('/ortho') && Date.now() - last > SESSION_IDLE_MINUTES * 60_000) {
       await supabase.auth.signOut({ scope: 'local' });
       const redirect = redirectTo('/connexion', { raison: 'inactivite' });
       redirect.cookies.delete(IDLE_COOKIE);
