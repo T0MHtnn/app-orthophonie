@@ -7,9 +7,10 @@ import '@fontsource/atkinson-hyperlegible/700.css';
 import '@fontsource/bricolage-grotesque/500.css';
 import '@fontsource/bricolage-grotesque/700.css';
 import './globals.css';
+import { APP_NAME } from '@/lib/app';
 
 export const metadata: Metadata = {
-  title: { default: 'Cabinet d’orthophonie', template: '%s · Cabinet d’orthophonie' },
+  title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
   description: 'Gestion du cabinet d’orthophonie : liste d’attente, rendez-vous, dossiers.',
   robots: { index: false, follow: false },
 };

@@ -8,6 +8,36 @@ import { safeRedirectPath } from '@/lib/security';
 import { createClient } from '@/lib/supabase/server';
 import { emailSchema, fieldErrors, loginSchema, passwordSchema, signupSchema } from '@/lib/validation';
 
+/** Messages clairs pour les erreurs Supabase Auth les plus courantes. */
+function authErrorMessage(code: string | undefined, fallback: string): string {
+  switch (code) {
+    case 'email_not_confirmed':
+      return 'Confirmez d’abord votre adresse email (lien reçu à l’inscription).';
+    case 'over_email_send_rate_limit':
+    case 'over_request_rate_limit':
+      return 'Trop de tentatives en peu de temps. Réessayez dans une heure.';
+    case 'email_address_invalid':
+      return 'Cette adresse email n’est pas acceptée. Utilisez une autre adresse.';
+    case 'signup_disabled':
+      return 'Les inscriptions sont fermées pour le moment.';
+    case 'unexpected_failure':
+      return 'L’email de confirmation n’a pas pu être envoyé. Réessayez dans quelques minutes.';
+    case 'same_password':
+      return 'Le nouveau mot de passe doit être différent de l’ancien.';
+    case 'weak_password':
+      return 'Mot de passe trop faible ou déjà apparu dans une fuite de données.';
+    case 'insufficient_aal':
+      return 'Pour des raisons de sécurité, saisissez d’abord le code de votre application d’authentification.';
+    case 'reauthentication_needed':
+      return 'Pour des raisons de sécurité, reconnectez-vous puis réessayez.';
+    case 'session_expired':
+    case 'session_not_found':
+      return 'Votre session a expiré. Reconnectez-vous puis réessayez.';
+    default:
+      return fallback;
+  }
+}
+
 const values = (formData: FormData, keys: string[]) =>
   Object.fromEntries(keys.map((k) => [k, String(formData.get(k) ?? '')]));
 
@@ -17,13 +47,17 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
   if (!parsed.success) return { errors: fieldErrors(parsed.error), values: { email: String(formData.get('email') ?? '') } };
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) {
-    const unconfirmed = error.code === 'email_not_confirmed';
-    return {
-      message: unconfirmed ? 'Confirmez d’abord votre adresse email (lien reçu à l’inscription).' : 'Email ou mot de passe incorrect.',
-      values: { email: parsed.data.email },
-    };
+    // Code d'erreur seulement : jamais l'email ni le mot de passe dans les logs.
+    if (error.code !== 'invalid_credentials') console.error('login', error.code);
+    return { message: authErrorMessage(error.code, 'Email ou mot de passe incorrect.'), values: { email: parsed.data.email } };
+  }
+  // Compte supprimé en partie (profil absent) : on refuse proprement au lieu de boucler.
+  const { data: profile } = await supabase.from('profiles').select('id').eq('id', data.user.id).maybeSingle();
+  if (!profile) {
+    await supabase.auth.signOut({ scope: 'local' });
+    return { message: 'Ce compte n’est plus valide : il a été supprimé ou est incomplet. Créez un nouveau compte.', values: { email: parsed.data.email } };
   }
   redirect(safeRedirectPath(formData.get('suivant'), '/'));
 }
@@ -56,7 +90,10 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
     },
   });
   if (error && error.code === 'weak_password') return { errors: { password: 'Mot de passe trop faible ou déjà apparu dans une fuite de données.' }, values: { ...raw, password: '' } };
-  if (error && error.code !== 'user_already_exists') return { message: 'Inscription impossible pour le moment. Réessayez dans quelques minutes.', values: { ...raw, password: '' } };
+  if (error && error.code !== 'user_already_exists') {
+    console.error('signup', error.code, error.status);
+    return { message: authErrorMessage(error.code, 'Inscription impossible pour le moment. Réessayez dans quelques minutes.'), values: { ...raw, password: '' } };
+  }
 
   // Même réponse que le compte existe ou non (pas d'énumération des comptes).
   return { ok: true, message: `Si l’adresse ${email} est valide, vous allez recevoir un email pour confirmer votre compte.` };
@@ -80,7 +117,10 @@ export async function updatePassword(_prev: FormState, formData: FormData): Prom
 
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ password: parsed.data });
-  if (error) return { message: error.code === 'weak_password' ? 'Mot de passe trop faible.' : 'Modification impossible. Reconnectez-vous puis réessayez.' };
+  if (error) {
+    console.error('update_password', error.code, error.status);
+    return { message: authErrorMessage(error.code, 'Modification impossible. Reconnectez-vous puis réessayez.') };
+  }
   return { ok: true, message: 'Mot de passe modifié.' };
 }
 

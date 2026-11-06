@@ -19,31 +19,48 @@ export interface AuthContext {
  * Utilise getClaims() (jeton vérifié) puis lit profil et cabinet sous RLS.
  */
 export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
+  const session = await loadSession();
+  return session.kind === 'ok' ? session.ctx : null;
+});
+
+/**
+ * « orphan » = session valide mais profil introuvable (compte supprimé en
+ * partie, par exemple depuis la table profiles). On déconnecte proprement
+ * au lieu de boucler sur la page de connexion.
+ */
+export const getSessionStatus = cache(async (): Promise<'none' | 'orphan' | 'ok'> => (await loadSession()).kind);
+
+type Session = { kind: 'none' } | { kind: 'orphan' } | { kind: 'ok'; ctx: AuthContext };
+
+const loadSession = cache(async (): Promise<Session> => {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const claims = data?.claims;
-  if (!claims?.sub) return null;
+  if (!claims?.sub) return { kind: 'none' };
 
   const [{ data: profile }, { data: practice }, { data: aal }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', claims.sub).maybeSingle(),
     supabase.from('practices').select('*').eq('owner_id', claims.sub).maybeSingle(),
     supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
   ]);
-  if (!profile) return null;
+  if (!profile) return { kind: 'orphan' };
 
   return {
-    userId: claims.sub,
-    email: String(claims.email ?? ''),
-    profile,
-    aal: aal?.currentLevel === 'aal2' ? 'aal2' : 'aal1',
-    hasMfa: aal?.nextLevel === 'aal2',
-    practice: practice ?? null,
+    kind: 'ok',
+    ctx: {
+      userId: claims.sub,
+      email: String(claims.email ?? ''),
+      profile,
+      aal: aal?.currentLevel === 'aal2' ? 'aal2' : 'aal1',
+      hasMfa: aal?.nextLevel === 'aal2',
+      practice: practice ?? null,
+    },
   };
 });
 
 export async function requireUser(): Promise<AuthContext> {
   const ctx = await getAuthContext();
-  if (!ctx) redirect('/connexion');
+  if (!ctx) redirect((await getSessionStatus()) === 'orphan' ? '/auth/session-invalide' : '/connexion');
   return ctx;
 }
 

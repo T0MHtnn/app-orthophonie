@@ -1,4 +1,5 @@
 import 'server-only';
+import { APP_NAME } from '@/lib/app';
 
 /**
  * Secrets serveur, jamais envoyés au navigateur (`server-only` fait échouer
@@ -16,5 +17,5 @@ export function emailConfig(): EmailConfig | null {
   const apiKey = process.env.BREVO_API_KEY;
   const senderEmail = process.env.EMAIL_SENDER_EMAIL;
   if (!apiKey || apiKey.length < 20 || !senderEmail?.includes('@')) return null;
-  return { apiKey, senderEmail, senderName: process.env.EMAIL_SENDER_NAME || 'Cabinet d’orthophonie' };
+  return { apiKey, senderEmail, senderName: process.env.EMAIL_SENDER_NAME || APP_NAME };
 }

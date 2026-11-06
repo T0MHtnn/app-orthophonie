@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 
 /** État renvoyé par les server actions des formulaires. */
@@ -42,9 +42,14 @@ export function Field({ label, name, error, className, ...input }: FieldProps) {
 }
 
 export function FormAlert({ state }: { state: FormState }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  // Fait défiler la page jusqu'au message : on voit tout de suite si c'est enregistré ou s'il y a une erreur.
+  useEffect(() => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [state]);
   if (!state.message) return null;
   return (
-    <p className={`alert ${state.ok ? 'ok' : 'error'}`} role={state.ok ? 'status' : 'alert'}>
+    <p ref={ref} tabIndex={-1} className={`alert ${state.ok ? 'ok' : 'error'}`} role={state.ok ? 'status' : 'alert'}>
       {state.message}
     </p>
   );
