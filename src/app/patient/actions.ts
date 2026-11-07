@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { requireUser } from '@/lib/auth';
 import type { FormState } from '@/components/form';
-import { DOCUMENTS_BUCKET, documentsConfigured, encryptDocument, readUpload, storagePath } from '@/lib/documents';
+import { DOCUMENTS_BUCKET, documentsConfigured, encryptDocument, readUpload, storageError, storagePath } from '@/lib/documents';
 import { createClient } from '@/lib/supabase/server';
 
 /** La famille retire sa propre demande (la base vérifie qu'elle en est l'auteur). */
@@ -100,7 +100,7 @@ export async function uploadMyDocument(_prev: FormState, formData: FormData): Pr
   const path = storagePath(patient.practice_id, patient.id);
   const { error: upError } = await supabase.storage.from(DOCUMENTS_BUCKET).upload(path, encryptDocument(file.data), { contentType: 'application/octet-stream' });
   if (upError) {
-    console.error('family_upload', upError.name);
+    console.error('family_upload', storageError(upError));
     return { message: 'Le document n’a pas pu être envoyé. Réessayez.' };
   }
   const { error } = await supabase.rpc('family_add_document', {

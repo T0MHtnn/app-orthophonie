@@ -72,3 +72,9 @@ export async function readUpload(file: FormDataEntryValue | null): Promise<FileC
 }
 
 export const storagePath = (practiceId: string, patientId: string) => `${practiceId}/${patientId}/${crypto.randomUUID()}`;
+
+/** Erreur du stockage pour les logs : type, code HTTP et message technique (jamais le contenu ni le nom du fichier). */
+export function storageError(error: unknown): string {
+  const e = error as { name?: string; status?: number; statusCode?: string | number; message?: string; originalError?: { message?: string } };
+  return [e.name, e.status ?? e.statusCode, e.message?.slice(0, 160), e.originalError?.message?.slice(0, 160)].filter(Boolean).join(' | ');
+}

@@ -6,7 +6,7 @@ import type { FormState } from '@/components/form';
 import { requireOrtho } from '@/lib/auth';
 import type { RequestType } from '@/lib/request-type';
 import { createClient } from '@/lib/supabase/server';
-import { DOCUMENTS_BUCKET, documentsConfigured, encryptDocument, readUpload, storagePath } from '@/lib/documents';
+import { DOCUMENTS_BUCKET, documentsConfigured, encryptDocument, readUpload, storageError, storagePath } from '@/lib/documents';
 import { caregiverSchema, fieldErrors, homeworkSchema, patientFileSchema, sessionNoteSchema } from '@/lib/validation';
 
 const idSchema = z.uuid();
@@ -173,7 +173,7 @@ export async function uploadDocument(_prev: FormState, formData: FormData): Prom
   const path = storagePath(practice.id, patientId.data);
   const { error: upError } = await supabase.storage.from(DOCUMENTS_BUCKET).upload(path, encryptDocument(file.data), { contentType: 'application/octet-stream' });
   if (upError) {
-    console.error('upload_document', upError.name);
+    console.error('upload_document', storageError(upError));
     return { message: 'Le document n’a pas pu être déposé. Réessayez.' };
   }
   const { error } = await supabase.from('patient_documents').insert({

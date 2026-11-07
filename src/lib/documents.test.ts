@@ -18,7 +18,7 @@ describe('chiffrement des documents', () => {
   it('refuse un fichier modifié', async () => {
     const { decryptDocument, encryptDocument } = await import('./documents');
     const enc = encryptDocument(Buffer.from('abc'));
-    enc[enc.length - 1] ^= 1;
+    enc.writeUInt8(enc.readUInt8(enc.length - 1) ^ 1, enc.length - 1);
     expect(() => decryptDocument(enc)).toThrow();
   });
 
