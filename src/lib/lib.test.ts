@@ -5,7 +5,7 @@ import { appointmentSchema, blockSchema, fieldErrors, isValidRpps, passwordSchem
 import { normalizePhone } from './phone';
 import { matchesSearch } from './search';
 import { addDays, parisParts, parisToInstant, startOfWeek } from './time';
-import { buildWeek, freeSlots, isFree, occursOn, type BlockInput } from './agenda';
+import { buildWeek, freeSlots, isFree, layoutPieces, occursOn, type BlockInput } from './agenda';
 
 describe('safeRedirectPath', () => {
   it('garde un chemin interne', () => expect(safeRedirectPath('/ortho/reglages')).toBe('/ortho/reglages'));
@@ -224,4 +224,30 @@ describe('créneaux réservables par une famille', () => {
   });
   it('rien avant le délai minimum', () => expect(freeSlots('2026-11-09', [], 30, new Date('2026-11-09T19:00:00Z'))[0]!.times).toEqual(['20:00', '20:30']));
   it('séance de 45 min : pas de 15 min', () => expect(freeSlots('2026-11-09', [], 45, new Date(0))[0]!.times.slice(0, 2)).toEqual(['07:00', '07:15']));
+});
+
+describe('répartition des éléments qui se chevauchent', () => {
+  it('seul : toute la largeur', () => {
+    expect(layoutPieces([{ id: 'a', start: 780, end: 840 }]).get('a')).toEqual([{ start: 780, end: 840, col: 0, cols: 1, first: true, last: true }]);
+  });
+  it('annulé 13 h – 14 h + nouveau RDV 13 h 15 – 13 h 45', () => {
+    const m = layoutPieces([
+      { id: 'rdv', start: 795, end: 825 },
+      { id: 'annule', start: 780, end: 840 },
+    ]);
+    expect(m.get('rdv')).toEqual([{ start: 795, end: 825, col: 0, cols: 2, first: true, last: true }]);
+    expect(m.get('annule')!.map(({ start, end, col, cols }) => [start, end, col, cols])).toEqual([
+      [780, 795, 0, 1],
+      [795, 825, 1, 2],
+      [825, 840, 0, 1],
+    ]);
+  });
+  it('même créneau : côte à côte', () => {
+    const m = layoutPieces([
+      { id: 'rdv', start: 600, end: 630 },
+      { id: 'annule', start: 600, end: 630 },
+    ]);
+    expect(m.get('rdv')![0]).toMatchObject({ col: 0, cols: 2 });
+    expect(m.get('annule')![0]).toMatchObject({ col: 1, cols: 2 });
+  });
 });

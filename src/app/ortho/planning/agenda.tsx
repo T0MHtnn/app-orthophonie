@@ -5,7 +5,7 @@ import { Field, FormAlert, SubmitButton, type FormState } from '@/components/for
 import { useT } from '@/components/i18n-provider';
 import { Modal } from '@/components/modal';
 import { Notice } from '@/components/notice';
-import { RECURRENCES, isFree, type AgendaDay, type BlockInput, type Interval } from '@/lib/agenda';
+import { RECURRENCES, isFree, layoutPieces, type AgendaDay, type BlockInput, type Interval, type Piece } from '@/lib/agenda';
 import { matchesSearch } from '@/lib/search';
 import { WEEKDAYS, formatDay, formatTime, minutesToTime } from '@/lib/time';
 import { setPatientAutonomous } from '../reglages/actions';
@@ -210,40 +210,37 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
                     {b.title || t('Bloqué')}
                   </button>
                 ))}
-                {d.cancelled
-                  .filter((c) => !focus || c.patientId === focus.id)
-                  .map((c) => (
-                    <button
-                      type="button"
-                      key={c.id}
-                      className="agenda-cancelled"
-                      style={pos(c, range.start)}
-                      onClick={() => setDialog({ kind: 'cancelled', id: c.id, label: c.label, date: d.date, start: c.start, reason: c.reason })}
-                    >
-                      <b>{t('Annulé')}</b> {c.label}
-                    </button>
-                  ))}
-                {d.appointments
-                  .filter((a) => !focus || a.patientId === focus.id)
-                  .map((a) => {
-                    const duration = a.end - a.start;
-                    // Prévu (à venir) → réalisé (heure passée) automatiquement, sauf si « non honoré ».
-                    const past = d.date < today || (d.date === today && a.start <= nowMinutes);
-                    const realised = past && a.status === 'confirme' && a.attendance !== 'absent';
-                    return (
-                      <button
-                        type="button"
-                        key={a.id}
-                        className={`agenda-appt ${a.status} ${a.attendance ?? ''} ${realised ? 'done' : ''}`}
-                        style={pos(a, range.start)}
-                        draggable
-                        onDragStart={(e) =>
-                          e.dataTransfer.setData(
-                            'application/x-agenda',
-                            JSON.stringify({ patientId: a.patientId, appointmentId: a.id, duration, title: a.title }),
-                          )
-                        }
-                        onClick={() =>
+                {(() => {
+                  // RDV puis séances annulées : là où ils se chevauchent, ils se partagent la largeur.
+                  const appts = d.appointments.filter((a) => !focus || a.patientId === focus.id);
+                  const ghosts = d.cancelled.filter((c) => !focus || c.patientId === focus.id);
+                  const layout = layoutPieces([...appts, ...ghosts]);
+                  return (
+                    <>
+                      {ghosts.map((c) =>
+                        (layout.get(c.id) ?? []).map((piece) => (
+                          <button
+                            type="button"
+                            key={`${c.id}-${piece.start}`}
+                            className={`agenda-cancelled ${pieceClass(piece)}`}
+                            style={piecePos(piece, range.start)}
+                            onClick={() => setDialog({ kind: 'cancelled', id: c.id, label: c.label, date: d.date, start: c.start, reason: c.reason })}
+                            aria-label={piece.first ? undefined : `${t('Annulé')} ${c.label}`}
+                          >
+                            {piece.first && (
+                              <>
+                                <b>{t('Annulé')}</b> {c.label}
+                              </>
+                            )}
+                          </button>
+                        )),
+                      )}
+                      {appts.map((a) => {
+                        const duration = a.end - a.start;
+                        // Prévu (à venir) → réalisé (heure passée) automatiquement, sauf si « non honoré ».
+                        const past = d.date < today || (d.date === today && a.start <= nowMinutes);
+                        const realised = past && a.status === 'confirme' && a.attendance !== 'absent';
+                        const open = () =>
                           setDialog({
                             kind: 'appointment',
                             id: a.id,
@@ -256,17 +253,35 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
                             attendance: a.attendance,
                             past,
                             title: a.title,
-                          })
-                        }
-                      >
-                        <b>{minutesToTime(a.start)}</b> {a.label}
-                        {a.title && <small className="appt-title">{a.title}</small>}
-                        {a.status === 'a_valider' && <small className="appt-flag">{t('À valider')}</small>}
-                        {realised && <small className="appt-flag done">✓ {t('Réalisé')}</small>}
-                        {a.attendance === 'absent' && <small className="appt-flag absent">{t('Non honoré')}</small>}
-                      </button>
-                    );
-                  })}
+                          });
+                        return (layout.get(a.id) ?? []).map((piece) => (
+                          <button
+                            type="button"
+                            key={`${a.id}-${piece.start}`}
+                            className={`agenda-appt ${a.status} ${a.attendance ?? ''} ${realised ? 'done' : ''} ${pieceClass(piece)}`}
+                            style={piecePos(piece, range.start)}
+                            draggable
+                            onDragStart={(e) =>
+                              e.dataTransfer.setData('application/x-agenda', JSON.stringify({ patientId: a.patientId, appointmentId: a.id, duration, title: a.title }))
+                            }
+                            onClick={open}
+                            aria-label={piece.first ? undefined : a.label}
+                          >
+                            {piece.first && (
+                              <>
+                                <b>{minutesToTime(a.start)}</b> {a.label}
+                                {a.title && <small className="appt-title">{a.title}</small>}
+                                {a.status === 'a_valider' && <small className="appt-flag">{t('À valider')}</small>}
+                                {realised && <small className="appt-flag done">✓ {t('Réalisé')}</small>}
+                                {a.attendance === 'absent' && <small className="appt-flag absent">{t('Non honoré')}</small>}
+                              </>
+                            )}
+                          </button>
+                        ));
+                      })}
+                    </>
+                  );
+                })()}
               </div>
             ))}
           </div>
@@ -332,6 +347,16 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
     </div>
   );
 }
+
+/** Position d'un morceau (RDV ou séance annulée) : sa tranche horaire et sa colonne. */
+const piecePos = (p: Piece, rangeStart: number) => ({
+  top: Math.max(0, p.start - rangeStart) * PX,
+  height: Math.max(8, (p.end - Math.max(p.start, rangeStart)) * PX),
+  left: `calc(3px + (100% - 6px) * ${p.col} / ${p.cols})`,
+  width: `calc((100% - 6px) / ${p.cols} - ${p.cols > 1 ? 2 : 0}px)`,
+  right: 'auto',
+});
+const pieceClass = (p: Piece) => `${p.first ? '' : 'cont-top'} ${p.last ? '' : 'cont-bottom'}`;
 
 const pos = (i: Interval, rangeStart: number) => ({
   top: Math.max(0, i.start - rangeStart) * PX,

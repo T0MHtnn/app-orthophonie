@@ -274,6 +274,10 @@ a { color: var(--accent); }
 .cancel-box summary { list-style: none; cursor: pointer; }
 .cancel-box summary::-webkit-details-marker { display: none; }
 .cancel-box[open] form { margin-top: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); min-width: min(320px, 80vw); }
+/* Morceaux d'un même élément (partage de largeur) : on les « recolle » visuellement */
+.agenda-appt.cont-top, .agenda-cancelled.cont-top { border-top-left-radius: 0; border-top-right-radius: 0; border-top-style: none; }
+.agenda-appt.cont-bottom, .agenda-cancelled.cont-bottom { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-style: none; }
+.agenda-appt.cont-top { box-shadow: none; }
 .autonomous-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 16px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border: 1px solid var(--line); border-radius: 99px; font-size: 13.5px; background: var(--surface); }
 .chip-x { border: 0; background: none; width: 22px; height: 22px; border-radius: 99px; color: var(--muted); font-size: 16px; line-height: 1; }
