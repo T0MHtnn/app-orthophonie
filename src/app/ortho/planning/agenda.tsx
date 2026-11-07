@@ -1,10 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { useActionState, useEffect, useId, useMemo, useRef, useState, useTransition } from 'react';
 import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
 import { useT } from '@/components/i18n-provider';
 import { Modal } from '@/components/modal';
 import { Notice } from '@/components/notice';
+import { SessionsProgress } from '@/components/sessions-progress';
 import { RECURRENCES, isFree, layoutPieces, type AgendaDay, type BlockInput, type Interval, type Piece } from '@/lib/agenda';
 import { matchesSearch } from '@/lib/search';
 import { WEEKDAYS, formatDay, formatTime, minutesToTime } from '@/lib/time';
@@ -37,8 +39,10 @@ export interface PatientDetail {
   sessionsDone: number;
   /** Rendez-vous non honorés (lapins). */
   absences: number;
-  /** Séances prévues par l'acte AMO (null tant que l'acte n'est pas renseigné). */
+  /** Séances prescrites (ou celles de l'acte AMO) ; null tant que ce n'est pas renseigné. */
   sessionsTotal: number | null;
+  /** Acte AMO choisi sur la fiche. */
+  act: string | null;
 }
 
 type BookingMode = 'ortho' | 'autonomes' | 'tous';
@@ -628,7 +632,7 @@ function PatientCard({ patientId, detail, bookingMode }: { patientId: string; de
     ['Téléphone', detail.phone && <a href={`tel:${detail.phone.replace(/\s/g, '')}`}>{detail.phone}</a>],
     ['Motif', detail.pathology],
     ['Demande', detail.requestType],
-    ['Acte AMO', <span key="amo" className="hint">{t('à renseigner (bientôt : cotation, prix, durée des séances)')}</span>],
+    ['Acte AMO', detail.act ?? <span key="amo" className="hint">{t('à renseigner sur la fiche')}</span>],
   ];
   return (
     <section className="patient-card stack" aria-label={t('Fiche patient')}>
@@ -672,32 +676,12 @@ function PatientCard({ patientId, detail, bookingMode }: { patientId: string; de
         </span>
       </label>
       {error && <p className="alert error">{t('La modification n’a pas pu être enregistrée.')}</p>}
-    </section>
-  );
-}
-
-/** Avancement de la série de séances (couleur du thème). */
-function SessionsProgress({ done, total }: { done: number; total: number | null }) {
-  const t = useT();
-  const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
-  return (
-    <div className="progress-block">
-      <div
-        className={`progress ${total ? '' : 'unknown'}`}
-        role="progressbar"
-        aria-label={t('Séances réalisées')}
-        aria-valuemin={0}
-        aria-valuemax={total ?? undefined}
-        aria-valuenow={total ? done : undefined}
-      >
-        <span style={{ width: `${pct}%` }} />
+      <div>
+        <Link className="btn small" href={`/ortho/patients/${patientId}`}>
+          {t('Ouvrir la fiche complète')}
+        </Link>
       </div>
-      <p className="hint">
-        {total
-          ? t('{fait} séance(s) sur {total}', { fait: done, total })
-          : t('{fait} séance(s) réalisée(s) · nombre total à définir avec l’acte AMO', { fait: done })}
-      </p>
-    </div>
+    </section>
   );
 }
 

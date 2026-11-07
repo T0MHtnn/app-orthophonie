@@ -6,6 +6,7 @@ import { normalizePhone } from './phone';
 import { matchesSearch } from './search';
 import { addDays, parisParts, parisToInstant, startOfWeek } from './time';
 import { buildWeek, freeSlots, isFree, layoutPieces, occursOn, type BlockInput } from './agenda';
+import { ageFromBirthDate, amoPrice, seriesState } from './patient';
 
 describe('safeRedirectPath', () => {
   it('garde un chemin interne', () => expect(safeRedirectPath('/ortho/reglages')).toBe('/ortho/reglages'));
@@ -259,3 +260,19 @@ describe('répartition des éléments qui se chevauchent', () => {
   });
 });
 
+
+describe('fiche patient', () => {
+  it('série : inconnue sans total, fin proche à 2 séances, terminée à 0', () => {
+    expect(seriesState(3, null).state).toBe('inconnue');
+    expect(seriesState(10, 20)).toEqual({ state: 'en-cours', left: 10 });
+    expect(seriesState(18, 20)).toEqual({ state: 'fin-proche', left: 2 });
+    expect(seriesState(22, 20)).toEqual({ state: 'terminee', left: 0 });
+  });
+  it('âge depuis la date de naissance (mois avant 3 ans)', () => {
+    expect(ageFromBirthDate('2019-05-10', '2026-05-09')).toBe('6 ans');
+    expect(ageFromBirthDate('2019-05-10', '2026-05-10')).toBe('7 ans');
+    expect(ageFromBirthDate('2025-01-15', '2026-07-20')).toBe('18 mois');
+    expect(ageFromBirthDate('2030-01-01', '2026-01-01')).toBeNull();
+  });
+  it('prix AMO = coefficient × 2,60 €', () => expect(amoPrice(11.6)).toBe(30.16));
+});

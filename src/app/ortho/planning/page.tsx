@@ -6,11 +6,13 @@ import { getT } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { addDays, formatDay, formatInstant, isDate, parisParts, parisToInstant, startOfWeek } from '@/lib/time';
 import { formatAge } from '@/lib/age';
+import { ageFromBirthDate } from '@/lib/patient';
 import { REQUEST_TYPE_LABEL } from '@/lib/request-type';
 import { SubmitButton } from '@/components/form';
 import { dismissCancellation } from './actions';
 import { Agenda, type PatientDetail, type PatientItem } from './agenda';
 import { FreedRecap } from './freed-recap';
+import { seriesProgress } from '../patients/progress';
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getT())('Planning') };
@@ -33,7 +35,7 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
   const weekEnd = parisToInstant(addDays(week, 7), '00:00').toISOString();
 
   const supabase = await createClient();
-  const [{ data: blocks, error: blocksError }, { data: appointments, error }, { data: upcoming }, { data: patients }, { data: pathologies }, { data: done }, { data: cancellations }, { data: freed }] = await Promise.all([
+  const [{ data: blocks, error: blocksError }, { data: appointments, error }, { data: upcoming }, { data: patients }, { data: pathologies }, { data: done }, { data: cancellations }, { data: freed }, { data: acts }] = await Promise.all([
     // Blocages qui peuvent avoir une occurrence cette semaine (la veille comprise, pour ceux qui débordent).
     supabase.from('schedule_blocks').select('*').lt('starts_at', weekEnd).or(`until.is.null,until.gte.${addDays(week, -1)}`),
     // RDV de la semaine + séances annulées par la famille (fantômes, non bloquants).
@@ -41,39 +43,39 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
     supabase.from('appointments').select('patient_id, starts_at').neq('status', 'annule').gte('starts_at', now.toISOString()).order('starts_at'),
     supabase.from('patients').select('*').order('last_name'),
     supabase.from('pathologies').select('code, label'),
-    supabase.from('appointments').select('patient_id, attendance').eq('status', 'confirme').lt('starts_at', now.toISOString()),
+    supabase.from('appointments').select('patient_id, starts_at, attendance').eq('status', 'confirme').lt('starts_at', now.toISOString()),
     // Annulations à venir faites par les familles (liste au-dessus de l'agenda).
     supabase.from('appointments').select('id, patient_id, starts_at, cancel_reason').eq('status', 'annule').eq('cancelled_by', 'famille').gte('starts_at', now.toISOString()).order('starts_at').limit(30),
     // Séances libérées à proposer (récapitulatif à l'ouverture du planning).
     supabase.from('freed_slots').select('*').is('handled_at', null).gt('starts_at', now.toISOString()).order('starts_at').limit(30),
+    supabase.from('amo_acts').select('*'),
   ]);
-  // Avancement : séances passées « réalisées » ; un RDV « non honoré » (lapin) ne compte pas.
-  const doneCount = new Map<string, number>();
-  const absentCount = new Map<string, number>();
-  for (const a of done ?? []) {
-    const m = a.attendance === 'absent' ? absentCount : doneCount;
-    m.set(a.patient_id, (m.get(a.patient_id) ?? 0) + 1);
-  }
+  // Avancement de la série : même calcul que la fiche patient.
+  const progressOf = seriesProgress(patients ?? [], done ?? [], acts ?? []);
+  const actLabel = new Map((acts ?? []).map((a) => [a.code, t(a.label)]));
   const pathologyLabel = new Map((pathologies ?? []).map((p) => [p.code, p.label]));
   // Fiche patient affichée dans la pop-up d'un rendez-vous.
   const details: Record<string, PatientDetail> = Object.fromEntries(
-    (patients ?? []).map((p) => [
-      p.id,
-      {
-        name: `${p.first_name} ${p.last_name}`,
-        age: formatAge(p.patient_age, t.lang),
-        caregiver: [p.caregiver_first_name, p.caregiver_last_name].filter(Boolean).join(' ') || null,
-        email: p.email,
-        phone: p.phone,
-        pathology: p.pathology_code ? t(pathologyLabel.get(p.pathology_code) ?? p.pathology_code) : null,
-        requestType: p.request_type ? t(REQUEST_TYPE_LABEL[p.request_type]) : null,
-        autonomous: p.autonomous,
-        sessionsDone: doneCount.get(p.id) ?? 0,
-        absences: absentCount.get(p.id) ?? 0,
-        // Nombre de séances prévu par l'acte AMO : à brancher quand la liste des actes sera fournie.
-        sessionsTotal: null,
-      },
-    ]),
+    (patients ?? []).map((p) => {
+      const progress = progressOf(p);
+      return [
+        p.id,
+        {
+          name: `${p.first_name} ${p.last_name}`,
+          age: formatAge(p.birth_date ? ageFromBirthDate(p.birth_date, nowParts.date) : p.patient_age, t.lang),
+          caregiver: [p.caregiver_first_name, p.caregiver_last_name].filter(Boolean).join(' ') || null,
+          email: p.email,
+          phone: p.phone,
+          pathology: p.pathology_code ? t(pathologyLabel.get(p.pathology_code) ?? p.pathology_code) : null,
+          requestType: p.request_type ? t(REQUEST_TYPE_LABEL[p.request_type]) : null,
+          autonomous: p.autonomous,
+          sessionsDone: progress.done,
+          absences: progress.absences,
+          sessionsTotal: progress.total,
+          act: p.amo_act_code ? (actLabel.get(p.amo_act_code) ?? null) : null,
+        },
+      ];
+    }),
   );
 
   const nameOf = new Map((patients ?? []).map((p) => [p.id, `${p.first_name} ${p.last_name}`]));

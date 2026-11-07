@@ -22,16 +22,16 @@ end $$;
 -- 2. Création de cabinet : OK si email confirmé, refusé sinon.
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'aal1');
 set role authenticated;
-select public.register_practice('Cabinet A', 'cabinet-a', '10000000001', '', '75011', 'Paris');
+select public.register_practice('Cabinet A', 'cabinet-a', '10000000001', '1 rue de la Paix', '75011', 'Paris');
 reset role;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000b', 'aal1');
 set role authenticated;
-select public.register_practice('Cabinet B', 'cabinet-b', '10000000002', '', '75011', 'Paris');
+select public.register_practice('Cabinet B', 'cabinet-b', '10000000002', '1 rue de la Paix', '75011', 'Paris');
 reset role;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000c', 'aal1');
 set role authenticated;
 do $$ begin
-  perform public.register_practice('Cabinet C', 'cabinet-c', '10000000003', '', '75011', 'Paris');
+  perform public.register_practice('Cabinet C', 'cabinet-c', '10000000003', '1 rue de la Paix', '75011', 'Paris');
   raise exception 'ÉCHEC 2 : cabinet créé sans email confirmé';
 exception when insufficient_privilege then null;
 end $$;
@@ -543,6 +543,62 @@ begin
   perform public.cron_session_reminders('mauvais-secret');
   raise exception 'ÉCHEC 24 : rappels sans secret';
 exception when insufficient_privilege then null;
+end $$;
+reset role;
+
+-- 25. Module Patients : fiche modifiable en aal2 seulement, notes privées et cloisonnées.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'aal1');
+set role authenticated;
+do $$
+declare n int;
+begin
+  with u as (update public.patients set prescriber_name = 'Dr Test' returning 1) select count(*) into n from u;
+  if n > 0 then raise exception 'ÉCHEC 25a : fiche modifiée en aal1'; end if;
+end $$;
+reset role;
+
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'aal2');
+set role authenticated;
+do $$
+declare
+  v_patient uuid := (select id from public.patients limit 1);
+  v_practice uuid := (select practice_id from public.patients where id = (select id from public.patients limit 1));
+  n int;
+begin
+  with u as (update public.patients set prescriber_name = 'Dr Test', sessions_prescribed = 20, amo_act_code = 'reeduc-langage-ecrit'
+             where id = v_patient returning 1) select count(*) into n from u;
+  if n <> 1 then raise exception 'ÉCHEC 25b : fiche non modifiable par son ortho'; end if;
+  insert into public.session_notes (practice_id, patient_id, body) values (v_practice, v_patient, 'Note test');
+  perform set_config('test.patient_a', v_patient::text, false);
+  begin
+    update public.patients set email = 'autre@example.com' where id = v_patient;
+    raise exception 'ÉCHEC 25c : email du patient modifiable';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+-- Un autre ortho ne voit pas les notes, et ne peut pas en écrire sur un patient qui n'est pas le sien.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b', 'aal2');
+set role authenticated;
+do $$
+begin
+  if exists (select 1 from public.session_notes) then raise exception 'ÉCHEC 25d : notes visibles par un autre cabinet'; end if;
+  begin
+    insert into public.session_notes (practice_id, patient_id, body)
+    values ((select id from public.practices where owner_id = auth.uid()), current_setting('test.patient_a')::uuid, 'Intrus');
+    raise exception 'ÉCHEC 25e : note sur le patient d''un autre cabinet';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+-- Une famille ne voit jamais les notes de séance.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1', 'aal1');
+set role authenticated;
+do $$
+begin
+  if exists (select 1 from public.session_notes) then raise exception 'ÉCHEC 25f : notes visibles par une famille'; end if;
 end $$;
 reset role;
 

@@ -91,6 +91,49 @@ export type PatientRow = {
   request_type: RequestType | null;
   autonomous: boolean;
   active: boolean;
+  birth_date: string | null;
+  prescriber_name: string | null;
+  prescription_date: string | null;
+  amo_act_code: string | null;
+  sessions_prescribed: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Champs de la fiche modifiables par l'ortho (l'email reste celui du compte). */
+export type PatientEditable = Pick<
+  PatientRow,
+  | 'first_name'
+  | 'last_name'
+  | 'birth_date'
+  | 'patient_age'
+  | 'caregiver_first_name'
+  | 'caregiver_last_name'
+  | 'phone'
+  | 'pathology_code'
+  | 'request_type'
+  | 'prescriber_name'
+  | 'prescription_date'
+  | 'amo_act_code'
+  | 'sessions_prescribed'
+  | 'autonomous'
+>;
+
+export type AmoActRow = {
+  code: string;
+  label: string;
+  coefficient: number;
+  kind: 'bilan' | 'reeducation';
+  sessions: number | null;
+  sort_order: number;
+};
+
+export type SessionNoteRow = {
+  id: string;
+  practice_id: string;
+  patient_id: string;
+  appointment_id: string | null;
+  body: string;
   created_at: string;
   updated_at: string;
 };
@@ -164,7 +207,13 @@ export type Database = {
       practices: Table<PracticeRow, NoInsert, Partial<Pick<PracticeRow, 'name' | 'waitlist_open' | 'waitlist_info' | 'email_template' | 'address_line' | 'postal_code' | 'city' | 'listed' | 'session_minutes' | 'booking_mode' | 'booking_min_notice_hours' | 'links_respect_notice'>>>;
       waitlist_entries: Table<WaitlistEntryRow, NoInsert, Partial<Pick<WaitlistEntryRow, 'status'>>>;
       pathologies: Table<PathologyRow, NoInsert, NoInsert>;
-      patients: Table<PatientRow, NoInsert, Partial<Pick<PatientRow, 'autonomous'>>>;
+      patients: Table<PatientRow, NoInsert, Partial<PatientEditable>>;
+      amo_acts: Table<AmoActRow, NoInsert, NoInsert>;
+      session_notes: Table<
+        SessionNoteRow,
+        Pick<SessionNoteRow, 'practice_id' | 'patient_id' | 'body'> & Partial<Pick<SessionNoteRow, 'appointment_id'>>,
+        Partial<Pick<SessionNoteRow, 'appointment_id' | 'body'>>
+      >;
       schedule_blocks: Table<
         ScheduleBlockRow,
         Pick<ScheduleBlockRow, 'practice_id' | 'title' | 'starts_at' | 'ends_at' | 'recurrence' | 'weekdays' | 'until' | 'skip_dates'>,

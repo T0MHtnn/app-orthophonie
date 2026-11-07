@@ -8,6 +8,7 @@ import { SideNav, type NavLink } from './side-nav';
 
 const orthoLinks = (t: T): NavLink[] => [
   { href: '/ortho/planning', label: t('Planning') },
+  { href: '/ortho/patients', label: t('Patients') },
   { href: '/ortho/liste-attente', label: t('Liste d’attente') },
   // Un ortho peut aussi inscrire ses enfants ou un proche dans un autre cabinet.
   { href: '/patient', label: t('Mes demandes (famille)') },

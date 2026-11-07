@@ -190,7 +190,40 @@ export const bookingSettingsSchema = z.object({
   minNoticeHours: z.coerce.number({ error: 'Délai invalide' }).int('Nombre entier').min(0, 'Délai invalide').max(720, '30 jours maximum'),
 });
 
-export const totpCodeSchema = z.string().trim().regex(/^[0-9]{6}$/, 'Code à 6 chiffres');
+/** Fiche patient modifiée par l'ortho (l'email reste celui du compte, non modifiable ici). */
+const optionalDate = (min: string, tooEarly: string) =>
+  z
+    .union([z.literal(''), dateField])
+    .optional()
+    .default('')
+    .refine((v) => !v || v >= min, tooEarly)
+    .refine((v) => !v || v <= new Date().toISOString().slice(0, 10), 'La date ne peut pas être dans le futur');
+
+export const patientFileSchema = z.object({
+  firstName: required(80, 'Prénom requis'),
+  lastName: required(80, 'Nom requis'),
+  birthDate: optionalDate('1900-01-01', 'Date invalide'),
+  patientAge: text(30).optional().default(''),
+  caregiverFirstName: text(80).optional().default(''),
+  caregiverLastName: text(80).optional().default(''),
+  phone: phoneSchema.optional().default(''),
+  pathology: z.union([z.literal(''), z.string().regex(/^[a-z0-9-]{2,40}$/, 'Motif invalide')]).optional().default(''),
+  requestType: z.union([z.literal(''), z.enum(REQUEST_TYPES.map((t) => t.code))]).optional().default(''),
+  prescriberName: text(120).optional().default(''),
+  prescriptionDate: optionalDate('2000-01-01', 'Date invalide'),
+  amoAct: z.union([z.literal(''), z.string().regex(/^[a-z0-9-]{2,40}$/, 'Acte invalide')]).optional().default(''),
+  sessionsPrescribed: z
+    .union([z.literal(''), z.coerce.number({ error: 'Nombre invalide' }).int('Nombre entier').min(1, 'Au moins 1 séance').max(200, '200 séances maximum')])
+    .optional()
+    .default(''),
+});
+
+export const sessionNoteSchema = z.object({
+  body: required(10000, 'La note est vide').max(10000, 'Note trop longue (10 000 caractères max.)'),
+  appointmentId: z.union([z.literal(''), z.uuid()]).optional().default(''),
+});
+
+export const totpCodeSchema =z.string().trim().regex(/^[0-9]{6}$/, 'Code à 6 chiffres');
 
 /** Premier message d'erreur par champ, pour l'affichage dans le formulaire. */
 export function fieldErrors(error: z.ZodError): Record<string, string> {
