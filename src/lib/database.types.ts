@@ -238,6 +238,8 @@ export type Database = {
           min_notice_hours: number;
           /** Une séance est déjà à venir (réservée en ligne ou fixée par l'ortho) : pas d'autre réservation. */
           active_booking: boolean;
+          /** Demande de liste d'attente d'origine (bouton « Réserver » sur sa ligne). */
+          waitlist_entry_id: string | null;
         }[];
       };
     };

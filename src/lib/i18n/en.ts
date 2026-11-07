@@ -506,4 +506,5 @@ export const EN: Record<string, string> = {
   // 12_famille2
   "Demandes retirées": "Withdrawn requests",
   "Supprimer cette demande": "Delete this request",
+  "Séance déjà prévue": "Session already planned",
 };

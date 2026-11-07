@@ -45,6 +45,8 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
   const followed = requests.filter((r) => r.status === 'rdv');
   const active = requests.filter((r) => r.status === 'attente' || r.status === 'contacte');
   const unlocked = followed.length > 0;
+  // Patient suivi issu de chaque demande : la réservation se fait sur la ligne de la demande.
+  const patientOfEntry = new Map((patients ?? []).filter((p) => p.waitlist_entry_id).map((p) => [p.waitlist_entry_id!, p]));
   // Demandes retirées : à part (repliées), supprimables.
   const current = requests.filter((r) => r.status !== 'retire');
   const withdrawn = requests.filter((r) => r.status === 'retire');
@@ -96,24 +98,6 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
               ))}
             </div>
           )}
-          {(patients ?? []).map((p) =>
-            !p.can_book ? (
-              <Notice key={p.id} kind="info" autoHide={false}>
-                {t(
-                  '{cabinet} ne propose pas la réservation en ligne pour {prenom} : c’est votre orthophoniste qui organise les rendez-vous. Ils apparaîtront ici dès qu’ils seront fixés.',
-                  { cabinet: p.practice_name, prenom: p.first_name },
-                )}
-              </Notice>
-            ) : p.active_booking ? (
-              <Notice key={p.id} kind="info">
-                {t('{prenom} a déjà une séance prévue : vous pourrez en réserver une autre quand elle sera passée ou annulée.', { prenom: p.first_name })}
-              </Notice>
-            ) : (
-              <Link key={p.id} href={`/patient/reserver?patient=${p.id}`} className="btn primary" style={{ width: 'fit-content' }}>
-                {t('Réserver une séance pour {prenom}', { prenom: p.first_name })}
-              </Link>
-            ),
-          )}
         </section>
       ) : (
         <section className="card stack locked">
@@ -137,7 +121,7 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
         <section className="card">
           <h2>{t('Mes demandes de liste d’attente')}</h2>
           {current.map((r) => (
-            <RequestRow key={r.id} r={r} t={t} />
+            <RequestRow key={r.id} r={r} t={t} patient={patientOfEntry.get(r.id)} />
           ))}
         </section>
       )}
@@ -155,7 +139,9 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
   );
 }
 
-function RequestRow({ r, t }: { r: Request; t: T }) {
+type FamilyPatient = Database['public']['Functions']['my_patients']['Returns'][number];
+
+function RequestRow({ r, t, patient }: { r: Request; t: T; patient?: FamilyPatient }) {
   return (
     <div className="request">
       <div>
@@ -170,6 +156,13 @@ function RequestRow({ r, t }: { r: Request; t: T }) {
       </div>
       <div className="row">
         <span className={`badge ${r.status}`}>{t(STATUS[r.status].label)}</span>
+        {/* Réservation ouverte par l'ortho pour ce patient : bouton sur sa ligne (sinon rien). */}
+        {r.status === 'rdv' && patient?.can_book && !patient.active_booking && (
+          <Link href={`/patient/reserver?patient=${patient.id}`} className="btn primary small">
+            {t('Réserver une séance')}
+          </Link>
+        )}
+        {r.status === 'rdv' && patient?.can_book && patient.active_booking && <span className="hint">{t('Séance déjà prévue')}</span>}
         {(r.status === 'attente' || r.status === 'contacte') && (
           <form action={withdrawRequest}>
             <input type="hidden" name="id" value={r.id} />
