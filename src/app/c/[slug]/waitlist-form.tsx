@@ -135,7 +135,13 @@ function FormFields({ state, action, practiceName, accountEmail, pathologies }: 
             defaultValue={v.caregiverFirstName}
             error={adult ? undefined : err.caregiverFirstName}
           />
-          <Field label="Email de contact" name="email" type="email" autoComplete="email" defaultValue={v.email ?? accountEmail} error={err.email} />
+          {/* Une seule adresse : celle du compte (la base l'impose aussi). */}
+          <div className="field">
+            <span>{t('Email')}</span>
+            <p className="hint" style={{ margin: 0 }}>
+              {t('Les emails du cabinet seront envoyés à {email}, l’adresse de votre compte (modifiable dans vos réglages).', { email: accountEmail })}
+            </p>
+          </div>
           <Field label="Téléphone (facultatif)" name="phone" type="tel" autoComplete="tel" placeholder="06 12 34 56 78" maxLength={30} defaultValue={v.phone} error={err.phone} />
           <label className="field wide">
             <span>{t('Informations complémentaires (facultatif)')}</span>

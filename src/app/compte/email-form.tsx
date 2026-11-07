@@ -17,7 +17,7 @@ export function EmailForm({ current }: { current: string }) {
         {t('Adresse actuelle :')} <b>{current}</b>
       </p>
       <Field label="Nouvelle adresse email" name="email" type="email" autoComplete="email" required defaultValue={state.values?.email} error={state.errors?.email} />
-      <p className="hint">{t('Vous recevrez un lien de confirmation. Une fois le changement confirmé, vous serez déconnecté de tous vos appareils.')}</p>
+      <p className="hint">{t('Vous recevrez un lien de confirmation. Une fois le changement confirmé, vous serez déconnecté de tous vos appareils, et les emails des cabinets arriveront à la nouvelle adresse.')}</p>
       <div>
         <SubmitButton pendingText="Envoi…">Changer d’adresse email</SubmitButton>
       </div>

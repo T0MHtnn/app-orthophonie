@@ -509,4 +509,15 @@ begin
 end $$;
 reset role;
 
+-- 21. Une seule adresse : l'email des demandes / fiches = celui du compte, et suit ses changements.
+do $$ begin
+  if exists (
+    select 1 from public.waitlist_entries w join auth.users u on u.id = w.requester_id where w.email is distinct from lower(u.email)
+  ) then raise exception 'ÉCHEC 21a : email de demande différent du compte'; end if;
+  update auth.users set email = 'famille2-nouveau@example.com' where id = '00000000-0000-0000-0000-0000000000f2';
+  if exists (select 1 from public.waitlist_entries where requester_id = '00000000-0000-0000-0000-0000000000f2' and email <> 'famille2-nouveau@example.com') then
+    raise exception 'ÉCHEC 21b : changement d''adresse non répercuté';
+  end if;
+end $$;
+
 select 'TOUS LES TESTS DE SÉCURITÉ PASSENT' as resultat;

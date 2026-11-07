@@ -590,4 +590,7 @@ export const EN: Record<string, string> = {
   "Cette adresse est déjà utilisée par un autre compte.": "This address is already used by another account.",
   "Le changement n’a pas pu être demandé. Réessayez dans quelques minutes.": "The change could not be requested. Try again in a few minutes.",
   "Un email de confirmation a été envoyé à {email} (et peut-être aussi à votre adresse actuelle). Le changement sera fait après avoir cliqué sur le lien ; vous serez alors déconnecté de tous vos appareils.": "A confirmation email has been sent to {email} (and perhaps also to your current address). The change will take effect after you click the link; you will then be logged out of all your devices.",
+  // 20_single_email
+  "Les emails du cabinet seront envoyés à {email}, l’adresse de votre compte (modifiable dans vos réglages).": "Emails from the practice will be sent to {email}, your account address (can be changed in your settings).",
+  "Vous recevrez un lien de confirmation. Une fois le changement confirmé, vous serez déconnecté de tous vos appareils, et les emails des cabinets arriveront à la nouvelle adresse.": "You will receive a confirmation link. Once the change is confirmed, you will be logged out of all your devices, and emails from practices will go to the new address.",
 };
