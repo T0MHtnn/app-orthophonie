@@ -39,6 +39,8 @@ export async function saveAppointment(_prev: FormState, formData: FormData): Pro
   const end = new Date(start.getTime() + d.minutes * 60_000);
   const notify = d.notify === 'on';
   const supabase = await createClient();
+  // Ancienne date, lue avant l'enregistrement, pour l'email « séance du … déplacée au … ».
+  const { data: before } = notify && d.id ? await supabase.from('appointments').select('starts_at').eq('id', d.id).maybeSingle() : { data: null };
   const { error } = await supabase.rpc('save_appointment', {
     p_id: d.id || null,
     p_patient_id: d.patientId,
@@ -53,7 +55,7 @@ export async function saveAppointment(_prev: FormState, formData: FormData): Pro
     console.error('save_appointment', error.code);
     return { message: 'Le rendez-vous n’a pas pu être enregistré. Rechargez la page puis réessayez.', values: raw };
   }
-  if (notify) await notifyFamily(d.patientId, start, practice.name, d.id ? 'deplace' : 'nouveau');
+  if (notify) await notifyFamily(d.patientId, start, practice.name, d.id ? 'deplace' : 'nouveau', before ? new Date(before.starts_at) : undefined);
   return done(notify ? 'Rendez-vous enregistré. Le patient est prévenu par email.' : d.id ? 'Rendez-vous modifié.' : 'Rendez-vous ajouté.');
 }
 
@@ -217,22 +219,32 @@ export async function markAttendance(_prev: FormState, formData: FormData): Prom
 }
 
 /** Email « nouvelle séance » à la famille : date et heure seulement, aucune donnée médicale. */
-async function notifyFamily(patientId: string, start: Date, practiceName: string, kind: 'nouveau' | 'deplace' | 'annule'): Promise<void> {
+async function notifyFamily(
+  patientId: string,
+  start: Date,
+  practiceName: string,
+  kind: 'nouveau' | 'deplace' | 'annule',
+  previous?: Date,
+): Promise<void> {
   const supabase = await createClient();
   const { data: patient } = await supabase.from('patients').select('first_name, email').eq('id', patientId).maybeSingle();
   if (!patient?.email) return;
   const p = parisParts(start);
   const when = `${formatDay(p.date)} à ${formatTime(p.time)}`;
+  const q = previous ? parisParts(previous) : null;
+  const was = q ? `${formatDay(q.date)} à ${formatTime(q.time)}` : null;
   await sendEmail({
     to: { email: patient.email },
     senderName: practiceName,
-    subject: kind === 'annule' ? `Séance du ${when} annulée` : kind === 'deplace' ? `Séance déplacée au ${when}` : `Nouvelle séance le ${when}`,
+    subject: kind === 'annule' ? `Séance du ${when} annulée` : kind === 'deplace' ? (was ? `Séance du ${was} déplacée au ${when}` : `Séance déplacée au ${when}`) : `Nouvelle séance le ${when}`,
     text: [
       'Bonjour,',
       kind === 'annule'
         ? `${practiceName} a annulé la séance de ${patient.first_name} prévue le ${when}.`
         : kind === 'deplace'
-          ? `${practiceName} a déplacé la séance de ${patient.first_name} : elle a maintenant lieu le ${when}.`
+          ? was
+            ? `${practiceName} a déplacé la séance de ${patient.first_name} du ${was} au ${when}.`
+            : `${practiceName} a déplacé la séance de ${patient.first_name} : elle a maintenant lieu le ${when}.`
           : `${practiceName} a prévu une séance pour ${patient.first_name} le ${when}.`,
       'Vous la retrouvez dans votre espace :',
       `${siteUrl}/patient`,
