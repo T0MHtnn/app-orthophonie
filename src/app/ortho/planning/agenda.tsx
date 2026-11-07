@@ -220,7 +220,7 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
               >
                 {preview?.date === d.date && (
                   <div className={`agenda-drop ${preview.free ? '' : 'busy'}`} style={pos(preview, range.start)} aria-hidden="true">
-                    {minutesToTime(preview.start)} – {minutesToTime(preview.end)}
+                    {preview.free ? '✓' : '✕'} {minutesToTime(preview.start)} – {minutesToTime(preview.end)}
                   </div>
                 )}
                 {d.date === today && nowMinutes >= range.start && nowMinutes <= range.end && (
@@ -965,9 +965,6 @@ function NotifyCheck({ checked, onChange, label }: { checked: boolean; onChange:
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       <span>
         <b>{t(label)}</b>
-        <span className="hint" style={{ display: 'block' }}>
-          {t('Il reçoit un email.')}
-        </span>
       </span>
     </label>
   );

@@ -12,6 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const NOTICES: Record<string, { kind: 'warn' | 'error' | 'ok'; text: string }> = {
   inactivite: { kind: 'warn', text: 'Vous avez été déconnecté après 30 minutes d’inactivité.' },
+  email: { kind: 'ok', text: 'Votre adresse email a été modifiée. Reconnectez-vous avec la nouvelle adresse.' },
   google: { kind: 'error', text: 'La connexion avec Google a échoué. Réessayez.' },
   lien: { kind: 'error', text: 'Ce lien n’est plus valide. Demandez-en un nouveau.' },
   compte: { kind: 'error', text: 'Ce compte n’est plus valide : il a été supprimé ou est incomplet. Créez un nouveau compte, ou contactez le support si le problème continue.' },

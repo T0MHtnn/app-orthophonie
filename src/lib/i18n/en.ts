@@ -579,4 +579,15 @@ export const EN: Record<string, string> = {
   "Il reçoit un email.": "They receive an email.",
   "Rendez-vous supprimé. Le patient est prévenu par email.": "Appointment deleted. The patient has been notified by email.",
   "Planifier ce rendez-vous ?": "Schedule this appointment?",
+  // 19_email_change
+  "Votre adresse email a été modifiée. Reconnectez-vous avec la nouvelle adresse.": "Your email address has been changed. Log in again with the new address.",
+  "Adresse email": "Email address",
+  "Adresse actuelle :": "Current address:",
+  "Nouvelle adresse email": "New email address",
+  "Vous recevrez un lien de confirmation. Une fois le changement confirmé, vous serez déconnecté de tous vos appareils.": "You will receive a confirmation link. Once the change is confirmed, you will be logged out of all your devices.",
+  "Changer d’adresse email": "Change email address",
+  "C’est déjà votre adresse actuelle.": "This is already your current address.",
+  "Cette adresse est déjà utilisée par un autre compte.": "This address is already used by another account.",
+  "Le changement n’a pas pu être demandé. Réessayez dans quelques minutes.": "The change could not be requested. Try again in a few minutes.",
+  "Un email de confirmation a été envoyé à {email} (et peut-être aussi à votre adresse actuelle). Le changement sera fait après avoir cliqué sur le lien ; vous serez alors déconnecté de tous vos appareils.": "A confirmation email has been sent to {email} (and perhaps also to your current address). The change will take effect after you click the link; you will then be logged out of all your devices.",
 };

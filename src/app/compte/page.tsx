@@ -7,6 +7,7 @@ import { requireUser } from '@/lib/auth';
 import { getT } from '@/lib/i18n';
 import { THEME_COOKIE, isTheme } from '@/lib/preferences';
 import { AccountForm } from './account-form';
+import { EmailForm } from './email-form';
 import { LanguageSwitch, ThemeSelect } from './preferences';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -44,6 +45,10 @@ export default async function ComptePage() {
       <section className="card stack">
         <h2>{t('Mes informations')}</h2>
         <AccountForm firstName={ctx.profile.first_name} lastName={ctx.profile.last_name} />
+      </section>
+      <section className="card stack">
+        <h2>{t('Adresse email')}</h2>
+        <EmailForm current={ctx.email} />
       </section>
       <section className="card stack">
         <h2>{t('Sécurité')}</h2>
