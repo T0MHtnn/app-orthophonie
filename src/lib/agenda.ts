@@ -46,14 +46,14 @@ export interface AppointmentInput {
   ends_at: string;
   status: string;
   label: string;
-  attendance?: 'faite' | 'absent' | null;
+  attendance?: 'absent' | null;
 }
 
 export interface AgendaDay {
   date: string;
   weekday: number;
   blocks: BlockOccurrence[];
-  appointments: (Interval & { id: string; patientId: string; label: string; status: string; attendance: 'faite' | 'absent' | null })[];
+  appointments: (Interval & { id: string; patientId: string; label: string; status: string; attendance: 'absent' | null })[];
 }
 
 const DAY = 24 * 60;

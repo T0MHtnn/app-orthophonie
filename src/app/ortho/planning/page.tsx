@@ -37,13 +37,13 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
     supabase.from('appointments').select('patient_id, starts_at').neq('status', 'annule').gte('starts_at', now.toISOString()).order('starts_at'),
     supabase.from('patients').select('*').order('last_name'),
     supabase.from('pathologies').select('code, label'),
-    supabase.from('appointments').select('patient_id, attendance').eq('status', 'confirme').not('attendance', 'is', null),
+    supabase.from('appointments').select('patient_id, attendance').eq('status', 'confirme').lt('starts_at', now.toISOString()),
   ]);
-  // Avancement : seules les séances pointées « faites » comptent (un lapin n'est pas une séance).
+  // Avancement : séances passées « réalisées » ; un RDV « non honoré » (lapin) ne compte pas.
   const doneCount = new Map<string, number>();
   const absentCount = new Map<string, number>();
   for (const a of done ?? []) {
-    const m = a.attendance === 'faite' ? doneCount : absentCount;
+    const m = a.attendance === 'absent' ? absentCount : doneCount;
     m.set(a.patient_id, (m.get(a.patient_id) ?? 0) + 1);
   }
   const pathologyLabel = new Map((pathologies ?? []).map((p) => [p.code, p.label]));

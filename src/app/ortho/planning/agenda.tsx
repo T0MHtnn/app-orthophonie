@@ -9,7 +9,7 @@ import { RECURRENCES, isFree, type AgendaDay, type BlockInput, type Interval } f
 import { matchesSearch } from '@/lib/search';
 import { WEEKDAYS, formatDay, formatTime, minutesToTime } from '@/lib/time';
 import { setPatientAutonomous } from '../reglages/actions';
-import { cancelAppointment, deleteBlock, markAttendance, reviewAppointment, saveAppointment, saveBlock } from './actions';
+import { deleteAppointment, deleteBlock, markAttendance, reviewAppointment, saveAppointment, saveBlock } from './actions';
 
 /** Hauteur d'une minute dans la grille, en pixels. */
 const PX = 1.1;
@@ -33,9 +33,9 @@ export interface PatientDetail {
   pathology: string | null;
   requestType: string | null;
   autonomous: boolean;
-  /** Séances pointées « faites ». */
+  /** Séances réalisées (passées, non « non honoré »). */
   sessionsDone: number;
-  /** Séances pointées « absent » (lapins). */
+  /** Rendez-vous non honorés (lapins). */
   absences: number;
   /** Séances prévues par l'acte AMO (null tant que l'acte n'est pas renseigné). */
   sessionsTotal: number | null;
@@ -57,7 +57,7 @@ interface Props {
 
 type Dialog =
   | { kind: 'block'; date: string; start: number; end: number; block?: BlockInput; occurrence?: string }
-  | { kind: 'appointment'; id: string; patientId: string; date: string; start: number; duration: number; label: string; status: string; attendance: 'faite' | 'absent' | null; past: boolean };
+  | { kind: 'appointment'; id: string; patientId: string; date: string; start: number; duration: number; label: string; status: string; attendance: 'absent' | null; past: boolean };
 
 export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessionMinutes, details, bookingMode }: Props) {
   const [dialog, setDialog] = useState<Dialog | null>(null);
@@ -174,14 +174,14 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
                 ))}
                 {d.appointments.map((a) => {
                   const duration = a.end - a.start;
-                  // Séance commencée et confirmée, pas encore pointée : « à pointer ».
+                  // Prévu (à venir) → réalisé (heure passée) automatiquement, sauf si « non honoré ».
                   const past = d.date < today || (d.date === today && a.start <= nowMinutes);
-                  const toCheck = past && a.status === 'confirme' && !a.attendance;
+                  const done = past && a.status === 'confirme' && a.attendance !== 'absent';
                   return (
                     <button
                       type="button"
                       key={a.id}
-                      className={`agenda-appt ${a.status} ${a.attendance ?? ''} ${toCheck ? 'to-check' : ''}`}
+                      className={`agenda-appt ${a.status} ${a.attendance ?? ''} ${done ? 'done' : ''}`}
                       style={pos(a, range.start)}
                       draggable
                       onDragStart={(e) =>
@@ -193,9 +193,8 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
                     >
                       <b>{minutesToTime(a.start)}</b> {a.label}
                       {a.status === 'a_valider' && <small className="appt-flag">{t('À valider')}</small>}
-                      {toCheck && <small className="appt-flag check">{t('À pointer')}</small>}
-                      {a.attendance === 'faite' && <small className="appt-flag done">✓ {t('Faite')}</small>}
-                      {a.attendance === 'absent' && <small className="appt-flag absent">{t('Absent')}</small>}
+                      {done && <small className="appt-flag done">✓ {t('Réalisé')}</small>}
+                      {a.attendance === 'absent' && <small className="appt-flag absent">{t('Non honoré')}</small>}
                     </button>
                   );
                 })}
@@ -394,7 +393,7 @@ function AppointmentDialog({
   onDone: (text: string) => void;
 }) {
   const [state, action] = useActionState<FormState, FormData>(saveAppointment, {});
-  const [cancelState, cancelAction] = useActionState<FormState, FormData>(cancelAppointment, {});
+  const [cancelState, cancelAction] = useActionState<FormState, FormData>(deleteAppointment, {});
   const [reviewState, reviewAction] = useActionState<FormState, FormData>(reviewAppointment, {});
   const [attState, attAction] = useActionState<FormState, FormData>(markAttendance, {});
   useOnSuccess(attState, onDone);
@@ -437,33 +436,24 @@ function AppointmentDialog({
           </div>
         </div>
       )}
-      {dialog.past && dialog.status === 'confirme' && (
-        <div className={`stack attendance ${dialog.attendance ?? 'pending'}`}>
+      {dialog.status === 'confirme' && (
+        <div className={`row spread attendance ${dialog.attendance === 'absent' ? 'absent' : dialog.past ? 'done' : 'planned'}`}>
           <p>
-            <b>{t('Pointage de la séance')}</b> ·{' '}
-            {t(dialog.attendance === 'faite' ? 'Faite' : dialog.attendance === 'absent' ? 'Absent' : 'Pas encore pointée')}
+            <b>{t('État')}</b> · {t(dialog.attendance === 'absent' ? 'Non honoré' : dialog.past ? 'Réalisé' : 'Prévu')}
           </p>
-          <FormAlert state={attState} />
-          {/* Un formulaire par bouton : la valeur part dans un champ caché. */}
-          <div className="row">
-            {(
-              [
-                ['faite', 'Séance faite', 'btn primary'],
-                ['absent', 'Absent (non prévenu)', 'btn danger'],
-                ...(dialog.attendance ? ([['aucun', 'Effacer le pointage', 'btn']] as const) : []),
-              ] as const
-            ).map(([value, label, cls]) =>
-              dialog.attendance === value ? null : (
-                <form key={value} action={attAction}>
-                  <input type="hidden" name="id" value={dialog.id} />
-                  <input type="hidden" name="attendance" value={value} />
-                  <SubmitButton className={`${cls} small`}>{label}</SubmitButton>
-                </form>
-              ),
-            )}
-          </div>
+          {/* Modifiable même après la date ; un rendez-vous à venir ne peut pas encore être « non honoré ». */}
+          {dialog.past && (
+            <form action={attAction}>
+              <input type="hidden" name="id" value={dialog.id} />
+              <input type="hidden" name="attendance" value={dialog.attendance === 'absent' ? 'realise' : 'absent'} />
+              <SubmitButton className={`btn small ${dialog.attendance === 'absent' ? '' : 'danger'}`}>
+                {dialog.attendance === 'absent' ? 'Marquer comme réalisé' : 'Marquer comme non honoré'}
+              </SubmitButton>
+            </form>
+          )}
         </div>
       )}
+      <FormAlert state={attState} />
       {!pendingReview && <h3>{t('Rendez-vous')}</h3>}
       {!pendingReview && (
         <form action={action} className="stack" noValidate>
@@ -493,7 +483,7 @@ function AppointmentDialog({
         <form action={cancelAction} className="row">
           <FormAlert state={cancelState} />
           <input type="hidden" name="id" value={dialog.id} />
-          <SubmitButton className="btn danger small">Annuler ce rendez-vous</SubmitButton>
+          <SubmitButton className="btn danger small">Supprimer ce rendez-vous</SubmitButton>
         </form>
       )}
     </div>
@@ -525,7 +515,7 @@ function PatientCard({ patientId, detail, bookingMode }: { patientId: string; de
     <section className="patient-card stack" aria-label={t('Fiche patient')}>
       <SessionsProgress done={detail.sessionsDone} total={detail.sessionsTotal} />
       {detail.absences > 0 && (
-        <p className="absences">{t(detail.absences > 1 ? '{n} absences non prévenues' : '{n} absence non prévenue', { n: detail.absences })}</p>
+        <p className="absences">{t(detail.absences > 1 ? '{n} rendez-vous non honorés' : '{n} rendez-vous non honoré', { n: detail.absences })}</p>
       )}
       <dl className="facts">
         {rows
@@ -586,7 +576,7 @@ function SessionsProgress({ done, total }: { done: number; total: number | null 
       <p className="hint">
         {total
           ? t('{fait} séance(s) sur {total}', { fait: done, total })
-          : t('{fait} séance(s) faite(s) · nombre total à définir avec l’acte AMO', { fait: done })}
+          : t('{fait} séance(s) réalisée(s) · nombre total à définir avec l’acte AMO', { fait: done })}
       </p>
     </div>
   );

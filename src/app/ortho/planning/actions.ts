@@ -53,17 +53,18 @@ export async function saveAppointment(_prev: FormState, formData: FormData): Pro
   return done(d.id ? 'Rendez-vous déplacé.' : 'Rendez-vous ajouté.');
 }
 
-export async function cancelAppointment(_prev: FormState, formData: FormData): Promise<FormState> {
+/** RDV annulé par l'ortho : supprimé de l'agenda. */
+export async function deleteAppointment(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireOrtho();
   const id = idSchema.safeParse(formData.get('id'));
   if (!id.success) return { message: 'Rendez-vous introuvable.' };
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc('cancel_appointment', { p_id: id.data });
+  const { data, error } = await supabase.rpc('delete_appointment', { p_id: id.data });
   if (error || !data) {
-    if (error) console.error('cancel_appointment', error.code);
-    return { message: 'Le rendez-vous n’a pas pu être annulé. Rechargez la page puis réessayez.' };
+    if (error) console.error('delete_appointment', error.code);
+    return { message: 'Le rendez-vous n’a pas pu être supprimé. Rechargez la page puis réessayez.' };
   }
-  return done('Rendez-vous annulé.');
+  return done('Rendez-vous supprimé.');
 }
 
 /** Ajoute ou modifie un blocage. Sur une série : toute la série, ou ce jour seulement. */
@@ -189,17 +190,17 @@ export async function reviewAppointment(_prev: FormState, formData: FormData): P
   return done(accept ? 'Demande acceptée : la famille est prévenue par email.' : 'Demande refusée : la famille est prévenue par email.');
 }
 
-/** Pointage d'une séance passée : faite, absent, ou effacer le pointage. */
+/** Séance passée : « non honoré » (lapin) ou retour à « réalisé ». */
 export async function markAttendance(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireOrtho();
   const id = idSchema.safeParse(formData.get('id'));
   const value = formData.get('attendance');
-  if (!id.success || (value !== 'faite' && value !== 'absent' && value !== 'aucun')) return { message: 'Choix manquant. Rechargez la page puis réessayez.' };
+  if (!id.success || (value !== 'absent' && value !== 'realise')) return { message: 'Choix manquant. Rechargez la page puis réessayez.' };
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc('mark_attendance', { p_id: id.data, p_attendance: value === 'aucun' ? null : value });
+  const { data, error } = await supabase.rpc('mark_attendance', { p_id: id.data, p_attendance: value === 'absent' ? 'absent' : null });
   if (error || !data) {
     if (error) console.error('mark_attendance', error.code);
-    return { message: 'Le pointage n’a pas pu être enregistré. Rechargez la page puis réessayez.' };
+    return { message: 'Le changement n’a pas pu être enregistré. Rechargez la page puis réessayez.' };
   }
-  return done(value === 'faite' ? 'Séance pointée comme faite.' : value === 'absent' ? 'Absence enregistrée.' : 'Pointage effacé.');
+  return done(value === 'absent' ? 'Rendez-vous marqué comme non honoré.' : 'Rendez-vous marqué comme réalisé.');
 }

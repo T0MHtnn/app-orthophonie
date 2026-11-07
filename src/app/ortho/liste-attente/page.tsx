@@ -56,10 +56,19 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
   const formatDate = (iso: string) => formatShortDate(iso, t.locale);
   const supabase = await createClient();
 
-  const [{ data: pathologies }, { data: entries, error }] = await Promise.all([
+  const [{ data: pathologies }, { data: entries, error }, { data: followedPatients }, { data: missed }] = await Promise.all([
     supabase.from('pathologies').select('code, label').order('sort_order'),
     supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true }),
+    supabase.from('patients').select('id, waitlist_entry_id'),
+    supabase.from('appointments').select('patient_id').eq('attendance', 'absent'),
   ]);
+  // Rendez-vous non honorés (lapins) par demande d'origine.
+  const entryOfPatient = new Map((followedPatients ?? []).map((p) => [p.id, p.waitlist_entry_id]));
+  const missedByEntry = new Map<string, number>();
+  for (const m of missed ?? []) {
+    const entry = entryOfPatient.get(m.patient_id);
+    if (entry) missedByEntry.set(entry, (missedByEntry.get(entry) ?? 0) + 1);
+  }
   const labels = new Map((pathologies ?? []).map((p) => [p.code, t(p.label)]));
   const filter = params.motif && labels.has(params.motif) ? params.motif : '';
   const tab: 'attente' | 'suivis' = params.onglet === 'suivis' ? 'suivis' : 'attente';
@@ -168,6 +177,11 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
                 <td>
                   <span className={`badge ${e.status}`}>{t(STATUS_LABEL[e.status])}</span>
                   {e.contacted_at && <small>{t('contacté le {date}', { date: formatDate(e.contacted_at) })}</small>}
+                  {(missedByEntry.get(e.id) ?? 0) > 0 && (
+                    <small className="absences">
+                      {t((missedByEntry.get(e.id) ?? 0) > 1 ? '{n} rendez-vous non honorés' : '{n} rendez-vous non honoré', { n: missedByEntry.get(e.id) ?? 0 })}
+                    </small>
+                  )}
                 </td>
                 <td>
                   <div className="row">
