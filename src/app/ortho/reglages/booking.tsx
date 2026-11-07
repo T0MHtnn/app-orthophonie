@@ -14,6 +14,11 @@ const MODES = [
 export function BookingForm({ mode, minNoticeHours }: { mode: string; minNoticeHours: number }) {
   const [state, action] = useActionState<FormState, FormData>(saveBookingSettings, {});
   const v = state.values ?? { mode, minNoticeHours: String(minNoticeHours) };
+  // React vide le formulaire après l'action : on le recrée avec les valeurs enregistrées (sinon l'ancien choix réapparaît).
+  return <BookingFields key={JSON.stringify(v)} state={state} action={action} values={v} />;
+}
+
+function BookingFields({ state, action, values: v }: { state: FormState; action: (fd: FormData) => void; values: Record<string, string> }) {
   const [m, setM] = useState(v.mode);
   return (
     <form action={action} className="stack" noValidate>
