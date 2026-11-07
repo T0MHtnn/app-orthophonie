@@ -20,8 +20,15 @@ export interface FamilyPatientInfo {
   practiceName: string;
 }
 
-/** Côté famille : nom du compte et infos des patients suivis, en lecture seule (règle de Tom). */
+const same = (a: string, b: string) => a.trim().toLocaleLowerCase('fr') === b.trim().toLocaleLowerCase('fr');
+
+/**
+ * Côté famille, en lecture seule (règle de Tom) : le titulaire du compte, puis chaque patient suivi.
+ * Si le patient est le titulaire lui-même (mêmes prénom et nom), un seul encart avec sa date de naissance.
+ */
 export function LockedInfos({ firstName, lastName, patients, t }: { firstName: string; lastName: string; patients: FamilyPatientInfo[]; t: T }) {
+  const self = patients.find((p) => same(p.firstName, firstName) && same(p.lastName, lastName));
+  const others = patients.filter((p) => p !== self);
   return (
     <>
       <section className="card stack">
@@ -29,14 +36,14 @@ export function LockedInfos({ firstName, lastName, patients, t }: { firstName: s
         <div className="form-grid">
           <LockedField label="Prénom" value={firstName} t={t} />
           <LockedField label="Nom" value={lastName} t={t} />
+          {self && <LockedField label="Date de naissance" value={self.birthDate} t={t} />}
         </div>
+        {self && <p className="hint">{t('Patient suivi chez {cabinet}', { cabinet: self.practiceName })}</p>}
       </section>
-      {patients.map((p) => (
+      {others.map((p) => (
         <section key={p.id} className="card stack">
-          <h2>
-            {p.firstName} {p.lastName}
-            <span className="hint"> · {p.practiceName}</span>
-          </h2>
+          <h2>{t('Patient suivi : {nom}', { nom: `${p.firstName} ${p.lastName}` })}</h2>
+          <p className="hint">{p.practiceName}</p>
           <div className="form-grid">
             <LockedField label="Prénom" value={p.firstName} t={t} />
             <LockedField label="Nom" value={p.lastName} t={t} />

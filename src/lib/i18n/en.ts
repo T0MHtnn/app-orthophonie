@@ -811,4 +811,6 @@ export const EN: Record<string, string> = {
   "Ne plus envoyer les emails": "Stop sending emails",
   // 33_locked_infos
   "Pour modifier une information personnelle, contactez votre orthophoniste.": "To change any personal information, contact your speech therapist.",
+  "Patient suivi chez {cabinet}": "Patient followed at {cabinet}",
+  "Patient suivi : {nom}": "Patient followed: {nom}",
 };
