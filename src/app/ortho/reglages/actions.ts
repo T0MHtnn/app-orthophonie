@@ -46,7 +46,6 @@ export async function saveBookingSettings(_prev: FormState, formData: FormData):
   const { practice } = await requireOrtho();
   const raw = {
     mode: String(formData.get('mode') ?? ''),
-    validation: String(formData.get('validation') ?? ''),
     minNoticeHours: String(formData.get('minNoticeHours') ?? ''),
   };
   const parsed = bookingSettingsSchema.safeParse(raw);
@@ -54,7 +53,7 @@ export async function saveBookingSettings(_prev: FormState, formData: FormData):
   const supabase = await createClient();
   const { error } = await supabase
     .from('practices')
-    .update({ booking_mode: parsed.data.mode, booking_validation: parsed.data.validation, booking_min_notice_hours: parsed.data.minNoticeHours })
+    .update({ booking_mode: parsed.data.mode, booking_min_notice_hours: parsed.data.minNoticeHours })
     .eq('id', practice.id);
   if (error) {
     console.error('booking_settings', error.code);

@@ -343,4 +343,83 @@ begin
 end $$;
 reset role;
 
+-- 16. Réservation par la famille : modes du cabinet, autonome → confirmé, sinon à valider ; jamais les détails des autres.
+do $$
+declare v_patient uuid;
+begin
+  select id into v_patient from public.patients where active limit 1;
+  update public.patients set family_id = '00000000-0000-0000-0000-0000000000f1', autonomous = false where id = v_patient;
+  update public.practices set booking_mode = 'ortho', booking_min_notice_hours = 0 where slug = 'cabinet-a';
+end $$;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1', 'aal1');
+set role authenticated;
+do $$
+declare v_patient uuid := (select id from public.my_patients() limit 1); v_status text;
+begin
+  if v_patient is null then raise exception 'ÉCHEC 16a : la famille ne voit pas son patient'; end if;
+  begin
+    perform public.book_appointment(v_patient, '2030-02-04 10:00+01');
+    raise exception 'ÉCHEC 16b : réservation possible en mode « ortho seul·e »';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+update public.practices set booking_mode = 'tous' where slug = 'cabinet-a';
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1', 'aal1');
+set role authenticated;
+do $$
+declare v_patient uuid := (select id from public.my_patients() limit 1); v_status text;
+begin
+  v_status := public.book_appointment(v_patient, '2030-02-04 10:00+01');
+  if v_status <> 'a_valider' then raise exception 'ÉCHEC 16c : non autonome confirmé sans validation'; end if;
+  begin
+    perform public.book_appointment(v_patient, '2030-02-05 10:00+01');
+    raise exception 'ÉCHEC 16d : deux demandes en attente acceptées';
+  exception when sqlstate 'P0412' then null;
+  end;
+  begin
+    perform public.book_appointment(v_patient, '2030-02-04 22:00+01');
+    raise exception 'ÉCHEC 16e : réservation hors 7 h – 21 h';
+  exception when sqlstate 'P0411' then null;
+  end;
+  if exists (select 1 from public.appointments) then raise exception 'ÉCHEC 16f : la famille lit la table des rendez-vous'; end if;
+  if (select count(*) from public.my_appointments()) <> 1 then raise exception 'ÉCHEC 16g : séances de la famille incorrectes'; end if;
+end $$;
+reset role;
+-- L'ortho accepte ; un patient autonome est ensuite confirmé directement.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'aal2');
+set role authenticated;
+do $$ begin
+  if not public.review_appointment((select id from public.appointments where status = 'a_valider' limit 1), true) then
+    raise exception 'ÉCHEC 16h : validation impossible';
+  end if;
+end $$;
+reset role;
+update public.patients set autonomous = true where family_id = '00000000-0000-0000-0000-0000000000f1';
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1', 'aal1');
+set role authenticated;
+do $$
+declare v_patient uuid := (select id from public.my_patients() limit 1);
+begin
+  if public.book_appointment(v_patient, '2030-02-06 10:00+01') <> 'confirme' then raise exception 'ÉCHEC 16i : autonome non confirmé'; end if;
+  begin
+    perform public.book_appointment(v_patient, '2030-02-06 10:15+01');
+    raise exception 'ÉCHEC 16j : chevauchement accepté';
+  exception when sqlstate 'P0409' then null;
+  end;
+end $$;
+reset role;
+-- Une autre famille ne voit rien et ne peut pas réserver pour ce patient.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f2', 'aal1');
+set role authenticated;
+do $$ begin
+  if exists (select 1 from public.my_appointments()) then raise exception 'ÉCHEC 16k : séances d''une autre famille visibles'; end if;
+  begin
+    perform public.booking_busy((select id from public.patients limit 1), now(), now() + interval '7 days');
+    raise exception 'ÉCHEC 16l : disponibilités d''un patient d''une autre famille';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
 select 'TOUS LES TESTS DE SÉCURITÉ PASSENT' as resultat;

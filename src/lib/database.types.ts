@@ -45,8 +45,6 @@ export type PracticeRow = {
   session_minutes: number;
   /** Qui réserve en ligne : l'ortho seul·e, les patients autonomes, ou tous les patients suivis. */
   booking_mode: 'ortho' | 'autonomes' | 'tous';
-  /** Réservations en ligne : validées par l'ortho, ou confirmées automatiquement. */
-  booking_validation: 'manuelle' | 'auto';
   /** Délai minimum (heures) entre la réservation en ligne et le rendez-vous. */
   booking_min_notice_hours: number;
   created_at: string;
@@ -138,7 +136,7 @@ export type Database = {
     Tables: {
       // Insert est vide : aucune insertion directe n'est autorisée (fonctions RPC uniquement).
       profiles: Table<ProfileRow, NoInsert, Partial<Pick<ProfileRow, 'first_name' | 'last_name'>>>;
-      practices: Table<PracticeRow, NoInsert, Partial<Pick<PracticeRow, 'name' | 'waitlist_open' | 'waitlist_info' | 'email_template' | 'address_line' | 'postal_code' | 'city' | 'listed' | 'session_minutes' | 'booking_mode' | 'booking_validation' | 'booking_min_notice_hours'>>>;
+      practices: Table<PracticeRow, NoInsert, Partial<Pick<PracticeRow, 'name' | 'waitlist_open' | 'waitlist_info' | 'email_template' | 'address_line' | 'postal_code' | 'city' | 'listed' | 'session_minutes' | 'booking_mode' | 'booking_min_notice_hours'>>>;
       waitlist_entries: Table<WaitlistEntryRow, NoInsert, Partial<Pick<WaitlistEntryRow, 'status'>>>;
       pathologies: Table<PathologyRow, NoInsert, NoInsert>;
       patients: Table<PatientRow, NoInsert, Partial<Pick<PatientRow, 'autonomous'>>>;
@@ -202,6 +200,29 @@ export type Database = {
       withdraw_waitlist_entry: { Args: { p_id: string }; Returns: boolean };
       save_appointment: { Args: { p_id: string | null; p_patient_id: string; p_starts_at: string; p_ends_at: string }; Returns: string };
       cancel_appointment: { Args: { p_id: string }; Returns: boolean };
+      review_appointment: { Args: { p_id: string; p_accept: boolean }; Returns: boolean };
+      booking_busy: { Args: { p_patient_id: string; p_from: string; p_to: string }; Returns: { starts_at: string; ends_at: string }[] };
+      /** Renvoie le statut créé : 'confirme' (patient autonome) ou 'a_valider'. */
+      book_appointment: { Args: { p_patient_id: string; p_starts_at: string }; Returns: 'confirme' | 'a_valider' };
+      family_cancel_appointment: { Args: { p_id: string }; Returns: boolean };
+      my_appointments: {
+        Args: Record<string, never>;
+        Returns: {
+          id: string;
+          patient_id: string;
+          patient_first_name: string;
+          patient_last_name: string;
+          practice_name: string;
+          starts_at: string;
+          ends_at: string;
+          status: AppointmentStatus;
+          can_cancel: boolean;
+        }[];
+      };
+      my_patients: {
+        Args: Record<string, never>;
+        Returns: { id: string; first_name: string; last_name: string; practice_name: string; can_book: boolean; session_minutes: number; min_notice_hours: number }[];
+      };
     };
     Enums: { user_role: UserRole; waitlist_status: WaitlistStatus; waitlist_request_type: RequestType };
     CompositeTypes: { [_ in never]: never };

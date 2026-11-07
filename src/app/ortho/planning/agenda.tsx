@@ -6,7 +6,7 @@ import { RECURRENCES, isFree, type AgendaDay, type BlockInput, type Interval } f
 import { matchesSearch } from '@/lib/search';
 import { WEEKDAYS, formatDay, formatTime, minutesToTime } from '@/lib/time';
 import { setPatientAutonomous } from '../reglages/actions';
-import { cancelAppointment, deleteBlock, saveAppointment, saveBlock } from './actions';
+import { cancelAppointment, deleteBlock, reviewAppointment, saveAppointment, saveBlock } from './actions';
 
 /** Hauteur d'une minute dans la grille, en pixels. */
 const PX = 1.1;
@@ -48,7 +48,7 @@ interface Props {
 
 type Dialog =
   | { kind: 'block'; date: string; start: number; end: number; block?: BlockInput; occurrence?: string }
-  | { kind: 'appointment'; id: string; patientId: string; date: string; start: number; duration: number; label: string };
+  | { kind: 'appointment'; id: string; patientId: string; date: string; start: number; duration: number; label: string; status: string };
 
 export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessionMinutes, details, bookingMode }: Props) {
   const [dialog, setDialog] = useState<Dialog | null>(null);
@@ -173,10 +173,11 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
                         e.dataTransfer.setData('application/x-agenda', JSON.stringify({ patientId: a.patientId, appointmentId: a.id, duration }))
                       }
                       onClick={() =>
-                        setDialog({ kind: 'appointment', id: a.id, patientId: a.patientId, date: d.date, start: a.start, duration, label: a.label })
+                        setDialog({ kind: 'appointment', id: a.id, patientId: a.patientId, date: d.date, start: a.start, duration, label: a.label, status: a.status })
                       }
                     >
                       <b>{minutesToTime(a.start)}</b> {a.label}
+                      {a.status === 'a_valider' && <small className="appt-flag">À valider</small>}
                     </button>
                   );
                 })}
@@ -405,8 +406,11 @@ function AppointmentDialog({
 }) {
   const [state, action] = useActionState<FormState, FormData>(saveAppointment, {});
   const [cancelState, cancelAction] = useActionState<FormState, FormData>(cancelAppointment, {});
+  const [reviewState, reviewAction] = useActionState<FormState, FormData>(reviewAppointment, {});
   useOnSuccess(state, onDone);
   useOnSuccess(cancelState, onDone);
+  useOnSuccess(reviewState, onDone);
+  const pendingReview = dialog.status === 'a_valider';
   const v = state.values;
   const err = state.errors ?? {};
   const options = patients.some((p) => p.id === dialog.patientId) ? patients : [{ id: dialog.patientId, name: dialog.label, next: null }, ...patients];
@@ -420,34 +424,55 @@ function AppointmentDialog({
         </p>
       </div>
       {detail && <PatientCard patientId={dialog.patientId} detail={detail} bookingMode={bookingMode} />}
-      <h3>Rendez-vous</h3>
-      <form action={action} className="stack" noValidate>
-        <FormAlert state={state} />
-        <input type="hidden" name="id" value={dialog.id} />
-        <label className="field">
-          <span>Patient</span>
-          <select name="patientId" defaultValue={v?.patientId ?? dialog.patientId}>
-            {options.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="form-grid">
-          <Field label="Date" name="date" type="date" required defaultValue={v?.date ?? dialog.date} error={err.date} />
-          <Field label="Heure" name="time" type="time" step={300} required defaultValue={v?.time ?? minutesToTime(dialog.start)} error={err.time} />
-          <Field label="Durée (min)" name="duration" type="number" min={10} max={240} step={5} required defaultValue={v?.duration ?? String(dialog.duration)} error={err.duration} />
-        </div>
-        <div>
-          <SubmitButton pendingText="Enregistrement…">Enregistrer</SubmitButton>
-        </div>
-      </form>
-      <form action={cancelAction} className="row">
-        <FormAlert state={cancelState} />
-        <input type="hidden" name="id" value={dialog.id} />
-        <SubmitButton className="btn danger small">Annuler ce rendez-vous</SubmitButton>
-      </form>
+      {pendingReview && (
+        <form action={reviewAction} className="stack review">
+          <p>
+            <b>Réservation en ligne en attente de votre validation.</b> La famille sera prévenue par email.
+          </p>
+          <FormAlert state={reviewState} />
+          <input type="hidden" name="id" value={dialog.id} />
+          <div className="row">
+            <SubmitButton name="decision" value="accepter">
+              Accepter
+            </SubmitButton>
+            <SubmitButton className="btn danger" name="decision" value="refuser">
+              Refuser
+            </SubmitButton>
+          </div>
+        </form>
+      )}
+      {!pendingReview && <h3>Rendez-vous</h3>}
+      {!pendingReview && (
+        <form action={action} className="stack" noValidate>
+          <FormAlert state={state} />
+          <input type="hidden" name="id" value={dialog.id} />
+          <label className="field">
+            <span>Patient</span>
+            <select name="patientId" defaultValue={v?.patientId ?? dialog.patientId}>
+              {options.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="form-grid">
+            <Field label="Date" name="date" type="date" required defaultValue={v?.date ?? dialog.date} error={err.date} />
+            <Field label="Heure" name="time" type="time" step={300} required defaultValue={v?.time ?? minutesToTime(dialog.start)} error={err.time} />
+            <Field label="Durée (min)" name="duration" type="number" min={10} max={240} step={5} required defaultValue={v?.duration ?? String(dialog.duration)} error={err.duration} />
+          </div>
+          <div>
+            <SubmitButton pendingText="Enregistrement…">Enregistrer</SubmitButton>
+          </div>
+        </form>
+      )}
+      {!pendingReview && (
+        <form action={cancelAction} className="row">
+          <FormAlert state={cancelState} />
+          <input type="hidden" name="id" value={dialog.id} />
+          <SubmitButton className="btn danger small">Annuler ce rendez-vous</SubmitButton>
+        </form>
+      )}
     </div>
   );
 }
@@ -470,7 +495,7 @@ function PatientCard({ patientId, detail, bookingMode }: { patientId: string; de
     ['Téléphone', detail.phone && <a href={`tel:${detail.phone.replace(/\s/g, '')}`}>{detail.phone}</a>],
     ['Motif', detail.pathology],
     ['Demande', detail.requestType],
-    ['Acte AMO', <span className="hint">à renseigner (bientôt : cotation, prix, durée des séances)</span>],
+    ['Acte AMO', <span key="amo" className="hint">à renseigner (bientôt : cotation, prix, durée des séances)</span>],
   ];
   return (
     <section className="patient-card stack" aria-label="Fiche patient">

@@ -5,8 +5,10 @@ import { z } from 'zod';
 import type { FormState } from '@/components/form';
 import { requireOrtho } from '@/lib/auth';
 import type { ScheduleBlockRow } from '@/lib/database.types';
+import { sendEmail } from '@/lib/email';
+import { siteUrl } from '@/lib/env';
 import { createClient } from '@/lib/supabase/server';
-import { parisParts, parisToInstant } from '@/lib/time';
+import { formatDay, formatTime, parisParts, parisToInstant } from '@/lib/time';
 import { appointmentSchema, blockSchema, fieldErrors } from '@/lib/validation';
 
 const idSchema = z.uuid();
@@ -148,4 +150,39 @@ async function skipOccurrence(block: ScheduleBlockRow, date: string): Promise<st
 function failed(where: string, code: string | undefined, values: Record<string, string>): FormState {
   console.error(where, code);
   return { message: 'Enregistrement impossible. Rechargez la page puis réessayez.', values };
+}
+
+/** Réservation « à valider » faite en ligne : l'ortho accepte ou refuse, la famille est prévenue par email. */
+export async function reviewAppointment(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { practice } = await requireOrtho();
+  const id = idSchema.safeParse(formData.get('id'));
+  const accept = formData.get('decision') === 'accepter';
+  if (!id.success) return { message: 'Rendez-vous introuvable.' };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('review_appointment', { p_id: id.data, p_accept: accept });
+  if (error || !data) {
+    if (error) console.error('review_appointment', error.code);
+    return { message: 'Cette demande a déjà été traitée ou annulée. Rechargez la page.' };
+  }
+
+  // Email à la famille : date et heure seulement, aucune donnée médicale.
+  const { data: appt } = await supabase.from('appointments').select('starts_at, patient_id').eq('id', id.data).maybeSingle();
+  const { data: patient } = appt ? await supabase.from('patients').select('first_name, email').eq('id', appt.patient_id).maybeSingle() : { data: null };
+  if (appt && patient?.email) {
+    const p = parisParts(new Date(appt.starts_at));
+    const when = `${formatDay(p.date)} à ${formatTime(p.time)}`;
+    await sendEmail({
+      to: { email: patient.email },
+      senderName: practice.name,
+      subject: accept ? `Séance confirmée le ${when}` : `Séance non confirmée – ${practice.name}`,
+      text: [
+        'Bonjour,',
+        accept
+          ? `La séance de ${patient.first_name} du ${when} est confirmée par ${practice.name}.`
+          : `La séance demandée pour ${patient.first_name} le ${when} n’a pas pu être acceptée par ${practice.name}. Vous pouvez choisir un autre créneau depuis votre espace.`,
+        `${siteUrl}/patient`,
+      ].join('\n\n'),
+    });
+  }
+  return done(accept ? 'Demande acceptée : la famille est prévenue par email.' : 'Demande refusée : la famille est prévenue par email.');
 }

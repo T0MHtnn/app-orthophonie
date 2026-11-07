@@ -7,20 +7,14 @@ import { saveBookingSettings, setPatientAutonomous } from './actions';
 
 const MODES = [
   { code: 'ortho', label: 'Moi seul·e', hint: 'Les familles voient leurs rendez-vous mais ne réservent pas en ligne.' },
-  { code: 'autonomes', label: 'Les patients autonomes', hint: 'Seuls les patients cochés dans la liste ci-dessous réservent en ligne.' },
-  { code: 'tous', label: 'Tous mes patients suivis', hint: 'Votre liste d’autonomes est gardée : vous la retrouvez en revenant à « autonomes ».' },
+  { code: 'autonomes', label: 'Les patients autonomes', hint: 'Seuls les patients cochés ci-dessous réservent, confirmés tout de suite.' },
+  { code: 'tous', label: 'Tous mes patients suivis', hint: 'Les non-autonomes envoient une demande que vous validez. Votre liste d’autonomes est gardée.' },
 ] as const;
 
-const VALIDATIONS = [
-  { code: 'manuelle', label: 'Je valide chaque réservation', hint: 'Le créneau est réservé « à valider » jusqu’à votre accord.' },
-  { code: 'auto', label: 'Confirmation automatique', hint: 'Le rendez-vous est confirmé dès la réservation.' },
-] as const;
-
-export function BookingForm({ mode, validation, minNoticeHours }: { mode: string; validation: string; minNoticeHours: number }) {
+export function BookingForm({ mode, minNoticeHours }: { mode: string; minNoticeHours: number }) {
   const [state, action] = useActionState<FormState, FormData>(saveBookingSettings, {});
-  const v = state.values ?? { mode, validation, minNoticeHours: String(minNoticeHours) };
+  const v = state.values ?? { mode, minNoticeHours: String(minNoticeHours) };
   const [m, setM] = useState(v.mode);
-  const [val, setVal] = useState(v.validation);
   return (
     <form action={action} className="stack" noValidate>
       <FormAlert state={state} />
@@ -44,24 +38,10 @@ export function BookingForm({ mode, validation, minNoticeHours }: { mode: string
       </fieldset>
       {m !== 'ortho' && (
         <>
-          <fieldset className="field plain">
-            <legend>
-              <b>Validation des réservations</b>
-            </legend>
-            <div className="choice">
-              {VALIDATIONS.map((o) => (
-                <label key={o.code}>
-                  <input type="radio" name="validation" value={o.code} checked={val === o.code} onChange={() => setVal(o.code)} />
-                  <span>
-                    {o.label}
-                    <small className="hint" style={{ display: 'block', fontWeight: 400 }}>
-                      {o.hint}
-                    </small>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <p className="hint">
+            Un patient <b>autonome</b> qui réserve est confirmé tout de suite. En mode « tous », un patient non autonome envoie une demande : elle apparaît
+            en orange dans votre planning, à accepter ou refuser.
+          </p>
           <Field
             label="Délai minimum avant un rendez-vous réservé en ligne (heures)"
             name="minNoticeHours"
@@ -76,7 +56,6 @@ export function BookingForm({ mode, validation, minNoticeHours }: { mode: string
       )}
       {m === 'ortho' && (
         <>
-          <input type="hidden" name="validation" value={val} />
           <input type="hidden" name="minNoticeHours" value={v.minNoticeHours} />
         </>
       )}
@@ -111,7 +90,7 @@ export function AutonomousList({ patients, mode }: { patients: { id: string; nam
     <div className="stack">
       <p className="sub">
         {count} patient{count > 1 ? 's' : ''} autonome{count > 1 ? 's' : ''}
-        {mode === 'tous' && ' · en mode « tous », cette liste est conservée mais tout le monde peut réserver'}
+        {mode === 'tous' && ' · en mode « tous », les autonomes sont confirmés tout de suite, les autres envoient une demande'}
         {mode === 'ortho' && ' · en mode « moi seul·e », personne ne réserve en ligne'}
       </p>
       {error && <p className="alert error">Une modification n’a pas pu être enregistrée. Rechargez la page.</p>}

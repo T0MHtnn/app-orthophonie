@@ -5,7 +5,7 @@ import { appointmentSchema, blockSchema, fieldErrors, isValidRpps, passwordSchem
 import { normalizePhone } from './phone';
 import { matchesSearch } from './search';
 import { addDays, parisParts, parisToInstant, startOfWeek } from './time';
-import { buildWeek, isFree, occursOn, type BlockInput } from './agenda';
+import { buildWeek, freeSlots, isFree, occursOn, type BlockInput } from './agenda';
 
 describe('safeRedirectPath', () => {
   it('garde un chemin interne', () => expect(safeRedirectPath('/ortho/reglages')).toBe('/ortho/reglages'));
@@ -201,4 +201,27 @@ describe('pop-up de blocage (données réelles du formulaire)', () => {
   it('fin avant début : refusé', () => expect(blockSchema.safeParse({ ...raw, end: '11:00' }).success).toBe(false));
   it('rendez-vous glissé : id vide accepté', () =>
     expect(appointmentSchema.safeParse({ id: '', patientId: '3f0c7c8e-6f4b-4b8a-9a52-1d2c3b4a5e6f', date: '2026-11-12', time: '09:15', duration: '30' }).success).toBe(true));
+});
+
+describe('créneaux réservables par une famille', () => {
+  const busy = [
+    { starts_at: '2026-11-09T08:00:00Z', ends_at: '2026-11-09T08:30:00Z' }, // lundi 9 h – 9 h 30 (RDV)
+    { starts_at: '2026-11-09T11:00:00Z', ends_at: '2026-11-09T12:30:00Z' }, // lundi 12 h – 13 h 30 (pause)
+  ];
+  const slots = freeSlots('2026-11-09', busy, 30, new Date('2026-11-01T00:00:00Z'));
+  it('du lundi au samedi', () => expect(slots.map((d) => d.date)).toEqual(['2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14']));
+  it('7 h – 21 h, par demi-heure', () => {
+    expect(slots[1]!.times[0]).toBe('07:00');
+    expect(slots[1]!.times.at(-1)).toBe('20:30');
+    expect(slots[1]!.times).toHaveLength(28);
+  });
+  it('les plages occupées sont exclues', () => {
+    expect(slots[0]!.times).not.toContain('09:00');
+    expect(slots[0]!.times).toContain('09:30');
+    expect(slots[0]!.times).not.toContain('12:00');
+    expect(slots[0]!.times).not.toContain('13:00');
+    expect(slots[0]!.times).toContain('13:30');
+  });
+  it('rien avant le délai minimum', () => expect(freeSlots('2026-11-09', [], 30, new Date('2026-11-09T19:00:00Z'))[0]!.times).toEqual(['20:00', '20:30']));
+  it('séance de 45 min : pas de 15 min', () => expect(freeSlots('2026-11-09', [], 45, new Date(0))[0]!.times.slice(0, 2)).toEqual(['07:00', '07:15']));
 });

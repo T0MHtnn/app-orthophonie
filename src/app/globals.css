@@ -172,6 +172,11 @@ a { color: var(--accent); }
 .facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 16px; margin: 0; }
 .facts dt { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .facts dd { margin: 0; overflow-wrap: anywhere; }
+.appt-flag { display: block; font-weight: 700; color: var(--warn); }
+.review { padding: 12px 14px; border-radius: 8px; background: var(--warn-soft); color: var(--ink); }
+.slots-week { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.slot-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.slot-list .btn[aria-current='true'] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .autonomous-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 16px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border: 1px solid var(--line); border-radius: 99px; font-size: 13.5px; background: var(--surface); }
 .chip-x { border: 0; background: none; width: 22px; height: 22px; border-radius: 99px; color: var(--muted); font-size: 16px; line-height: 1; }

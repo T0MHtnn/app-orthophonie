@@ -138,3 +138,28 @@ export function visibleRange(days: AgendaDay[]): Interval {
   }
   return { start: Math.floor(start / 60) * 60, end: Math.min(DAY, Math.ceil(end / 60) * 60) };
 }
+
+/** Fenêtre proposée aux familles (même règle que book_appointment en SQL). */
+export const BOOKING_WINDOW: Interval = { start: 7 * 60, end: 21 * 60 };
+
+/**
+ * Créneaux réservables par une famille, du lundi au samedi : tout est ouvert dans
+ * la fenêtre 7 h – 21 h sauf les plages occupées (RDV et blocages, sans détail).
+ */
+export function freeSlots(week: string, busy: { starts_at: string; ends_at: string }[], duration: number, earliest: Date): { date: string; times: string[] }[] {
+  const step = duration % 30 === 0 ? 30 : 15;
+  const ranges = busy.map((b) => [new Date(b.starts_at).getTime(), new Date(b.ends_at).getTime()] as const);
+  return Array.from({ length: 6 }, (_, i) => {
+    const date = addDays(week, i);
+    const times: string[] = [];
+    for (let t = BOOKING_WINDOW.start; t + duration <= BOOKING_WINDOW.end; t += step) {
+      const time = `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+      const s = parisToInstant(date, time).getTime();
+      const e = s + duration * 60_000;
+      if (s < earliest.getTime()) continue;
+      if (ranges.some(([bs, be]) => bs < e && s < be)) continue;
+      times.push(time);
+    }
+    return { date, times };
+  });
+}

@@ -179,7 +179,6 @@ export const blockSchema = z
 
 export const bookingSettingsSchema = z.object({
   mode: z.enum(['ortho', 'autonomes', 'tous'], { error: 'Choix invalide' }),
-  validation: z.enum(['manuelle', 'auto'], { error: 'Choix invalide' }),
   minNoticeHours: z.coerce.number({ error: 'Délai invalide' }).int('Nombre entier').min(0, 'Délai invalide').max(720, '30 jours maximum'),
 });
 
