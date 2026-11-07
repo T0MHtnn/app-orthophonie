@@ -140,6 +140,42 @@ export const practiceSettingsSchema = z.object({
   emailTemplate: z.string().max(5000, 'Modèle trop long (5 000 caractères max.)'),
 });
 
+// ---------------------------------------------------------------------------
+// Planning (heures de Paris, converties en instants côté serveur)
+// ---------------------------------------------------------------------------
+const dateField = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide');
+const timeField = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure invalide');
+const minutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+
+export const appointmentSchema = z.object({
+  id: z.union([z.literal(''), z.uuid()]).optional().default(''),
+  patientId: z.uuid({ error: 'Choisissez un patient' }),
+  date: dateField,
+  time: timeField,
+  duration: z.coerce.number({ error: 'Durée invalide' }).int().min(10, 'Durée minimale : 10 min').max(240, 'Durée maximale : 4 h'),
+});
+
+export const openingHourSchema = z
+  .object({
+    weekday: z.coerce.number().int().min(1).max(7),
+    start: timeField,
+    end: timeField,
+  })
+  .refine((v) => minutes(v.end) > minutes(v.start), { path: ['end'], message: 'L’heure de fin doit être après le début' });
+
+export const scheduleExceptionSchema = z
+  .object({
+    kind: z.enum(['ferme', 'ouvert'], { error: 'Type invalide' }),
+    startDate: dateField,
+    startTime: timeField,
+    endDate: dateField,
+    endTime: timeField,
+    label: text(120).optional().default(''),
+  })
+  .refine((v) => `${v.endDate}T${v.endTime}` > `${v.startDate}T${v.startTime}`, { path: ['endTime'], message: 'La fin doit être après le début' });
+
+export const sessionMinutesSchema = z.coerce.number({ error: 'Durée invalide' }).int().min(10, '10 min minimum').max(180, '3 h maximum');
+
 export const totpCodeSchema = z.string().trim().regex(/^[0-9]{6}$/, 'Code à 6 chiffres');
 
 /** Premier message d'erreur par champ, pour l'affichage dans le formulaire. */

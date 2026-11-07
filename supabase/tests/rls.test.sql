@@ -275,4 +275,50 @@ do $$ begin
 end $$;
 reset role;
 
+-- 14. Planning : fiche patient créée à « Pris en charge », rendez-vous sans chevauchement, aal2 obligatoire.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'aal2');
+set role authenticated;
+do $$
+declare v_entry uuid; v_patient uuid; v_rdv uuid;
+begin
+  select id into v_entry from public.waitlist_entries where practice_id = (select id from public.practices where slug = 'cabinet-a') and status <> 'rdv' limit 1;
+  update public.waitlist_entries set status = 'rdv' where id = v_entry;
+  select id into v_patient from public.patients where waitlist_entry_id = v_entry and active;
+  if v_patient is null then raise exception 'ÉCHEC 14a : fiche patient non créée'; end if;
+
+  v_rdv := public.save_appointment(null, v_patient, '2030-01-07 09:00+01', '2030-01-07 09:30+01');
+  begin
+    perform public.save_appointment(null, v_patient, '2030-01-07 09:15+01', '2030-01-07 09:45+01');
+    raise exception 'ÉCHEC 14b : chevauchement accepté';
+  exception when sqlstate 'P0409' then null;
+  end;
+  perform public.save_appointment(null, v_patient, '2030-01-07 09:30+01', '2030-01-07 10:00+01');
+  if not public.cancel_appointment(v_rdv) then raise exception 'ÉCHEC 14c : annulation refusée'; end if;
+  perform public.save_appointment(null, v_patient, '2030-01-07 09:00+01', '2030-01-07 09:30+01');
+
+  update public.waitlist_entries set status = 'attente' where id = v_entry;
+  if (select active from public.patients where id = v_patient) then raise exception 'ÉCHEC 14d : fiche toujours active'; end if;
+end $$;
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'aal1');
+set role authenticated;
+do $$ begin
+  if (select count(*) from public.appointments) <> 0 or (select count(*) from public.patients) <> 0 then
+    raise exception 'ÉCHEC 14e : planning lisible sans double authentification';
+  end if;
+end $$;
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b', 'aal2');
+set role authenticated;
+do $$ begin
+  if (select count(*) from public.appointments) <> 0 then raise exception 'ÉCHEC 14f : rendez-vous d''un autre cabinet visibles'; end if;
+  begin
+    insert into public.opening_hours (practice_id, weekday, starts_at, ends_at)
+    select id, 1, '09:00', '12:00' from public.practices where slug = 'cabinet-a';
+    raise exception 'ÉCHEC 14g : horaires d''un autre cabinet modifiables';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
 select 'TOUS LES TESTS DE SÉCURITÉ PASSENT' as resultat;

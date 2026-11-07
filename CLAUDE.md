@@ -76,6 +76,7 @@ Variables : voir `.env.example` (`NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_U
 - Type de demande (brainstorm) : « Bilan seul » / « Bilan + rééducation si nécessaire » / « Rééducation uniquement », obligatoire dans le formulaire, affiché et filtrable côté ortho, visible dans l'espace famille.
 - **Annuaire** `/trouver` (public, sans compte) : recherche ville / code postal / nom du cabinet ou de l'ortho (`search_practices`, sans accents), uniquement cabinets vérifiés + liste ouverte + `listed` + ville renseignée. Adresse du cabinet (rue facultative, code postal, ville) demandée à la création et modifiable dans les Réglages, case « Apparaître dans l'annuaire » (cochée par défaut). Une famille inscrite depuis `/inscription` (sans lien de cabinet) arrive sur `/trouver` après confirmation. Le but : l'ortho n'a rien à faire, les familles trouvent le cabinet seules.
 - Un ortho peut aussi être « famille » (inscrire ses enfants / un proche) dans un **autre** cabinet, jamais dans le sien (`P0403` dans `submit_waitlist_entry`) ; son cabinet n'apparaît pas dans ses résultats d'annuaire. Menu ortho : « Mes demandes (famille) » → `/patient`.
+- **Planning étape 1** (`/ortho/planning`) : vue semaine (créneaux libres cliquables, RDV cliquables pour déplacer / annuler), horaires d'ouverture récurrents + fermetures / ouvertures ponctuelles (`/ortho/planning/horaires`), durée de séance par défaut (`practices.session_minutes`). Table `patients` (fiche minimale) créée par trigger au passage en « Pris en charge », désactivée si retour en arrière. RDV via `save_appointment` / `cancel_appointment` (verrou par cabinet, refus de chevauchement `P0409`). Heures de Paris : `lib/time.ts`, calcul de la grille : `lib/agenda.ts`.
 - Statut de la liste d'attente affiché en badge, avec boutons selon l'étape (« Place proposée » passe automatiquement à l'envoi de l'email).
 - Changement de mot de passe : demande d'abord le code MFA si le compte en a un (Supabase exige aal2).
 - Sessions orphelines (compte supprimé en partie, profil absent) : déconnexion propre + message.
@@ -86,7 +87,7 @@ Variables : voir `.env.example` (`NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_U
 
 Ordre proposé : Planning → Patients → Espace patient → Matériel → Trame CRBO → Comptabilité → Réglages complets.
 
-1. **Planning** (ancien « Agenda »)
+1. **Planning** (ancien « Agenda ») — étape 1 faite (agenda ortho). Reste : 2. réservation par les familles (modes, validation, autonomes, délai minimum, séances à venir dans l'espace famille) ; 3. lien personnel « place libérée » ; 4. remplissage auto des annulations + rappels la veille (tâches planifiées : pg_cron ou Vercel Cron, Hobby = 1 fois/jour).
    - Plages horaires ouvertes / bloquées (ponctuelles ou récurrentes). **Aucune plage bloquée au départ.**
    - Qui réserve en ligne, 3 modes : l'ortho seule / seulement les patients « autonomes » / tous les patients suivis.
    - Validation, 2 modes : l'ortho valide chaque réservation faite en ligne / confirmation automatique.

@@ -41,6 +41,8 @@ export type PracticeRow = {
   city: string | null;
   /** Visible dans l'annuaire « Trouver un orthophoniste ». */
   listed: boolean;
+  /** Durée de séance proposée par défaut dans l'agenda (minutes). */
+  session_minutes: number;
   created_at: string;
   updated_at: string;
 };
@@ -67,6 +69,54 @@ export type WaitlistEntryRow = {
   updated_at: string;
 };
 
+export type PatientRow = {
+  id: string;
+  practice_id: string;
+  waitlist_entry_id: string | null;
+  family_id: string | null;
+  last_name: string;
+  first_name: string;
+  patient_age: string | null;
+  caregiver_last_name: string | null;
+  caregiver_first_name: string | null;
+  email: string | null;
+  phone: string | null;
+  pathology_code: string | null;
+  request_type: RequestType | null;
+  autonomous: boolean;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+/** weekday : 1 = lundi (ISO). Heures locales (Europe/Paris) au format HH:MM:SS. */
+export type OpeningHourRow = { id: string; practice_id: string; weekday: number; starts_at: string; ends_at: string };
+
+export type ScheduleExceptionRow = {
+  id: string;
+  practice_id: string;
+  kind: 'ferme' | 'ouvert';
+  starts_at: string;
+  ends_at: string;
+  label: string;
+  created_at: string;
+};
+
+export type AppointmentStatus = 'confirme' | 'a_valider' | 'annule';
+
+export type AppointmentRow = {
+  id: string;
+  practice_id: string;
+  patient_id: string;
+  starts_at: string;
+  ends_at: string;
+  status: AppointmentStatus;
+  booked_by: 'ortho' | 'famille';
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type PathologyRow = {
   code: string;
   label: string;
@@ -78,9 +128,14 @@ export type Database = {
     Tables: {
       // Insert est vide : aucune insertion directe n'est autorisée (fonctions RPC uniquement).
       profiles: Table<ProfileRow, NoInsert, Partial<Pick<ProfileRow, 'first_name' | 'last_name'>>>;
-      practices: Table<PracticeRow, NoInsert, Partial<Pick<PracticeRow, 'name' | 'waitlist_open' | 'waitlist_info' | 'email_template' | 'address_line' | 'postal_code' | 'city' | 'listed'>>>;
+      practices: Table<PracticeRow, NoInsert, Partial<Pick<PracticeRow, 'name' | 'waitlist_open' | 'waitlist_info' | 'email_template' | 'address_line' | 'postal_code' | 'city' | 'listed' | 'session_minutes'>>>;
       waitlist_entries: Table<WaitlistEntryRow, NoInsert, Partial<Pick<WaitlistEntryRow, 'status'>>>;
       pathologies: Table<PathologyRow, NoInsert, NoInsert>;
+      patients: Table<PatientRow, NoInsert, Partial<Pick<PatientRow, 'autonomous'>>>;
+      opening_hours: Table<OpeningHourRow, Omit<OpeningHourRow, 'id'>, NoInsert>;
+      schedule_exceptions: Table<ScheduleExceptionRow, Omit<ScheduleExceptionRow, 'id' | 'created_at'>, NoInsert>;
+      // Écritures via save_appointment / cancel_appointment uniquement.
+      appointments: Table<AppointmentRow, NoInsert, NoInsert>;
       audit_log: Table<
         { id: number; at: string; actor_id: string | null; action: string; table_name: string; record_id: string | null; practice_id: string | null },
         NoInsert,
@@ -132,6 +187,8 @@ export type Database = {
         }[];
       };
       withdraw_waitlist_entry: { Args: { p_id: string }; Returns: boolean };
+      save_appointment: { Args: { p_id: string | null; p_patient_id: string; p_starts_at: string; p_ends_at: string }; Returns: string };
+      cancel_appointment: { Args: { p_id: string }; Returns: boolean };
     };
     Enums: { user_role: UserRole; waitlist_status: WaitlistStatus; waitlist_request_type: RequestType };
     CompositeTypes: { [_ in never]: never };

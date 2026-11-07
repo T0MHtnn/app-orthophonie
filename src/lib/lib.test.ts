@@ -4,6 +4,8 @@ import { safeRedirectPath } from './security';
 import { fieldErrors, isValidRpps, passwordSchema, signupSchema, slugify, waitlistFormSchema } from './validation';
 import { normalizePhone } from './phone';
 import { matchesSearch } from './search';
+import { addDays, parisParts, parisToInstant, startOfWeek } from './time';
+import { buildAgenda, mergeIntervals } from './agenda';
 
 describe('safeRedirectPath', () => {
   it('garde un chemin interne', () => expect(safeRedirectPath('/ortho/reglages')).toBe('/ortho/reglages'));
@@ -121,4 +123,45 @@ describe('type de demande', () => {
   it('accepte les 3 types', () => {
     for (const requestType of ['bilan', 'bilan_reeducation', 'reeducation']) expect(waitlistFormSchema.safeParse({ ...base, requestType }).success).toBe(true);
   });
+});
+
+describe('heures de Paris', () => {
+  it('heure d hiver (UTC+1)', () => expect(parisToInstant('2026-11-09', '09:30').toISOString()).toBe('2026-11-09T08:30:00.000Z'));
+  it('heure d ete (UTC+2)', () => expect(parisToInstant('2026-07-01', '09:30').toISOString()).toBe('2026-07-01T07:30:00.000Z'));
+  it('jour du passage a l heure d ete', () => expect(parisToInstant('2026-03-29', '10:00').toISOString()).toBe('2026-03-29T08:00:00.000Z'));
+  it('aller-retour', () => expect(parisParts(parisToInstant('2026-10-25', '14:15'))).toMatchObject({ date: '2026-10-25', time: '14:15', weekday: 7 }));
+  it('lundi de la semaine', () => {
+    expect(startOfWeek('2026-11-11')).toBe('2026-11-09');
+    expect(startOfWeek('2026-11-15')).toBe('2026-11-09');
+    expect(startOfWeek('2026-11-09')).toBe('2026-11-09');
+  });
+  it('passage de mois', () => expect(addDays('2026-11-30', 1)).toBe('2026-12-01'));
+});
+
+describe('agenda semaine', () => {
+  const base = {
+    week: '2026-11-09',
+    openingHours: [{ weekday: 1, starts_at: '09:00:00', ends_at: '11:00:00' }],
+    exceptions: [] as { kind: 'ferme' | 'ouvert'; starts_at: string; ends_at: string; label: string }[],
+    appointments: [] as { id: string; starts_at: string; ends_at: string; label: string; status: string }[],
+    sessionMinutes: 30,
+    now: new Date('2026-11-01T00:00:00Z'),
+  };
+  it('découpe les plages en créneaux libres', () => {
+    const monday = buildAgenda(base)[0]!;
+    expect(monday.free.map((f) => f.start)).toEqual([540, 570, 600, 630]);
+  });
+  it('un rendez-vous occupe son créneau', () => {
+    const monday = buildAgenda({ ...base, appointments: [{ id: 'a', starts_at: '2026-11-09T08:30:00Z', ends_at: '2026-11-09T09:00:00Z', label: 'Léa', status: 'confirme' }] })[0]!;
+    expect(monday.appointments[0]).toMatchObject({ start: 570, end: 600 });
+    expect(monday.free.map((f) => f.start)).toEqual([540, 600, 630]);
+  });
+  it('une fermeture supprime les créneaux', () => {
+    const monday = buildAgenda({ ...base, exceptions: [{ kind: 'ferme', starts_at: '2026-11-08T23:00:00Z', ends_at: '2026-11-09T23:00:00Z', label: 'Congés' }] })[0]!;
+    expect(monday.free).toEqual([]);
+  });
+  it('pas de créneau libre dans le passé', () => {
+    expect(buildAgenda({ ...base, now: new Date('2026-11-09T09:10:00Z') })[0]!.free.map((f) => f.start)).toEqual([630]);
+  });
+  it('fusionne les plages qui se touchent', () => expect(mergeIntervals([{ start: 600, end: 660 }, { start: 540, end: 600 }])).toEqual([{ start: 540, end: 660 }]));
 });

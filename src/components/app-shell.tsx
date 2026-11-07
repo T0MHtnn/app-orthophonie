@@ -5,6 +5,7 @@ import type { AuthContext } from '@/lib/auth';
 import { SideNav, type NavLink } from './side-nav';
 
 const ORTHO_LINKS: NavLink[] = [
+  { href: '/ortho/planning', label: 'Planning' },
   { href: '/ortho/liste-attente', label: 'Liste d’attente' },
   { href: '/ortho/reglages', label: 'Réglages' },
   { href: '/compte', label: 'Mon compte' },
