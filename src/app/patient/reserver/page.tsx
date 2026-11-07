@@ -44,7 +44,8 @@ export default async function ReserverPage({ searchParams }: { searchParams: Pro
   if (error) console.error('booking_busy', error.code);
 
   const earliest = new Date(now.getTime() + patient.min_notice_hours * 3_600_000);
-  const days = freeSlots(week, busy ?? [], patient.session_minutes, earliest);
+  // Seuls les jours qui ont au moins un horaire réservable (futur, après le délai minimum).
+  const bookable = freeSlots(week, busy ?? [], patient.session_minutes, earliest).filter((d) => d.times.length > 0);
   const chosen = params.creneau && !Number.isNaN(Date.parse(params.creneau)) ? new Date(params.creneau) : null;
   const chosenParts = chosen ? parisParts(chosen) : null;
   const base = `/patient/reserver?patient=${patient.id}`;
@@ -99,13 +100,11 @@ export default async function ReserverPage({ searchParams }: { searchParams: Pro
         )}
       </div>
 
+      {bookable.length === 0 && <p className="hint">{t('Aucun créneau disponible cette semaine. Essayez la semaine suivante.')}</p>}
       <div className="slots-week">
-        {days.map((d) => (
+        {bookable.map((d) => (
           <section key={d.date} className="card stack">
             <h3 style={{ textTransform: 'capitalize' }}>{formatDay(d.date, true, L)}</h3>
-            {d.times.length === 0 ? (
-              <p className="hint">{t('Aucun créneau')}</p>
-            ) : (
               <div className="slot-list">
                 {d.times.map((time) => {
                   const iso = parisToInstant(d.date, time).toISOString();
@@ -116,7 +115,6 @@ export default async function ReserverPage({ searchParams }: { searchParams: Pro
                   );
                 })}
               </div>
-            )}
           </section>
         ))}
       </div>

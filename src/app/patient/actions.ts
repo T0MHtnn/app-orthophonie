@@ -42,7 +42,8 @@ export async function cancelMyAppointment(formData: FormData): Promise<void> {
   const id = z.uuid().safeParse(formData.get('id'));
   if (!id.success) return;
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc('family_cancel_appointment', { p_id: id.data });
+  const reason = String(formData.get('reason') ?? '').trim().slice(0, 500);
+  const { data, error } = await supabase.rpc('family_cancel_appointment', { p_id: id.data, p_reason: reason });
   if (error) console.error('family_cancel_appointment', error.code);
   revalidatePath('/patient');
   redirect(`/patient?${!error && data ? 'ok=annule' : 'erreur=annulation'}`);
@@ -56,5 +57,16 @@ export async function deleteMyRequest(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.rpc('delete_my_waitlist_entry', { p_id: id.data });
   if (error) console.error('delete_my_waitlist_entry', error.code);
+  revalidatePath('/patient');
+}
+
+/** La famille a vu la nouvelle séance signalée par l'ortho (« Lu »). */
+export async function ackAppointment(formData: FormData): Promise<void> {
+  await requireUser();
+  const id = z.uuid().safeParse(formData.get('id'));
+  if (!id.success) return;
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('ack_appointment', { p_id: id.data });
+  if (error) console.error('ack_appointment', error.code);
   revalidatePath('/patient');
 }

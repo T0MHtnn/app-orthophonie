@@ -56,12 +56,28 @@ interface Props {
 }
 
 type Dialog =
+  /** Clic sur un créneau vide (ou dépôt d'un patient) : bloquer OU planifier un RDV. */
+  | { kind: 'slot'; date: string; start: number; end: number; patientId?: string; tab: 'block' | 'rdv' }
   | { kind: 'block'; date: string; start: number; end: number; block?: BlockInput; occurrence?: string }
-  | { kind: 'appointment'; id: string; patientId: string; date: string; start: number; duration: number; label: string; status: string; attendance: 'absent' | null; past: boolean };
+  | {
+      kind: 'appointment';
+      id: string;
+      patientId: string;
+      date: string;
+      start: number;
+      duration: number;
+      label: string;
+      status: string;
+      attendance: 'absent' | null;
+      past: boolean;
+      title: string;
+    }
+  | { kind: 'cancelled'; id: string; label: string; date: string; start: number; reason: string | null };
 
 export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessionMinutes, details, bookingMode }: Props) {
   const [dialog, setDialog] = useState<Dialog | null>(null);
-  const [picked, setPicked] = useState<PatientItem | null>(null);
+  // Patient sélectionné dans la liste : l'agenda n'affiche que ses rendez-vous (les blocages restent).
+  const [focus, setFocus] = useState<PatientItem | null>(null);
   const [notice, setNoticeState] = useState<{ id: number; kind: 'ok' | 'error'; text: string } | null>(null);
   const setNotice = (n: { kind: 'ok' | 'error'; text: string } | null) => setNoticeState(n && { ...n, id: Date.now() });
   const [pending, startTransition] = useTransition();
@@ -76,8 +92,9 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
     return Math.min(range.end - SNAP, Math.max(range.start, range.start + Math.floor(y / PX / SNAP) * SNAP));
   };
 
-  const place = (day: AgendaDay, patientId: string, start: number, duration: number, appointmentId = '') => {
-    if (!isFree(day, { start, end: start + duration }, appointmentId || undefined)) {
+  /** Déplacement d'un RDV existant par glisser-déposer (immédiat). */
+  const move = (day: AgendaDay, patientId: string, start: number, duration: number, appointmentId: string, title: string) => {
+    if (!isFree(day, { start, end: start + duration }, appointmentId)) {
       setNotice({ kind: 'error', text: 'Ce créneau est déjà pris ou bloqué.' });
       return;
     }
@@ -87,30 +104,44 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
     fd.set('date', day.date);
     fd.set('time', minutesToTime(start));
     fd.set('duration', String(duration));
+    fd.set('title', title);
     startTransition(async () => {
       const res = await saveAppointment({}, fd);
       setNotice({ kind: res.ok ? 'ok' : 'error', text: res.message ?? (res.ok ? 'Enregistré.' : 'Enregistrement impossible.') });
-      if (res.ok) setPicked(null);
     });
   };
 
   const onColumnClick = (day: AgendaDay, e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target !== e.currentTarget) return; // clic sur un rendez-vous ou un blocage
     const start = minuteAt(e);
-    if (picked) place(day, picked.id, start, sessionMinutes);
-    else setDialog({ kind: 'block', date: day.date, start, end: Math.min(range.end, start + 60) });
+    // Patient sélectionné : on propose directement de lui planifier un RDV.
+    setDialog({
+      kind: 'slot',
+      date: day.date,
+      start,
+      end: Math.min(range.end, start + (focus ? sessionMinutes : 60)),
+      patientId: focus?.id,
+      tab: focus ? 'rdv' : 'block',
+    });
   };
 
   const onDrop = (day: AgendaDay, e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     const raw = e.dataTransfer.getData('application/x-agenda');
     if (!raw) return;
-    const data = JSON.parse(raw) as { patientId: string; appointmentId?: string; duration?: number };
-    place(day, data.patientId, minuteAt(e), data.duration ?? sessionMinutes, data.appointmentId);
+    const data = JSON.parse(raw) as { patientId: string; appointmentId?: string; duration?: number; title?: string };
+    const start = minuteAt(e);
+    if (data.appointmentId) move(day, data.patientId, start, data.duration ?? sessionMinutes, data.appointmentId, data.title ?? '');
+    // Nouveau RDV : la pop-up s'ouvre pré-remplie (pour choisir de prévenir le patient).
+    else setDialog({ kind: 'slot', date: day.date, start, end: Math.min(range.end, start + sessionMinutes), patientId: data.patientId, tab: 'rdv' });
   };
 
   const [query, setQuery] = useState('');
   const shownPatients = patients.filter((p) => matchesSearch(query, [p.name]));
+  const done = (text: string) => {
+    setDialog(null);
+    setNotice({ kind: 'ok', text });
+  };
 
   return (
     <div className="planning-layout">
@@ -120,18 +151,16 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
             {notice.text}
           </Notice>
         )}
-        {picked && (
-          <p className="alert warn row spread">
-            <span>
-              {t('Cliquez sur l’agenda pour placer {nom}.', { nom: picked.name })}
-            </span>
-            <button type="button" className="btn small" onClick={() => setPicked(null)}>
-              {t('Annuler')}
+        {focus && (
+          <div className="alert info row spread">
+            <span>{t('Seuls les rendez-vous de {nom} sont affichés.', { nom: focus.name })}</span>
+            <button type="button" className="btn small" onClick={() => setFocus(null)}>
+              {t('Voir tous les rendez-vous')}
             </button>
-          </p>
+          </div>
         )}
         <div className="card agenda-wrap" aria-busy={pending}>
-          <div className="agenda" style={{ gridTemplateColumns: `52px repeat(${days.length}, minmax(100px, 1fr))` }}>
+          <div className="agenda" style={{ gridTemplateColumns: `48px repeat(${days.length}, minmax(96px, 1fr))` }}>
             <div />
             {days.map((d) => (
               <div key={d.date} className={`agenda-head ${d.date === today ? 'today' : ''}`}>
@@ -148,7 +177,7 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
             {days.map((d) => (
               <div
                 key={d.date}
-                className={`agenda-col ${d.date < today ? 'past' : ''} ${picked ? 'picking' : ''}`}
+                className={`agenda-col ${d.date < today ? 'past' : ''}`}
                 style={{ height, backgroundSize: `100% ${60 * PX}px` }}
                 onClick={(e) => onColumnClick(d, e)}
                 onDragOver={(e) => e.preventDefault()}
@@ -172,39 +201,70 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
                     {b.title || t('Bloqué')}
                   </button>
                 ))}
-                {d.appointments.map((a) => {
-                  const duration = a.end - a.start;
-                  // Prévu (à venir) → réalisé (heure passée) automatiquement, sauf si « non honoré ».
-                  const past = d.date < today || (d.date === today && a.start <= nowMinutes);
-                  const done = past && a.status === 'confirme' && a.attendance !== 'absent';
-                  return (
+                {d.cancelled
+                  .filter((c) => !focus || c.patientId === focus.id)
+                  .map((c) => (
                     <button
                       type="button"
-                      key={a.id}
-                      className={`agenda-appt ${a.status} ${a.attendance ?? ''} ${done ? 'done' : ''}`}
-                      style={pos(a, range.start)}
-                      draggable
-                      onDragStart={(e) =>
-                        e.dataTransfer.setData('application/x-agenda', JSON.stringify({ patientId: a.patientId, appointmentId: a.id, duration }))
-                      }
-                      onClick={() =>
-                        setDialog({ kind: 'appointment', id: a.id, patientId: a.patientId, date: d.date, start: a.start, duration, label: a.label, status: a.status, attendance: a.attendance, past })
-                      }
+                      key={c.id}
+                      className="agenda-cancelled"
+                      style={pos(c, range.start)}
+                      onClick={() => setDialog({ kind: 'cancelled', id: c.id, label: c.label, date: d.date, start: c.start, reason: c.reason })}
                     >
-                      <b>{minutesToTime(a.start)}</b> {a.label}
-                      {a.status === 'a_valider' && <small className="appt-flag">{t('À valider')}</small>}
-                      {done && <small className="appt-flag done">✓ {t('Réalisé')}</small>}
-                      {a.attendance === 'absent' && <small className="appt-flag absent">{t('Non honoré')}</small>}
+                      <b>{t('Annulé')}</b> {c.label}
                     </button>
-                  );
-                })}
+                  ))}
+                {d.appointments
+                  .filter((a) => !focus || a.patientId === focus.id)
+                  .map((a) => {
+                    const duration = a.end - a.start;
+                    // Prévu (à venir) → réalisé (heure passée) automatiquement, sauf si « non honoré ».
+                    const past = d.date < today || (d.date === today && a.start <= nowMinutes);
+                    const realised = past && a.status === 'confirme' && a.attendance !== 'absent';
+                    return (
+                      <button
+                        type="button"
+                        key={a.id}
+                        className={`agenda-appt ${a.status} ${a.attendance ?? ''} ${realised ? 'done' : ''}`}
+                        style={pos(a, range.start)}
+                        draggable
+                        onDragStart={(e) =>
+                          e.dataTransfer.setData(
+                            'application/x-agenda',
+                            JSON.stringify({ patientId: a.patientId, appointmentId: a.id, duration, title: a.title }),
+                          )
+                        }
+                        onClick={() =>
+                          setDialog({
+                            kind: 'appointment',
+                            id: a.id,
+                            patientId: a.patientId,
+                            date: d.date,
+                            start: a.start,
+                            duration,
+                            label: a.label,
+                            status: a.status,
+                            attendance: a.attendance,
+                            past,
+                            title: a.title,
+                          })
+                        }
+                      >
+                        <b>{minutesToTime(a.start)}</b> {a.label}
+                        {a.title && <small className="appt-title">{a.title}</small>}
+                        {a.status === 'a_valider' && <small className="appt-flag">{t('À valider')}</small>}
+                        {realised && <small className="appt-flag done">✓ {t('Réalisé')}</small>}
+                        {a.attendance === 'absent' && <small className="appt-flag absent">{t('Non honoré')}</small>}
+                      </button>
+                    );
+                  })}
               </div>
             ))}
           </div>
         </div>
         <p className="hint">
           {t(
-            'Cliquez sur un créneau vide pour le bloquer (pause, congés…). Glissez un patient depuis la liste pour lui poser un rendez-vous, ou glissez un rendez-vous pour le déplacer.',
+            'Cliquez sur un créneau vide pour bloquer ce moment ou y planifier un rendez-vous. Glissez un patient depuis la liste, ou un rendez-vous pour le déplacer.',
           )}
         </p>
       </div>
@@ -226,29 +286,26 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
               key={p.id}
               draggable
               onDragStart={(e) => e.dataTransfer.setData('application/x-agenda', JSON.stringify({ patientId: p.id }))}
-              className={picked?.id === p.id ? 'picked' : ''}
+              className={focus?.id === p.id ? 'picked' : ''}
             >
-              <button type="button" onClick={() => setPicked(picked?.id === p.id ? null : p)} aria-pressed={picked?.id === p.id}>
+              <button type="button" onClick={() => setFocus(focus?.id === p.id ? null : p)} aria-pressed={focus?.id === p.id}>
                 <b>{p.name}</b>
                 <small>{p.next ? t('Prochain RDV : {jour}', { jour: formatDay(p.next, true, L) }) : t('Pas de RDV prévu')}</small>
               </button>
             </li>
           ))}
         </ul>
-        <p className="hint">{t('Glissez un patient sur l’agenda, ou touchez-le puis touchez un créneau. Séance de {min} min.', { min: sessionMinutes })}</p>
+        <p className="hint">{t('Cliquez sur un patient pour n’afficher que ses rendez-vous. Glissez-le sur l’agenda pour lui en planifier un.')}</p>
       </aside>
 
       {dialog && (
         <Modal onClose={() => setDialog(null)}>
-          {dialog.kind === 'block' ? (
-            <BlockDialog
-              key={`${dialog.block?.id ?? 'new'}-${dialog.date}-${dialog.start}`}
-              dialog={dialog}
-              onDone={(text) => {
-                setDialog(null);
-                setNotice({ kind: 'ok', text });
-              }}
-            />
+          {dialog.kind === 'slot' ? (
+            <SlotDialog key={`${dialog.date}-${dialog.start}-${dialog.patientId ?? ''}`} dialog={dialog} patients={patients} onDone={done} />
+          ) : dialog.kind === 'block' ? (
+            <BlockDialog key={`${dialog.block?.id ?? 'new'}-${dialog.date}-${dialog.start}`} dialog={dialog} onDone={done} />
+          ) : dialog.kind === 'cancelled' ? (
+            <CancelledDialog key={dialog.id} dialog={dialog} onDone={done} />
           ) : (
             <AppointmentDialog
               key={dialog.id}
@@ -256,10 +313,7 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
               patients={patients}
               detail={details[dialog.patientId]}
               bookingMode={bookingMode}
-              onDone={(text) => {
-                setDialog(null);
-                setNotice({ kind: 'ok', text });
-              }}
+              onDone={done}
             />
           )}
         </Modal>
@@ -392,17 +446,13 @@ function AppointmentDialog({
   bookingMode: BookingMode;
   onDone: (text: string) => void;
 }) {
-  const [state, action] = useActionState<FormState, FormData>(saveAppointment, {});
   const [cancelState, cancelAction] = useActionState<FormState, FormData>(deleteAppointment, {});
   const [reviewState, reviewAction] = useActionState<FormState, FormData>(reviewAppointment, {});
   const [attState, attAction] = useActionState<FormState, FormData>(markAttendance, {});
   useOnSuccess(attState, onDone);
-  useOnSuccess(state, onDone);
   useOnSuccess(cancelState, onDone);
   useOnSuccess(reviewState, onDone);
   const pendingReview = dialog.status === 'a_valider';
-  const v = state.values;
-  const err = state.errors ?? {};
   const t = useT();
   const options = patients.some((p) => p.id === dialog.patientId) ? patients : [{ id: dialog.patientId, name: dialog.label, next: null }, ...patients];
 
@@ -456,28 +506,19 @@ function AppointmentDialog({
       <FormAlert state={attState} />
       {!pendingReview && <h3>{t('Rendez-vous')}</h3>}
       {!pendingReview && (
-        <form action={action} className="stack" noValidate>
-          <FormAlert state={state} />
-          <input type="hidden" name="id" value={dialog.id} />
-          <label className="field">
-            <span>{t('Patient')}</span>
-            <select name="patientId" defaultValue={v?.patientId ?? dialog.patientId}>
-              {options.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="form-grid">
-            <Field label="Date" name="date" type="date" required defaultValue={v?.date ?? dialog.date} error={err.date} />
-            <Field label="Heure" name="time" type="time" step={300} required defaultValue={v?.time ?? minutesToTime(dialog.start)} error={err.time} />
-            <Field label="Durée (min)" name="duration" type="number" min={10} max={240} step={5} required defaultValue={v?.duration ?? String(dialog.duration)} error={err.duration} />
-          </div>
-          <div>
-            <SubmitButton pendingText="Enregistrement…">Enregistrer</SubmitButton>
-          </div>
-        </form>
+        <AppointmentForm
+          patients={options}
+          values={{
+            id: dialog.id,
+            patientId: dialog.patientId,
+            date: dialog.date,
+            time: minutesToTime(dialog.start),
+            end: minutesToTime(dialog.start + dialog.duration),
+            title: dialog.title,
+          }}
+          notifyDefault={false}
+          onDone={onDone}
+        />
       )}
       {!pendingReview && (
         <form action={cancelAction} className="row">
@@ -578,6 +619,174 @@ function SessionsProgress({ done, total }: { done: number; total: number | null 
           ? t('{fait} séance(s) sur {total}', { fait: done, total })
           : t('{fait} séance(s) réalisée(s) · nombre total à définir avec l’acte AMO', { fait: done })}
       </p>
+    </div>
+  );
+}
+
+/** Créneau vide : deux onglets, bloquer le moment ou y planifier un rendez-vous. */
+function SlotDialog({ dialog, patients, onDone }: { dialog: Extract<Dialog, { kind: 'slot' }>; patients: PatientItem[]; onDone: (text: string) => void }) {
+  const [tab, setTab] = useState(dialog.tab);
+  const t = useT();
+  return (
+    <div className="stack">
+      <div className="tabs" role="tablist" aria-label={t('Que faire de ce créneau ?')}>
+        <button type="button" role="tab" aria-selected={tab === 'rdv'} aria-current={tab === 'rdv' ? 'page' : undefined} onClick={() => setTab('rdv')}>
+          {t('Planifier un rendez-vous')}
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'block'} aria-current={tab === 'block' ? 'page' : undefined} onClick={() => setTab('block')}>
+          {t('Bloquer le créneau')}
+        </button>
+      </div>
+      {tab === 'rdv' ? (
+        <AppointmentForm
+          patients={patients}
+          values={{ id: '', patientId: dialog.patientId ?? '', date: dialog.date, time: minutesToTime(dialog.start), end: minutesToTime(dialog.end), title: '' }}
+          notifyDefault
+          onDone={onDone}
+        />
+      ) : (
+        <BlockDialog dialog={{ kind: 'block', date: dialog.date, start: dialog.start, end: dialog.end }} onDone={onDone} />
+      )}
+    </div>
+  );
+}
+
+/** Choix du patient avec recherche (fonctionne aussi au doigt sur téléphone). */
+function PatientPicker({ patients, value, onChange, error }: { patients: PatientItem[]; value: string; onChange: (id: string) => void; error?: string }) {
+  const t = useT();
+  const selected = patients.find((p) => p.id === value);
+  const [query, setQuery] = useState('');
+  const matches = query ? patients.filter((p) => matchesSearch(query, [p.name])).slice(0, 6) : [];
+  return (
+    <div className="field">
+      <span>{t('Patient')}</span>
+      <input type="hidden" name="patientId" value={value} />
+      {selected ? (
+        <div className="row picked-patient">
+          <b>{selected.name}</b>
+          <button type="button" className="btn small" onClick={() => onChange('')}>
+            {t('Changer')}
+          </button>
+        </div>
+      ) : (
+        <>
+          <input
+            type="search"
+            placeholder={t('Tapez un nom ou un prénom')}
+            aria-label={t('Rechercher un patient')}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            autoComplete="off"
+            aria-invalid={error ? true : undefined}
+          />
+          {matches.length > 0 && (
+            <ul className="picker-list" role="listbox">
+              {matches.map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    onClick={() => {
+                      onChange(p.id);
+                      setQuery('');
+                    }}
+                  >
+                    {p.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {query && matches.length === 0 && <p className="hint">{t('Aucun patient trouvé.')}</p>}
+        </>
+      )}
+      {error && <span className="error">{t(error)}</span>}
+    </div>
+  );
+}
+
+interface AppointmentValues {
+  id: string;
+  patientId: string;
+  date: string;
+  time: string;
+  end: string;
+  title: string;
+}
+
+/** Formulaire d'un RDV : patient, date, heures de début et de fin, titre, prévenir le patient. */
+function AppointmentForm({
+  patients,
+  values,
+  notifyDefault,
+  onDone,
+}: {
+  patients: PatientItem[];
+  values: AppointmentValues;
+  notifyDefault: boolean;
+  onDone: (text: string) => void;
+}) {
+  const [state, action] = useActionState<FormState, FormData>(saveAppointment, {});
+  useOnSuccess(state, onDone);
+  const t = useT();
+  const v = { ...values, ...state.values } as AppointmentValues & { notify?: string };
+  const [patientId, setPatientId] = useState(v.patientId);
+  const err = state.errors ?? {};
+  return (
+    <form action={action} className="stack" noValidate>
+      <FormAlert state={state} />
+      <input type="hidden" name="id" value={values.id} />
+      <PatientPicker patients={patients} value={patientId} onChange={setPatientId} error={err.patientId} />
+      <div className="form-grid">
+        <Field label="Date" name="date" type="date" required defaultValue={v.date} error={err.date} />
+        <Field label="Début" name="time" type="time" step={300} required defaultValue={v.time} error={err.time} />
+        <Field label="Fin" name="end" type="time" step={300} required defaultValue={v.end} error={err.end} />
+      </div>
+      <Field label="Titre (facultatif, visible par vous seul)" name="title" maxLength={120} defaultValue={v.title} error={err.title} />
+      <label className="check">
+        <input type="checkbox" name="notify" defaultChecked={state.values ? v.notify === 'on' : notifyDefault} />
+        <span>
+          <b>{t(values.id ? 'Prévenir le patient du changement' : 'Prévenir le patient')}</b>
+          <span className="hint" style={{ display: 'block' }}>
+            {t('Email + pastille « Nouveau » dans son espace jusqu’à ce qu’il clique « Lu ».')}
+          </span>
+        </span>
+      </label>
+      <div>
+        <SubmitButton pendingText="Enregistrement…">{values.id ? 'Enregistrer' : 'Planifier le rendez-vous'}</SubmitButton>
+      </div>
+    </form>
+  );
+}
+
+/** Séance annulée par la famille : raison, et retrait de l'agenda. */
+function CancelledDialog({ dialog, onDone }: { dialog: Extract<Dialog, { kind: 'cancelled' }>; onDone: (text: string) => void }) {
+  const [state, action] = useActionState<FormState, FormData>(deleteAppointment, {});
+  useOnSuccess(state, onDone);
+  const t = useT();
+  return (
+    <div className="stack">
+      <div>
+        <h2>{dialog.label}</h2>
+        <p className="sub">
+          {t('Séance du {jour} à {heure} annulée par la famille.', { jour: formatDay(dialog.date, false, t.locale), heure: formatTime(minutesToTime(dialog.start), t.locale) })}
+        </p>
+      </div>
+      <div className="patient-card">
+        <p>
+          <b>{t('Raison donnée')}</b>
+        </p>
+        <p>{dialog.reason ?? t('Aucune raison donnée.')}</p>
+      </div>
+      <form action={action} className="stack">
+        <FormAlert state={state} />
+        <input type="hidden" name="id" value={dialog.id} />
+        <p className="hint">{t('Le créneau est déjà libre. Vous pouvez retirer cette annulation de l’agenda.')}</p>
+        <div>
+          <SubmitButton className="btn small">Retirer de l’agenda</SubmitButton>
+        </div>
+      </form>
     </div>
   );
 }

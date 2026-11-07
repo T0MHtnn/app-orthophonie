@@ -4,9 +4,11 @@ import { buildWeek, visibleRange, type BlockInput } from '@/lib/agenda';
 import { requireOrtho } from '@/lib/auth';
 import { getT } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
-import { addDays, formatDay, isDate, parisParts, parisToInstant, startOfWeek } from '@/lib/time';
+import { addDays, formatDay, formatInstant, isDate, parisParts, parisToInstant, startOfWeek } from '@/lib/time';
 import { formatAge } from '@/lib/age';
 import { REQUEST_TYPE_LABEL } from '@/lib/request-type';
+import { SubmitButton } from '@/components/form';
+import { dismissCancellation } from './actions';
 import { Agenda, type PatientDetail, type PatientItem } from './agenda';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -30,14 +32,17 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
   const weekEnd = parisToInstant(addDays(week, 7), '00:00').toISOString();
 
   const supabase = await createClient();
-  const [{ data: blocks, error: blocksError }, { data: appointments, error }, { data: upcoming }, { data: patients }, { data: pathologies }, { data: done }] = await Promise.all([
+  const [{ data: blocks, error: blocksError }, { data: appointments, error }, { data: upcoming }, { data: patients }, { data: pathologies }, { data: done }, { data: cancellations }] = await Promise.all([
     // Blocages qui peuvent avoir une occurrence cette semaine (la veille comprise, pour ceux qui débordent).
     supabase.from('schedule_blocks').select('*').lt('starts_at', weekEnd).or(`until.is.null,until.gte.${addDays(week, -1)}`),
-    supabase.from('appointments').select('*').neq('status', 'annule').lt('starts_at', weekEnd).gt('ends_at', weekStart),
+    // RDV de la semaine + séances annulées par la famille (fantômes, non bloquants).
+    supabase.from('appointments').select('*').or('status.neq.annule,cancelled_by.eq.famille').lt('starts_at', weekEnd).gt('ends_at', weekStart),
     supabase.from('appointments').select('patient_id, starts_at').neq('status', 'annule').gte('starts_at', now.toISOString()).order('starts_at'),
     supabase.from('patients').select('*').order('last_name'),
     supabase.from('pathologies').select('code, label'),
     supabase.from('appointments').select('patient_id, attendance').eq('status', 'confirme').lt('starts_at', now.toISOString()),
+    // Annulations à venir faites par les familles (liste au-dessus de l'agenda).
+    supabase.from('appointments').select('id, patient_id, starts_at, cancel_reason').eq('status', 'annule').eq('cancelled_by', 'famille').gte('starts_at', now.toISOString()).order('starts_at').limit(30),
   ]);
   // Avancement : séances passées « réalisées » ; un RDV « non honoré » (lapin) ne compte pas.
   const doneCount = new Map<string, number>();
@@ -111,6 +116,25 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
         </div>
       </div>
       {(error || blocksError) && <p className="alert error">{t('Impossible de charger le planning. Rechargez la page.')}</p>}
+      {(cancellations ?? []).length > 0 && (
+        <details className="card foldable cancellations">
+          <summary>
+            <h2>{t('Annulations par les familles')}</h2> <span className="count">{(cancellations ?? []).length}</span>
+          </summary>
+          {(cancellations ?? []).map((c) => (
+            <div key={c.id} className="request">
+              <div>
+                <b>{nameOf.get(c.patient_id) ?? t('Patient')}</b> · <span style={{ textTransform: 'capitalize' }}>{formatInstant(c.starts_at, t.locale)}</span>
+                <div className="hint">{c.cancel_reason ? `« ${c.cancel_reason} »` : t('Aucune raison donnée.')}</div>
+              </div>
+              <form action={dismissCancellation}>
+                <input type="hidden" name="id" value={c.id} />
+                <SubmitButton className="btn small">Retirer de l’agenda</SubmitButton>
+              </form>
+            </div>
+          ))}
+        </details>
+      )}
 
       <Agenda
         days={shown}

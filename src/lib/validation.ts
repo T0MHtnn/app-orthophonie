@@ -147,13 +147,21 @@ const dateField = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide');
 const timeField = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure invalide');
 const minutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 
-export const appointmentSchema = z.object({
-  id: z.union([z.literal(''), z.uuid()]).optional().default(''),
-  patientId: z.uuid({ error: 'Choisissez un patient' }),
-  date: dateField,
-  time: timeField,
-  duration: z.coerce.number({ error: 'Durée invalide' }).int().min(10, 'Durée minimale : 10 min').max(240, 'Durée maximale : 4 h'),
-});
+export const appointmentSchema = z
+  .object({
+    id: z.union([z.literal(''), z.uuid()]).optional().default(''),
+    patientId: z.uuid({ error: 'Choisissez un patient' }),
+    date: dateField,
+    time: timeField,
+    // Soit une heure de fin (pop-up), soit une durée (glisser-déposer).
+    end: z.union([z.literal(''), timeField]).optional().default(''),
+    duration: z.union([z.literal(''), z.coerce.number()]).optional().default(''),
+    title: text(120).optional().default(''),
+    notify: z.enum(['on']).optional(),
+  })
+  .transform((v) => ({ ...v, minutes: v.end ? minutes(v.end) - minutes(v.time) : Number(v.duration || 30) }))
+  .refine((v) => v.minutes >= 10, { path: ['end'], message: 'Durée minimale : 10 min' })
+  .refine((v) => v.minutes <= 240, { path: ['end'], message: 'Durée maximale : 4 h' });
 
 /** Blocage posé sur l'agenda (pause, congés…), éventuellement répété. */
 export const blockSchema = z

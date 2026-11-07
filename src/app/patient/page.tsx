@@ -8,7 +8,7 @@ import { getT, type T } from '@/lib/i18n';
 import { REQUEST_TYPE_LABEL } from '@/lib/request-type';
 import { createClient } from '@/lib/supabase/server';
 import { formatInstant, formatShortDate } from '@/lib/time';
-import { cancelMyAppointment, deleteMyRequest, withdrawRequest } from './actions';
+import { ackAppointment, cancelMyAppointment, deleteMyRequest, withdrawRequest } from './actions';
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getT())('Mon espace') };
@@ -46,6 +46,8 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
   const active = requests.filter((r) => r.status === 'attente' || r.status === 'contacte');
   const unlocked = followed.length > 0;
   // Patient suivi issu de chaque demande : la réservation se fait sur la ligne de la demande.
+  // Patients dont la séance à venir est une demande en attente (non autonome).
+  const pendingFor = new Set(upcoming.filter((a) => a.status === 'a_valider').map((a) => a.patient_id));
   const patientOfEntry = new Map((patients ?? []).filter((p) => p.waitlist_entry_id).map((p) => [p.waitlist_entry_id!, p]));
   // Demandes retirées : à part (repliées), supprimables.
   const current = requests.filter((r) => r.status !== 'retire');
@@ -83,17 +85,34 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
                 <div key={a.id} className="request">
                   <div>
                     <b style={{ textTransform: 'capitalize' }}>{formatInstant(a.starts_at, t.locale)}</b>
+                    {a.is_new && <span className="badge-new">{t('Nouveau')}</span>}
                     <div className="hint">
                       {a.patient_first_name} {a.patient_last_name} · {a.practice_name}
                     </div>
                   </div>
                   <div className="row">
                     <span className={`badge ${a.status === 'confirme' ? 'rdv' : 'attente'}`}>{t(a.status === 'confirme' ? 'Confirmée' : 'En attente de validation')}</span>
-                    {a.can_cancel && (
-                      <form action={cancelMyAppointment}>
+                    {/* Nouvelle séance signalée par l'ortho : la pastille part quand la famille clique « Lu ». */}
+                    {a.is_new && (
+                      <form action={ackAppointment}>
                         <input type="hidden" name="id" value={a.id} />
-                        <SubmitButton className="btn small">{t(a.status === 'confirme' ? 'Annuler' : 'Retirer la demande')}</SubmitButton>
+                        <SubmitButton className="btn small primary">Lu</SubmitButton>
                       </form>
+                    )}
+                    {a.can_cancel && (
+                      <details className="cancel-box">
+                        <summary className="btn small">{t(a.status === 'confirme' ? 'Annuler' : 'Retirer la demande')}</summary>
+                        <form action={cancelMyAppointment} className="stack">
+                          <input type="hidden" name="id" value={a.id} />
+                          <label className="field">
+                            <span>{t('Raison (facultatif, transmise à l’orthophoniste)')}</span>
+                            <textarea name="reason" rows={2} maxLength={500} placeholder={t('Ex. : enfant malade, empêchement…')} />
+                          </label>
+                          <div>
+                            <SubmitButton className="btn danger small">{a.status === 'confirme' ? 'Confirmer l’annulation' : 'Confirmer le retrait'}</SubmitButton>
+                          </div>
+                        </form>
+                      </details>
                     )}
                   </div>
                 </div>
@@ -125,7 +144,7 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
             <h2>{t('Mes demandes de liste d’attente')}</h2> <span className="count">{current.length}</span>
           </summary>
           {current.map((r) => (
-            <RequestRow key={r.id} r={r} t={t} patient={patientOfEntry.get(r.id)} />
+            <RequestRow key={r.id} r={r} t={t} patient={patientOfEntry.get(r.id)} pending={pendingFor} />
           ))}
         </details>
       )}
@@ -145,7 +164,7 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
 
 type FamilyPatient = Database['public']['Functions']['my_patients']['Returns'][number];
 
-function RequestRow({ r, t, patient }: { r: Request; t: T; patient?: FamilyPatient }) {
+function RequestRow({ r, t, patient, pending }: { r: Request; t: T; patient?: FamilyPatient; pending?: Set<string> }) {
   return (
     <div className="request">
       <div>
@@ -166,7 +185,9 @@ function RequestRow({ r, t, patient }: { r: Request; t: T; patient?: FamilyPatie
             {t('Réserver une séance')}
           </Link>
         )}
-        {r.status === 'rdv' && patient?.can_book && patient.active_booking && <span className="hint">{t('Séance déjà prévue')}</span>}
+        {r.status === 'rdv' && patient?.can_book && patient.active_booking && (
+          <span className="hint">{t(pending?.has(patient.id) ? 'Demande de séance en cours' : 'Séance déjà prévue')}</span>
+        )}
         {(r.status === 'attente' || r.status === 'contacte') && (
           <form action={withdrawRequest}>
             <input type="hidden" name="id" value={r.id} />

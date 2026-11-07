@@ -47,13 +47,18 @@ export interface AppointmentInput {
   status: string;
   label: string;
   attendance?: 'absent' | null;
+  title?: string;
+  cancel_reason?: string | null;
+  cancelled_by?: 'famille' | 'ortho' | null;
 }
 
 export interface AgendaDay {
   date: string;
   weekday: number;
   blocks: BlockOccurrence[];
-  appointments: (Interval & { id: string; patientId: string; label: string; status: string; attendance: 'absent' | null })[];
+  appointments: (Interval & { id: string; patientId: string; label: string; status: string; attendance: 'absent' | null; title: string })[];
+  /** Séances annulées par la famille : affichées en fantôme, ne bloquent pas le créneau. */
+  cancelled: (Interval & { id: string; patientId: string; label: string; reason: string | null })[];
 }
 
 const DAY = 24 * 60;
@@ -113,11 +118,20 @@ export function buildWeek(week: string, blocks: BlockInput[], appointments: Appo
         return c ? [{ ...c, blockId: b.id, title: b.title, date: startDay, recurring: b.recurrence !== 'none' }] : [];
       }),
     );
-    const appts = appointments.flatMap((a) => {
-      const c = clipToDay(date, new Date(a.starts_at).getTime(), new Date(a.ends_at).getTime());
-      return c ? [{ ...c, id: a.id, patientId: a.patient_id, label: a.label, status: a.status, attendance: a.attendance ?? null }] : [];
-    });
-    return { date, weekday: i + 1, blocks: occurrences, appointments: appts };
+    const clip = (a: AppointmentInput) => clipToDay(date, new Date(a.starts_at).getTime(), new Date(a.ends_at).getTime());
+    const appts = appointments
+      .filter((a) => a.status !== 'annule')
+      .flatMap((a) => {
+        const c = clip(a);
+        return c ? [{ ...c, id: a.id, patientId: a.patient_id, label: a.label, status: a.status, attendance: a.attendance ?? null, title: a.title ?? '' }] : [];
+      });
+    const cancelled = appointments
+      .filter((a) => a.status === 'annule' && a.cancelled_by === 'famille')
+      .flatMap((a) => {
+        const c = clip(a);
+        return c ? [{ ...c, id: a.id, patientId: a.patient_id, label: a.label, reason: a.cancel_reason ?? null }] : [];
+      });
+    return { date, weekday: i + 1, blocks: occurrences, appointments: appts, cancelled };
   });
 }
 

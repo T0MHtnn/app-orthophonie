@@ -96,7 +96,7 @@ h3 { font-size: 16px; }
 p { margin: 0; }
 a { color: var(--accent); }
 
-.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1440px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .stack { display: flex; flex-direction: column; gap: 14px; }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .spread { justify-content: space-between; }
@@ -192,7 +192,7 @@ a { color: var(--accent); }
 .tabs a[aria-current="page"] { color: var(--accent); border-bottom-color: var(--accent); }
 .tabs .count { display: inline-block; min-width: 22px; margin-left: 6px; padding: 0 7px; border-radius: 99px; background: var(--surface-2); font-size: 12px; text-align: center; }
 /* Planning : grille semaine + liste de patients */
-.planning-layout { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 16px; align-items: start; }
+.planning-layout { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 16px; align-items: start; }
 .patients-panel { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; }
 .patient-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .patient-list li { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: grab; }
@@ -200,7 +200,7 @@ a { color: var(--accent); }
 .patient-list button { width: 100%; border: 0; background: none; padding: 8px 10px; text-align: left; display: flex; flex-direction: column; }
 .patient-list small { color: var(--muted); font-size: 12.5px; }
 .agenda-wrap { padding: 0; overflow-x: auto; }
-.agenda { display: grid; min-width: 620px; }
+.agenda { display: grid; min-width: 600px; }
 .agenda-head { padding: 8px 6px; text-align: center; font-weight: 700; font-size: 13px; border-bottom: 1px solid var(--line); text-transform: capitalize; }
 .agenda-head.today { color: var(--accent); }
 .agenda-hours { position: relative; }
@@ -258,6 +258,22 @@ a { color: var(--accent); }
 .foldable[open] summary { margin-bottom: 10px; }
 .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); }
 .icon-btn:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
+/* Séance annulée par la famille : fantôme, ne bloque pas le créneau */
+.agenda-cancelled { position: absolute; left: 3px; right: 3px; padding: 2px 6px; overflow: hidden; border: 1px dashed var(--danger); border-radius: 6px; background: transparent; color: var(--danger); font-size: 12px; line-height: 1.3; text-align: left; opacity: 0.85; }
+.agenda-cancelled:hover { background: var(--danger-soft); }
+.appt-title { display: block; color: var(--muted); font-style: italic; }
+.picker-list { list-style: none; margin: 4px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.picker-list button { width: 100%; padding: 8px 10px; border: 0; border-bottom: 1px solid var(--line); background: var(--surface); text-align: left; }
+.picker-list li:last-child button { border-bottom: 0; }
+.picker-list button:hover, .picker-list button:focus-visible { background: var(--accent-soft); }
+.picked-patient { padding: 8px 10px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent-soft); justify-content: space-between; }
+.modal .tabs button { padding: 9px 14px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: none; font-weight: 700; color: var(--muted); }
+.modal .tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.badge-new { display: inline-block; padding: 1px 8px; border-radius: 99px; background: var(--danger); color: #fff; font-size: 11.5px; font-weight: 700; }
+.cancel-box { position: relative; }
+.cancel-box summary { list-style: none; cursor: pointer; }
+.cancel-box summary::-webkit-details-marker { display: none; }
+.cancel-box[open] form { margin-top: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); min-width: min(320px, 80vw); }
 .autonomous-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 16px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border: 1px solid var(--line); border-radius: 99px; font-size: 13.5px; background: var(--surface); }
 .chip-x { border: 0; background: none; width: 22px; height: 22px; border-radius: 99px; color: var(--muted); font-size: 16px; line-height: 1; }

@@ -29,20 +29,23 @@ const done = (message: string): FormState => {
  * la double authentification, les chevauchements (P0409) et les blocages (P0410).
  */
 export async function saveAppointment(_prev: FormState, formData: FormData): Promise<FormState> {
-  await requireOrtho();
-  const raw = Object.fromEntries(['id', 'patientId', 'date', 'time', 'duration'].map((k) => [k, str(formData, k)]));
-  const parsed = appointmentSchema.safeParse(raw);
+  const { practice } = await requireOrtho();
+  const raw = Object.fromEntries(['id', 'patientId', 'date', 'time', 'end', 'duration', 'title', 'notify'].map((k) => [k, str(formData, k)]));
+  const parsed = appointmentSchema.safeParse({ ...raw, notify: raw.notify || undefined });
   if (!parsed.success) return await invalid(fieldErrors(parsed.error), raw);
 
   const d = parsed.data;
   const start = parisToInstant(d.date, d.time);
-  const end = new Date(start.getTime() + d.duration * 60_000);
+  const end = new Date(start.getTime() + d.minutes * 60_000);
+  const notify = d.notify === 'on';
   const supabase = await createClient();
   const { error } = await supabase.rpc('save_appointment', {
     p_id: d.id || null,
     p_patient_id: d.patientId,
     p_starts_at: start.toISOString(),
     p_ends_at: end.toISOString(),
+    p_title: d.title,
+    p_notify: notify,
   });
   if (error?.code === 'P0409') return { errors: { time: 'Ce créneau chevauche un autre rendez-vous.' }, message: 'Ce créneau chevauche un autre rendez-vous.', values: raw };
   if (error?.code === 'P0410') return { errors: { time: 'Ce créneau est bloqué.' }, message: 'Ce créneau est bloqué dans votre planning.', values: raw };
@@ -50,7 +53,8 @@ export async function saveAppointment(_prev: FormState, formData: FormData): Pro
     console.error('save_appointment', error.code);
     return { message: 'Le rendez-vous n’a pas pu être enregistré. Rechargez la page puis réessayez.', values: raw };
   }
-  return done(d.id ? 'Rendez-vous déplacé.' : 'Rendez-vous ajouté.');
+  if (notify) await notifyFamily(d.patientId, start, practice.name);
+  return done(notify ? 'Rendez-vous enregistré. Le patient est prévenu par email.' : d.id ? 'Rendez-vous modifié.' : 'Rendez-vous ajouté.');
 }
 
 /** RDV annulé par l'ortho : supprimé de l'agenda. */
@@ -203,4 +207,35 @@ export async function markAttendance(_prev: FormState, formData: FormData): Prom
     return { message: 'Le changement n’a pas pu être enregistré. Rechargez la page puis réessayez.' };
   }
   return done(value === 'absent' ? 'Rendez-vous marqué comme non honoré.' : 'Rendez-vous marqué comme réalisé.');
+}
+
+/** Email « nouvelle séance » à la famille : date et heure seulement, aucune donnée médicale. */
+async function notifyFamily(patientId: string, start: Date, practiceName: string): Promise<void> {
+  const supabase = await createClient();
+  const { data: patient } = await supabase.from('patients').select('first_name, email').eq('id', patientId).maybeSingle();
+  if (!patient?.email) return;
+  const p = parisParts(start);
+  const when = `${formatDay(p.date)} à ${formatTime(p.time)}`;
+  await sendEmail({
+    to: { email: patient.email },
+    senderName: practiceName,
+    subject: `Nouvelle séance le ${when}`,
+    text: [
+      'Bonjour,',
+      `${practiceName} a prévu une séance pour ${patient.first_name} le ${when}.`,
+      'Vous la retrouvez dans votre espace :',
+      `${siteUrl}/patient`,
+    ].join('\n\n'),
+  });
+}
+
+/** Retirer une annulation faite par la famille (liste au-dessus de l'agenda). */
+export async function dismissCancellation(formData: FormData): Promise<void> {
+  await requireOrtho();
+  const id = idSchema.safeParse(formData.get('id'));
+  if (!id.success) return;
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('delete_appointment', { p_id: id.data });
+  if (error) console.error('delete_appointment', error.code);
+  revalidatePath('/ortho/planning');
 }

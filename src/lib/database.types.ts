@@ -124,6 +124,13 @@ export type AppointmentRow = {
   /** 'absent' = rendez-vous non honoré (lapin) ; null = prévu (à venir) ou réalisé (heure passée). */
   attendance: 'absent' | null;
   attendance_at: string | null;
+  /** Titre privé (ortho) du rendez-vous. */
+  title: string;
+  /** Raison donnée par la famille quand elle annule. */
+  cancel_reason: string | null;
+  cancelled_by: 'famille' | 'ortho' | null;
+  /** Nouvelle séance signalée à la famille, pas encore marquée « Lu ». */
+  family_notice: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -203,7 +210,10 @@ export type Database = {
       };
       withdraw_waitlist_entry: { Args: { p_id: string }; Returns: boolean };
       delete_my_waitlist_entry: { Args: { p_id: string }; Returns: boolean };
-      save_appointment: { Args: { p_id: string | null; p_patient_id: string; p_starts_at: string; p_ends_at: string }; Returns: string };
+      save_appointment: {
+        Args: { p_id: string | null; p_patient_id: string; p_starts_at: string; p_ends_at: string; p_title?: string; p_notify?: boolean };
+        Returns: string;
+      };
       cancel_appointment: { Args: { p_id: string }; Returns: boolean };
       mark_attendance: { Args: { p_id: string; p_attendance: 'absent' | null }; Returns: boolean };
       delete_appointment: { Args: { p_id: string }; Returns: boolean };
@@ -211,7 +221,8 @@ export type Database = {
       booking_busy: { Args: { p_patient_id: string; p_from: string; p_to: string }; Returns: { starts_at: string; ends_at: string }[] };
       /** Renvoie le statut créé : 'confirme' (patient autonome) ou 'a_valider'. */
       book_appointment: { Args: { p_patient_id: string; p_starts_at: string }; Returns: 'confirme' | 'a_valider' };
-      family_cancel_appointment: { Args: { p_id: string }; Returns: boolean };
+      family_cancel_appointment: { Args: { p_id: string; p_reason?: string }; Returns: boolean };
+      ack_appointment: { Args: { p_id: string }; Returns: boolean };
       my_appointments: {
         Args: Record<string, never>;
         Returns: {
@@ -224,6 +235,8 @@ export type Database = {
           ends_at: string;
           status: AppointmentStatus;
           can_cancel: boolean;
+          /** Séance posée par l'ortho et signalée à la famille, pas encore « Lu ». */
+          is_new: boolean;
         }[];
       };
       my_patients: {
