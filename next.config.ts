@@ -19,6 +19,8 @@ const securityHeaders = [
 const config: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  // Dépôt de documents (4 Mo max, voir lib/documents.ts) : la limite par défaut des Server Actions est 1 Mo.
+  experimental: { serverActions: { bodySizeLimit: '5mb' } },
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },

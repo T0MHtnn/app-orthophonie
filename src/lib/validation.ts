@@ -217,6 +217,21 @@ export const patientFileSchema = z.object({
     .default(''),
 });
 
+export const caregiverSchema = z.object({
+  firstName: required(80, 'Prénom requis'),
+  lastName: required(80, 'Nom requis'),
+  relation: text(60).optional().default(''),
+  phone: phoneSchema.optional().default(''),
+  email: z.union([z.literal(''), emailSchema]).optional().default(''),
+});
+
+export const homeworkSchema = z.object({
+  title: required(120, 'Titre requis'),
+  instructions: text(5000).optional().default(''),
+  documentId: z.union([z.literal(''), z.uuid()]).optional().default(''),
+  dueDate: z.union([z.literal(''), dateField]).optional().default(''),
+});
+
 export const sessionNoteSchema = z.object({
   body: required(10000, 'La note est vide').max(10000, 'Note trop longue (10 000 caractères max.)'),
   appointmentId: z.union([z.literal(''), z.uuid()]).optional().default(''),

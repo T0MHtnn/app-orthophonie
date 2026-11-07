@@ -10,6 +10,8 @@ import { createClient } from '@/lib/supabase/server';
 import { formatInstant, formatShortDate } from '@/lib/time';
 import { deleteMyRequest, withdrawRequest } from './actions';
 import { Sessions } from './sessions';
+import { MyDocuments, MyHomework } from './shared-items';
+import { DOCUMENT_ACCEPT } from '@/lib/documents';
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getT())('Mon espace') };
@@ -35,11 +37,14 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
   const params = await searchParams;
   const t = await getT();
   const supabase = await createClient();
-  const [{ data }, { data: appointments }, { data: patients }] = await Promise.all([
+  const [{ data }, { data: appointments }, { data: patients }, { data: homework }, { data: documents }] = await Promise.all([
     supabase.rpc('my_waitlist_entries'),
     supabase.rpc('my_appointments'),
     supabase.rpc('my_patients'),
+    supabase.rpc('my_homework'),
+    supabase.rpc('my_documents'),
   ]);
+  const todo = (homework ?? []).filter((h) => !h.done_at).length;
   const now = Date.now();
   const upcoming = (appointments ?? []).filter((a) => new Date(a.ends_at).getTime() > now && a.status !== 'annule');
   const upcomingCount = upcoming.length;
@@ -81,7 +86,28 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
           </summary>
           <Sessions sessions={appointments ?? []} />
         </details>
-      ) : (
+      ) : null}
+      {unlocked && (
+        <details className="card foldable" open={todo > 0}>
+          <summary>
+            <h2>{t('Exercices à faire')}</h2> <span className="count">{todo}</span>
+          </summary>
+          <MyHomework items={homework ?? []} showPatient={(patients ?? []).length > 1} />
+        </details>
+      )}
+      {unlocked && (
+        <details className="card foldable">
+          <summary>
+            <h2>{t('Documents')}</h2> <span className="count">{(documents ?? []).length}</span>
+          </summary>
+          <MyDocuments
+            items={documents ?? []}
+            accept={DOCUMENT_ACCEPT}
+            patients={(patients ?? []).map((p) => ({ id: p.id, label: `${p.first_name} ${p.last_name} · ${p.practice_name}` }))}
+          />
+        </details>
+      )}
+      {!unlocked && (
         <section className="card stack locked">
           <h2>{t(active.some((r) => r.status === 'contacte') ? 'Une place vous a été proposée' : 'Aucune place ne vous a encore été trouvée')}</h2>
           <p className="sub">

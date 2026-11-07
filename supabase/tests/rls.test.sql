@@ -602,4 +602,52 @@ begin
 end $$;
 reset role;
 
+-- 26. Étape 2 : devoirs et documents cloisonnés ; la famille passe uniquement par ses fonctions.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'aal2');
+set role authenticated;
+do $$
+declare v_patient uuid := current_setting('test.patient_a')::uuid;
+begin
+  insert into public.homework (practice_id, patient_id, title)
+  values ((select practice_id from public.patients where id = v_patient), v_patient, 'Lire 10 minutes');
+  begin
+    insert into public.patient_documents (practice_id, patient_id, name, mime_type, size_bytes, storage_path, uploaded_by)
+    values ((select practice_id from public.patients where id = v_patient), v_patient, 'x.pdf', 'application/pdf', 10, 'x/y/z', 'famille');
+    raise exception 'ÉCHEC 26a : l''ortho se fait passer pour la famille';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b', 'aal2');
+set role authenticated;
+do $$
+begin
+  if exists (select 1 from public.homework) or exists (select 1 from public.patient_documents) then
+    raise exception 'ÉCHEC 26b : devoirs ou documents visibles par un autre cabinet';
+  end if;
+  if public.family_delete_document(gen_random_uuid()) is not null then raise exception 'ÉCHEC 26c'; end if;
+end $$;
+reset role;
+
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1', 'aal1');
+set role authenticated;
+do $$
+begin
+  if exists (select 1 from public.homework) or exists (select 1 from public.patient_documents) or exists (select 1 from public.patient_caregivers) then
+    raise exception 'ÉCHEC 26d : tables lisibles directement par une famille';
+  end if;
+  if exists (select 1 from public.my_homework() h where h.patient_id <> all (select id from public.my_patients())) then
+    raise exception 'ÉCHEC 26e : devoirs d''un autre patient';
+  end if;
+  begin
+    perform public.family_add_document(current_setting('test.patient_a')::uuid, 'x.pdf', 'application/pdf', 10, 'a/b/c');
+    if not exists (select 1 from public.my_patients() where id = current_setting('test.patient_a')::uuid) then
+      raise exception 'ÉCHEC 26f : dépôt sur le patient d''une autre famille';
+    end if;
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
 select 'TOUS LES TESTS DE SÉCURITÉ PASSENT' as resultat;

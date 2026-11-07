@@ -296,6 +296,9 @@ a { color: var(--accent); }
 .note header { gap: 8px; }
 .note-body { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
 .linkbtn.danger { color: var(--danger); }
+.note.done b { text-decoration: line-through; color: var(--muted); }
+.note-form h3 { margin: 0; }
+.note-form input[type="file"] { padding: 7px; }
 .table .badge { margin-top: 4px; }
 .address-box { position: relative; }
 .address-suggestions { position: absolute; z-index: 20; left: 0; right: 0; top: 100%; margin: 4px 0 0; padding: 4px; list-style: none; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgb(0 0 0 / 0.12); }

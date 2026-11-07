@@ -13,6 +13,10 @@ import { seriesProgress } from '../progress';
 import { Notes } from './notes';
 import { PatientForm } from './patient-form';
 import { SessionList } from './session-list';
+import { Caregivers } from './caregivers';
+import { Documents } from './documents';
+import { Homework } from './homework';
+import { DOCUMENT_ACCEPT } from '@/lib/documents';
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getT())('Fiche patient') };
@@ -30,14 +34,18 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   const today = parisParts(now).date;
   const supabase = await createClient();
 
-  const [{ data: patient }, { data: acts }, { data: pathologies }, { data: appointments }, { data: notes }] = await Promise.all([
+  const [{ data: patient }, { data: acts }, { data: pathologies }, { data: appointments }, { data: notes }, { data: caregivers }, { data: documents }, { data: homework }] = await Promise.all([
     supabase.from('patients').select('*').eq('id', id).maybeSingle(),
     supabase.from('amo_acts').select('*').order('sort_order'),
     supabase.from('pathologies').select('code, label').order('sort_order'),
     supabase.from('appointments').select('id, starts_at, ends_at, status, attendance, cancelled_by').eq('patient_id', id).order('starts_at', { ascending: false }).limit(200),
     supabase.from('session_notes').select('*').eq('patient_id', id).order('created_at', { ascending: false }).limit(200),
+    supabase.from('patient_caregivers').select('*').eq('patient_id', id).order('created_at'),
+    supabase.from('patient_documents').select('id, name, size_bytes, uploaded_by, shared, created_at').eq('patient_id', id).order('created_at', { ascending: false }).limit(200),
+    supabase.from('homework').select('*').eq('patient_id', id).order('created_at', { ascending: false }).limit(200),
   ]);
   if (!patient) notFound();
+  const docs = documents ?? [];
 
   const past = (appointments ?? []).filter((a) => a.status === 'confirme' && new Date(a.starts_at) < now).map((a) => ({ ...a, patient_id: id }));
   const { done, total, absences } = seriesProgress([patient], past, acts ?? [])(patient);
@@ -134,6 +142,42 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
           <Notes patientId={patient.id} sessions={noteSessions} notes={(notes ?? []).map((n) => ({ ...n, sessionLabel: noteSessions.find((s) => s.id === n.appointment_id)?.label ?? null }))} />
         </section>
       </div>
+
+      <div className="patient-grid">
+        <section className="card stack">
+          <h2>{t('Devoirs')}</h2>
+          <p className="hint">{t('Le patient les voit dans son espace et les coche quand c’est fait.')}</p>
+          <Homework
+            patientId={patient.id}
+            documents={docs.map((d) => ({ id: d.id, name: d.name }))}
+            items={(homework ?? []).map((h) => ({
+              id: h.id,
+              title: h.title,
+              instructions: h.instructions,
+              documentId: h.document_id,
+              documentName: docs.find((d) => d.id === h.document_id)?.name ?? null,
+              dueDate: h.due_date,
+              doneAt: h.done_at,
+              createdAt: h.created_at,
+            }))}
+          />
+        </section>
+
+        <section className="card stack">
+          <h2>{t('Documents')}</h2>
+          <p className="hint">{t('Chiffrés avant d’être enregistrés. Les documents privés ne sont visibles que par vous.')}</p>
+          <Documents
+            patientId={patient.id}
+            accept={DOCUMENT_ACCEPT}
+            documents={docs.map((d) => ({ id: d.id, name: d.name, sizeBytes: d.size_bytes, uploadedBy: d.uploaded_by, shared: d.shared, createdAt: d.created_at }))}
+          />
+        </section>
+      </div>
+
+      <section className="card stack">
+        <h2>{t('Autres aidants')}</h2>
+        <Caregivers patientId={patient.id} caregivers={caregivers ?? []} />
+      </section>
 
       <section className="card stack">
         <h2>{t('Informations du patient')}</h2>

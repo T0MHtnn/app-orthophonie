@@ -129,6 +129,43 @@ export type AmoActRow = {
   sort_order: number;
 };
 
+export type CaregiverRow = {
+  id: string;
+  practice_id: string;
+  patient_id: string;
+  first_name: string;
+  last_name: string;
+  relation: string | null;
+  phone: string | null;
+  email: string | null;
+  created_at: string;
+};
+
+export type PatientDocumentRow = {
+  id: string;
+  practice_id: string;
+  patient_id: string;
+  name: string;
+  mime_type: string;
+  size_bytes: number;
+  storage_path: string;
+  uploaded_by: 'ortho' | 'famille';
+  shared: boolean;
+  created_at: string;
+};
+
+export type HomeworkRow = {
+  id: string;
+  practice_id: string;
+  patient_id: string;
+  title: string;
+  instructions: string | null;
+  document_id: string | null;
+  due_date: string | null;
+  done_at: string | null;
+  created_at: string;
+};
+
 export type SessionNoteRow = {
   id: string;
   practice_id: string;
@@ -210,6 +247,21 @@ export type Database = {
       pathologies: Table<PathologyRow, NoInsert, NoInsert>;
       patients: Table<PatientRow, NoInsert, Partial<PatientEditable>>;
       amo_acts: Table<AmoActRow, NoInsert, NoInsert>;
+      patient_caregivers: Table<
+        CaregiverRow,
+        Pick<CaregiverRow, 'practice_id' | 'patient_id' | 'first_name' | 'last_name'> & Partial<Pick<CaregiverRow, 'relation' | 'phone' | 'email'>>,
+        Partial<Pick<CaregiverRow, 'first_name' | 'last_name' | 'relation' | 'phone' | 'email'>>
+      >;
+      patient_documents: Table<
+        PatientDocumentRow,
+        Pick<PatientDocumentRow, 'practice_id' | 'patient_id' | 'name' | 'mime_type' | 'size_bytes' | 'storage_path'> & Partial<Pick<PatientDocumentRow, 'shared'>>,
+        Partial<Pick<PatientDocumentRow, 'name' | 'shared'>>
+      >;
+      homework: Table<
+        HomeworkRow,
+        Pick<HomeworkRow, 'practice_id' | 'patient_id' | 'title'> & Partial<Pick<HomeworkRow, 'instructions' | 'document_id' | 'due_date'>>,
+        Partial<Pick<HomeworkRow, 'title' | 'instructions' | 'document_id' | 'due_date'>>
+      >;
       session_notes: Table<
         SessionNoteRow,
         Pick<SessionNoteRow, 'practice_id' | 'patient_id' | 'body'> & Partial<Pick<SessionNoteRow, 'appointment_id'>>,
@@ -293,6 +345,29 @@ export type Database = {
       start_slot_offer: { Args: { p_freed_slot: string }; Returns: { email: string; first_name: string; practice_name: string; starts_at: string; token: string }[] };
       dismiss_freed_slots: { Args: { p_ids: string[] }; Returns: number };
       advance_my_offers: { Args: Record<string, never>; Returns: { email: string; first_name: string; practice_name: string; starts_at: string; token: string }[] };
+      my_documents: {
+        Args: Record<string, never>;
+        Returns: { id: string; patient_id: string; patient_first_name: string; name: string; mime_type: string; size_bytes: number; uploaded_by: 'ortho' | 'famille'; created_at: string }[];
+      };
+      my_homework: {
+        Args: Record<string, never>;
+        Returns: {
+          id: string;
+          patient_id: string;
+          patient_first_name: string;
+          title: string;
+          instructions: string | null;
+          document_id: string | null;
+          document_name: string | null;
+          due_date: string | null;
+          done_at: string | null;
+          created_at: string;
+        }[];
+      };
+      my_document_path: { Args: { p_id: string }; Returns: string | null };
+      set_homework_done: { Args: { p_id: string; p_done: boolean }; Returns: boolean };
+      family_add_document: { Args: { p_patient_id: string; p_name: string; p_mime_type: string; p_size_bytes: number; p_storage_path: string }; Returns: string };
+      family_delete_document: { Args: { p_id: string }; Returns: string | null };
       cron_session_reminders: {
         Args: { p_secret: string };
         Returns: { email: string; first_name: string; practice_name: string; address_line: string | null; postal_code: string | null; city: string | null; starts_at: string }[];
@@ -335,6 +410,7 @@ export type Database = {
           active_booking: boolean;
           /** Demande de liste d'attente d'origine (bouton « Réserver » sur sa ligne). */
           waitlist_entry_id: string | null;
+          practice_id: string;
         }[];
       };
     };
