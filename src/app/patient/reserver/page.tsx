@@ -70,17 +70,13 @@ export default async function ReserverPage({ searchParams }: { searchParams: Pro
             {formatDay(chosenParts.date)} à {formatTime(chosenParts.time)}
           </h2>
           <p className="sub">Séance de {patient.session_minutes} min pour {patient.first_name}.</p>
-          <div className="row">
-            <form action={bookSlot}>
-              <input type="hidden" name="patientId" value={patient.id} />
-              <input type="hidden" name="startsAt" value={chosen.toISOString()} />
-              <input type="hidden" name="semaine" value={week} />
-              <SubmitButton pendingText="Réservation…">Confirmer la réservation</SubmitButton>
-            </form>
-            <Link href={`${base}&semaine=${week}`} className="btn">
-              Choisir un autre créneau
-            </Link>
-          </div>
+          <form action={bookSlot}>
+            <input type="hidden" name="patientId" value={patient.id} />
+            <input type="hidden" name="startsAt" value={chosen.toISOString()} />
+            <input type="hidden" name="semaine" value={week} />
+            <SubmitButton pendingText="Réservation…">Confirmer la réservation</SubmitButton>
+          </form>
+          <p className="hint">Pour changer, cliquez simplement sur un autre horaire.</p>
         </section>
       )}
 

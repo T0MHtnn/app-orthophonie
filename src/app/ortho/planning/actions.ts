@@ -122,6 +122,7 @@ export async function deleteBlock(_prev: FormState, formData: FormData): Promise
   const id = idSchema.safeParse(formData.get('id'));
   if (!id.success) return { message: 'Blocage introuvable.' };
   const scope = str(formData, 'scope');
+  if (scope !== 'jour' && scope !== 'serie') return { message: 'Choix manquant. Rechargez la page puis réessayez.' };
   const occurrence = str(formData, 'occurrence');
   const supabase = await createClient();
   const { data: existing } = await supabase.from('schedule_blocks').select('*').eq('id', id.data).maybeSingle();
@@ -156,8 +157,9 @@ function failed(where: string, code: string | undefined, values: Record<string, 
 export async function reviewAppointment(_prev: FormState, formData: FormData): Promise<FormState> {
   const { practice } = await requireOrtho();
   const id = idSchema.safeParse(formData.get('id'));
-  const accept = formData.get('decision') === 'accepter';
-  if (!id.success) return { message: 'Rendez-vous introuvable.' };
+  const decision = formData.get('decision');
+  if (!id.success || (decision !== 'accepter' && decision !== 'refuser')) return { message: 'Décision manquante. Rechargez la page puis réessayez.' };
+  const accept = decision === 'accepter';
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('review_appointment', { p_id: id.data, p_accept: accept });
   if (error || !data) {

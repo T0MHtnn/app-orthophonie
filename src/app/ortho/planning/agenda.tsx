@@ -342,25 +342,20 @@ function BlockDialog({ dialog, onDone }: { dialog: Extract<Dialog, { kind: 'bloc
         </div>
       </form>
       {b && (
-        <form action={delAction} className="row">
+        <div className="stack">
           <FormAlert state={delState} />
-          <input type="hidden" name="id" value={b.id} />
-          <input type="hidden" name="occurrence" value={dialog.occurrence ?? ''} />
-          {recurring ? (
-            <>
-              <SubmitButton className="btn danger small" name="scope" value="jour">
-                Supprimer ce jour
-              </SubmitButton>
-              <SubmitButton className="btn danger small" name="scope" value="serie">
-                Supprimer toute la série
-              </SubmitButton>
-            </>
-          ) : (
-            <SubmitButton className="btn danger small" name="scope" value="serie">
-              Supprimer
-            </SubmitButton>
-          )}
-        </form>
+          {/* Un formulaire par bouton : le choix part dans un champ caché, pas dans le bouton cliqué. */}
+          <div className="row">
+            {(recurring ? (['jour', 'serie'] as const) : (['serie'] as const)).map((scope) => (
+              <form key={scope} action={delAction}>
+                <input type="hidden" name="id" value={b.id} />
+                <input type="hidden" name="occurrence" value={dialog.occurrence ?? ''} />
+                <input type="hidden" name="scope" value={scope} />
+                <SubmitButton className="btn danger small">{!recurring ? 'Supprimer' : scope === 'jour' ? 'Supprimer ce jour' : 'Supprimer toute la série'}</SubmitButton>
+              </form>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -400,21 +395,25 @@ function AppointmentDialog({
       </div>
       {detail && <PatientCard patientId={dialog.patientId} detail={detail} bookingMode={bookingMode} />}
       {pendingReview && (
-        <form action={reviewAction} className="stack review">
+        <div className="stack review">
           <p>
             <b>Réservation en ligne en attente de votre validation.</b> La famille sera prévenue par email.
           </p>
           <FormAlert state={reviewState} />
-          <input type="hidden" name="id" value={dialog.id} />
+          {/* Un formulaire par bouton : la décision part dans un champ caché, pas dans le bouton cliqué. */}
           <div className="row">
-            <SubmitButton name="decision" value="accepter">
-              Accepter
-            </SubmitButton>
-            <SubmitButton className="btn danger" name="decision" value="refuser">
-              Refuser
-            </SubmitButton>
+            <form action={reviewAction}>
+              <input type="hidden" name="id" value={dialog.id} />
+              <input type="hidden" name="decision" value="accepter" />
+              <SubmitButton>Accepter</SubmitButton>
+            </form>
+            <form action={reviewAction}>
+              <input type="hidden" name="id" value={dialog.id} />
+              <input type="hidden" name="decision" value="refuser" />
+              <SubmitButton className="btn danger">Refuser</SubmitButton>
+            </form>
           </div>
-        </form>
+        </div>
       )}
       {!pendingReview && <h3>Rendez-vous</h3>}
       {!pendingReview && (
