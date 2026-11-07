@@ -167,7 +167,10 @@ export const blockSchema = z
     weekdays: z.array(z.coerce.number().int().min(1).max(7)).max(7).default([]),
     until: z.union([z.literal(''), dateField]).optional().default(''),
     // Modification d'un blocage répété : toute la série, ou ce jour seulement.
-    scope: z.enum(['serie', 'jour']).optional().default('serie'),
+    scope: z
+      .union([z.literal(''), z.enum(['serie', 'jour'])])
+      .optional()
+      .transform((v) => v || 'serie'),
     occurrence: z.union([z.literal(''), dateField]).optional().default(''),
   })
   .refine((v) => minutes(v.end) > minutes(v.start), { path: ['end'], message: 'L’heure de fin doit être après le début' })

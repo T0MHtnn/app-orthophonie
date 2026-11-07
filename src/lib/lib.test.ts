@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fillTemplate, parseInfoText } from './text';
 import { safeRedirectPath } from './security';
-import { fieldErrors, isValidRpps, passwordSchema, signupSchema, slugify, waitlistFormSchema } from './validation';
+import { appointmentSchema, blockSchema, fieldErrors, isValidRpps, passwordSchema, signupSchema, slugify, waitlistFormSchema } from './validation';
 import { normalizePhone } from './phone';
 import { matchesSearch } from './search';
 import { addDays, parisParts, parisToInstant, startOfWeek } from './time';
@@ -191,4 +191,14 @@ describe('agenda semaine', () => {
     expect(isFree(day, { start: 750, end: 780 })).toBe(false); // pause
     expect(isFree(day, { start: 600, end: 630 })).toBe(true);
   });
+});
+
+describe('pop-up de blocage (données réelles du formulaire)', () => {
+  const raw = { id: '', title: 'Pause', date: '2026-11-12', start: '12:00', end: '13:00', recurrence: 'none', until: '', scope: '', occurrence: '', weekdays: [] };
+  it('nouveau blocage : champs cachés vides acceptés', () => expect(blockSchema.safeParse(raw).success).toBe(true));
+  it('série modifiée « ce jour seulement »', () => expect(blockSchema.parse({ ...raw, scope: 'jour', occurrence: '2026-11-12' }).scope).toBe('jour'));
+  it('certains jours sans jour coché : refusé', () => expect(blockSchema.safeParse({ ...raw, recurrence: 'weekdays' }).success).toBe(false));
+  it('fin avant début : refusé', () => expect(blockSchema.safeParse({ ...raw, end: '11:00' }).success).toBe(false));
+  it('rendez-vous glissé : id vide accepté', () =>
+    expect(appointmentSchema.safeParse({ id: '', patientId: '3f0c7c8e-6f4b-4b8a-9a52-1d2c3b4a5e6f', date: '2026-11-12', time: '09:15', duration: '30' }).success).toBe(true));
 });
