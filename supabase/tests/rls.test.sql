@@ -536,4 +536,14 @@ begin
 end $$;
 reset role;
 
+-- 24. Rappels de la veille : réservés à la tâche planifiée (secret exigé).
+set role anon;
+do $$
+begin
+  perform public.cron_session_reminders('mauvais-secret');
+  raise exception 'ÉCHEC 24 : rappels sans secret';
+exception when insufficient_privilege then null;
+end $$;
+reset role;
+
 select 'TOUS LES TESTS DE SÉCURITÉ PASSENT' as resultat;

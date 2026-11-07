@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { sendSlotOffers } from '@/lib/slot-offers';
+import { sendReminders, sendSlotOffers } from '@/lib/slot-offers';
 import { createClient } from '@/lib/supabase/server';
 
 /**
  * Tâche planifiée (Vercel Cron, chaque matin — voir vercel.json) : envoie les vagues
- * de propositions en attente (nuit terminée, 12 h écoulées) pour tous les cabinets.
+ * de propositions en attente (nuit terminée, 12 h écoulées) pour tous les cabinets,
+ * et les rappels des séances du lendemain.
  * Vercel envoie « Authorization: Bearer <CRON_SECRET> » ; la base revérifie ce secret
  * (seule son empreinte y est stockée, dans private.app_secrets). Pas de clé Supabase secrète.
  */
@@ -20,5 +21,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 500 });
   }
   const sent = await sendSlotOffers(data ?? []);
-  return NextResponse.json({ ok: true, sent });
+  const { data: due, error: remindError } = await supabase.rpc('cron_session_reminders', { p_secret: secret });
+  if (remindError) {
+    console.error('cron_session_reminders', remindError.code);
+    return NextResponse.json({ ok: false, sent }, { status: 500 });
+  }
+  const reminded = await sendReminders(due ?? []);
+  return NextResponse.json({ ok: true, sent, reminded });
 }

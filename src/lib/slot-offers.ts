@@ -32,3 +32,32 @@ export async function sendSlotOffers(rows: OfferEmail[]): Promise<number> {
   }
   return sent;
 }
+
+export interface ReminderEmail {
+  email: string;
+  first_name: string;
+  practice_name: string;
+  starts_at: string;
+}
+
+/** Rappel la veille d'une séance confirmée (date et heure seulement, aucune donnée médicale). */
+export async function sendReminders(rows: ReminderEmail[]): Promise<number> {
+  let sent = 0;
+  for (const r of rows) {
+    const p = parisParts(new Date(r.starts_at));
+    const when = `${formatDay(p.date)} à ${formatTime(p.time)}`;
+    const res = await sendEmail({
+      to: { email: r.email },
+      senderName: r.practice_name,
+      subject: `Rappel : séance demain, ${when}`,
+      text: [
+        'Bonjour,',
+        `Petit rappel : ${r.first_name} a une séance chez ${r.practice_name} demain, ${when}.`,
+        'En cas d’empêchement, vous pouvez prévenir le cabinet ou gérer vos séances depuis votre espace :',
+        `${siteUrl}/patient`,
+      ].join('\n\n'),
+    });
+    if (res.ok) sent++;
+  }
+  return sent;
+}
