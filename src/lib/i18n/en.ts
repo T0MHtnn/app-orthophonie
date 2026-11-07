@@ -594,4 +594,6 @@ export const EN: Record<string, string> = {
   "Un lien de confirmation va être envoyé à {email}.": "A confirmation link will be sent to {email}.",
   "Votre adresse ne changera qu’au clic sur ce lien. À ce moment-là, vous serez déconnecté de tous vos appareils et devrez vous reconnecter avec la nouvelle adresse email.": "Your address will only change when you click this link. At that point, you will be logged out of all your devices and will need to log in again with the new email address.",
   "Envoyer le lien": "Send the link",
+  // 22_back
+  "Retour à mon espace": "Back to my space",
 };

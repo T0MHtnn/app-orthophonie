@@ -29,6 +29,12 @@ export default async function TrouverPage({ searchParams }: { searchParams: Prom
           <h1>{t('Trouver un orthophoniste')}</h1>
           <p className="sub">{t('Cherchez un cabinet près de chez vous, puis inscrivez-vous sur sa liste d’attente.')}</p>
         </div>
+        {/* Connecté : retour à son espace (on arrive ici depuis « Nouvelle demande »). */}
+        {ctx && (
+          <Link href={'/patient'} className="btn">
+            ← {t('Retour à mon espace')}
+          </Link>
+        )}
       </div>
 
       <form className="card row" method="get" role="search">
