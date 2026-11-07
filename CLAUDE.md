@@ -105,7 +105,7 @@ Variables : voir `.env.example` (`NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_U
 
 Ordre proposé : Planning → Patients → Espace patient → Matériel → Trame CRBO → Comptabilité → Réglages complets.
 
-1. **Planning** (ancien « Agenda ») — étape 1 faite (agenda ortho). Reste : 2. réservation par les familles (modes, validation, autonomes, délai minimum, séances à venir dans l'espace famille) ; 3. lien personnel « place libérée » ; 4. remplissage auto des annulations + rappels la veille (tâches planifiées : pg_cron ou Vercel Cron, Hobby = 1 fois/jour).
+1. **Planning** (ancien « Agenda ») — étape 1 faite (agenda ortho). Reste : 2. réservation par les familles (modes, validation, autonomes, délai minimum, séances à venir dans l'espace famille) ; 3. lien personnel « place libérée » ; 4. remplissage auto des annulations + rappels la veille — **règle de Tom pour une séance libérée** : proposer d'abord aux patients suivis **sans prochain RDV fixé**, puis aux patients suivis **ayant déjà un prochain RDV** (pour l'avancer) ; **jamais à la liste d'attente** (une place de liste d'attente ne se libère que quand un patient a terminé tout son traitement) (tâches planifiées : pg_cron ou Vercel Cron, Hobby = 1 fois/jour).
    - Plages horaires ouvertes / bloquées (ponctuelles ou récurrentes). **Aucune plage bloquée au départ.**
    - Qui réserve en ligne, 3 modes : l'ortho seule / seulement les patients « autonomes » / tous les patients suivis.
    - Validation, 2 modes : l'ortho valide chaque réservation faite en ligne / confirmation automatique.
