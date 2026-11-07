@@ -3,15 +3,16 @@ import { notFound } from 'next/navigation';
 import { BackButton } from '@/components/back-button';
 import { SessionsProgress } from '@/components/sessions-progress';
 import { requireOrtho } from '@/lib/auth';
-import { formatAge } from '@/lib/age';
+import { displayAge } from '@/lib/age';
 import { getT } from '@/lib/i18n';
-import { ageFromBirthDate, amoPrice, formatEuros } from '@/lib/patient';
+import { amoPrice, formatEuros } from '@/lib/patient';
 import { REQUEST_TYPES } from '@/lib/request-type';
 import { createClient } from '@/lib/supabase/server';
 import { formatInstant, parisParts } from '@/lib/time';
 import { seriesProgress } from '../progress';
 import { Notes } from './notes';
 import { PatientForm } from './patient-form';
+import { SessionList } from './session-list';
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getT())('Fiche patient') };
@@ -41,7 +42,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   const past = (appointments ?? []).filter((a) => a.status === 'confirme' && new Date(a.starts_at) < now).map((a) => ({ ...a, patient_id: id }));
   const { done, total, absences } = seriesProgress([patient], past, acts ?? [])(patient);
   const act = (acts ?? []).find((a) => a.code === patient.amo_act_code);
-  const age = patient.birth_date ? ageFromBirthDate(patient.birth_date, today) : patient.patient_age;
+  const age = displayAge(patient.birth_date, patient.patient_age, today, t.lang);
   const pathology = (pathologies ?? []).find((p) => p.code === patient.pathology_code);
   const caregiver = [patient.caregiver_first_name, patient.caregiver_last_name].filter(Boolean).join(' ');
 
@@ -67,7 +68,7 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
             {patient.first_name} {patient.last_name}
           </h1>
           <p className="sub">
-            {[formatAge(age, t.lang), pathology && t(pathology.label), act && t(act.label)].filter(Boolean).join(' · ')}
+            {[age, pathology && t(pathology.label), act && t(act.label)].filter(Boolean).join(' · ')}
             {!patient.active && (
               <>
                 {' '}
@@ -115,18 +116,16 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
               </div>
             )}
           </dl>
-          <div className="session-list">
-            {(appointments ?? []).length === 0 && <p className="hint">{t('Aucune séance pour l’instant.')}</p>}
-            {(appointments ?? []).map((a) => {
-              const [label, kind] = stateOf(a);
-              return (
-                <div key={a.id} className="request">
-                  <span style={{ textTransform: 'capitalize' }}>{formatInstant(a.starts_at, t.locale)}</span>
-                  <span className={`badge ${kind}`}>{t(label)}</span>
-                </div>
-              );
-            })}
-          </div>
+          {(appointments ?? []).length === 0 ? (
+            <p className="hint">{t('Aucune séance pour l’instant.')}</p>
+          ) : (
+            <SessionList
+              sessions={(appointments ?? []).map((a) => {
+                const [label, kind] = stateOf(a);
+                return { id: a.id, startsAt: a.starts_at, endsAt: a.ends_at, cancelled: a.status === 'annule', label, kind };
+              })}
+            />
+          )}
         </section>
 
         <section className="card stack">

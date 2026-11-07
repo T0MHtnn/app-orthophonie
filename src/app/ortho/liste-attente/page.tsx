@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { SubmitButton } from '@/components/form';
 import type { WaitlistEntryRow, WaitlistStatus } from '@/lib/database.types';
 import { requireOrtho } from '@/lib/auth';
-import { formatAge } from '@/lib/age';
+import { displayAge } from '@/lib/age';
 import { emailTemplateFor } from '@/lib/defaults';
 import { getT, type T } from '@/lib/i18n';
 import { siteUrl } from '@/lib/env';
@@ -12,7 +12,7 @@ import { createClient } from '@/lib/supabase/server';
 import { buildOfferEmail } from '@/lib/offer-email';
 import { REQUEST_TYPES, REQUEST_TYPE_LABEL } from '@/lib/request-type';
 import { matchesSearch } from '@/lib/search';
-import { formatShortDate } from '@/lib/time';
+import { formatShortDate, parisParts } from '@/lib/time';
 import { deleteEntry, markContacted, sendOfferEmail, updateStatus } from './actions';
 import { CopyButton, FilterBar } from './client';
 
@@ -54,6 +54,7 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
   const params = await searchParams;
   const t = await getT();
   const formatDate = (iso: string) => formatShortDate(iso, t.locale);
+  const today = parisParts(new Date()).date;
   const supabase = await createClient();
 
   const [{ data: pathologies }, { data: entries, error }, { data: followedPatients }, { data: missed }] = await Promise.all([
@@ -161,7 +162,7 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
                 <td>
                   <b>{fullName(e.patient_first_name, e.patient_last_name)}</b>
                   <small>
-                    {formatAge(e.patient_age, t.lang)}
+                    {displayAge(e.birth_date, e.patient_age, today, t.lang)}
                     {e.caregiver_last_name || e.caregiver_first_name ? ` · ${fullName(e.caregiver_first_name, e.caregiver_last_name)}` : ''}
                   </small>
                   {e.notes && <small>{e.notes}</small>}

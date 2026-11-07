@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isAdultAge } from './age';
+import { isAdultBirthDate } from './age';
 import { normalizePhone } from './phone';
 import { REQUEST_TYPES } from './request-type';
 export { slugify } from './slug';
@@ -10,6 +10,8 @@ export { ADULT_AGE, isAdultAge } from './age';
  * La base revérifie les mêmes contraintes (double barrière).
  */
 const text = (max: number) => z.string().trim().max(max);
+/** Date du jour (Paris), pour les calculs d'âge. */
+const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
 const required = (max: number, message: string) => text(max).min(1, message);
 
 export const emailSchema = z.string().trim().toLowerCase().pipe(z.email('Adresse email invalide').max(254));
@@ -96,12 +98,12 @@ export const waitlistFormSchema = z
   .object({
     patientLastName: required(80, 'Nom du patient requis'),
     patientFirstName: required(80, 'Prénom du patient requis'),
-    ageValue: z.coerce
-      .number({ error: 'Âge requis' })
-      .int('Nombre entier')
-      .min(0, 'Âge invalide')
-      .max(120, 'Âge invalide'),
-    ageUnit: z.enum(['ans', 'mois'], { error: 'Unité invalide' }),
+    birthDate: z
+      .string({ error: 'Date de naissance requise' })
+      .min(1, 'Date de naissance requise')
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date invalide')
+      .refine((v) => v >= '1900-01-01', 'Date invalide')
+      .refine((v) => v <= today(), 'La date ne peut pas être dans le futur'),
     caregiverLastName: text(80).optional().default(''),
     caregiverFirstName: text(80).optional().default(''),
     email: z.union([z.literal(''), emailSchema]).optional().default(''),
@@ -115,16 +117,14 @@ export const waitlistFormSchema = z
     website: z.string().max(200).optional().default(''),
   })
   .superRefine((v, ctx) => {
-    const adult = isAdultAge(String(v.ageValue), v.ageUnit);
+    const adult = isAdultBirthDate(v.birthDate, today());
     if (!adult && !v.caregiverLastName) ctx.addIssue({ code: 'custom', path: ['caregiverLastName'], message: 'Requis pour un patient mineur' });
     if (!adult && !v.caregiverFirstName) ctx.addIssue({ code: 'custom', path: ['caregiverFirstName'], message: 'Requis pour un patient mineur' });
-    if (v.ageUnit === 'mois' && v.ageValue > 36) ctx.addIssue({ code: 'custom', path: ['ageValue'], message: 'Au-delà de 36 mois, indiquez l’âge en années' });
   })
   .transform((v) => {
-    const adult = isAdultAge(String(v.ageValue), v.ageUnit);
+    const adult = isAdultBirthDate(v.birthDate, today());
     return {
       ...v,
-      patientAge: `${v.ageValue} ${v.ageUnit === 'ans' && v.ageValue <= 1 ? 'an' : v.ageUnit}`,
       // Pour un patient majeur, les champs parent / aidant sont ignorés.
       caregiverLastName: adult ? '' : v.caregiverLastName,
       caregiverFirstName: adult ? '' : v.caregiverFirstName,
@@ -203,7 +203,6 @@ export const patientFileSchema = z.object({
   firstName: required(80, 'Prénom requis'),
   lastName: required(80, 'Nom requis'),
   birthDate: optionalDate('1900-01-01', 'Date invalide'),
-  patientAge: text(30).optional().default(''),
   caregiverFirstName: text(80).optional().default(''),
   caregiverLastName: text(80).optional().default(''),
   phone: phoneSchema.optional().default(''),

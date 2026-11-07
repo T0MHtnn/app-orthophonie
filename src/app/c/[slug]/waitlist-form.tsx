@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useActionState, useState } from 'react';
 import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
 import { useT } from '@/components/i18n-provider';
-import { isAdultAge } from '@/lib/age';
+import { ageFromBirthDate, formatAge, isAdultBirthDate } from '@/lib/age';
 import { REQUEST_TYPES } from '@/lib/request-type';
 import { submitWaitlist } from './actions';
 
@@ -38,13 +38,15 @@ function FormFields({ state, action, practiceName, accountEmail, pathologies }: 
   const v = state.values ?? {};
   const err = state.errors ?? {};
   const [acknowledged, setAcknowledged] = useState(v.acknowledged === 'on');
-  const [ageValue, setAgeValue] = useState(v.ageValue ?? '');
-  const [ageUnit, setAgeUnit] = useState(v.ageUnit ?? 'ans');
+  const [birthDate, setBirthDate] = useState(v.birthDate ?? '');
   // Listes et cases contrôlées : leur valeur survit à la réinitialisation du formulaire par React.
   const [pathology, setPathology] = useState(v.pathology ?? '');
   const [requestType, setRequestType] = useState(v.requestType ?? '');
   const [consent, setConsent] = useState(v.consent === 'on');
-  const adult = isAdultAge(ageValue, ageUnit);
+  // Date du jour de l'appareil : sert au calcul de l'âge et à la borne du champ date.
+  const today = new Date().toLocaleDateString('sv-SE');
+  const adult = !!birthDate && isAdultBirthDate(birthDate, today);
+  const age = birthDate ? ageFromBirthDate(birthDate, today) : null;
   const t = useT();
 
   return (
@@ -82,27 +84,22 @@ function FormFields({ state, action, practiceName, accountEmail, pathologies }: 
           <Field label="Nom du patient" name="patientLastName" autoComplete="family-name" required defaultValue={v.patientLastName} error={err.patientLastName} />
           <Field label="Prénom du patient" name="patientFirstName" autoComplete="given-name" required defaultValue={v.patientFirstName} error={err.patientFirstName} />
 
-          <div className="field">
-            <span>{t('Âge du patient')}</span>
-            <div className="age-row">
-              <input
-                name="ageValue"
-                id="ageValue"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={3}
-                value={ageValue}
-                onChange={(e) => setAgeValue(e.target.value.replace(/[^0-9]/g, ''))}
-                aria-label={t('Âge')}
-                aria-invalid={err.ageValue ? true : undefined}
-              />
-              <select name="ageUnit" value={ageUnit} onChange={(e) => setAgeUnit(e.target.value)} aria-label={t('Unité')}>
-                <option value="ans">{t('ans')}</option>
-                <option value="mois">{t('mois')}</option>
-              </select>
-            </div>
-            {err.ageValue && <span className="error">{t(err.ageValue)}</span>}
-          </div>
+          <label className="field">
+            <span>{t('Date de naissance du patient')}</span>
+            <input
+              type="date"
+              name="birthDate"
+              id="birthDate"
+              required
+              min="1900-01-01"
+              max={today}
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              aria-invalid={err.birthDate ? true : undefined}
+            />
+            {age && !err.birthDate && <span className="hint">{formatAge(age, t.lang)}</span>}
+            {err.birthDate && <span className="error">{t(err.birthDate)}</span>}
+          </label>
 
           <label className="field">
             <span>{t('Motif')}</span>

@@ -32,7 +32,7 @@ describe('slugify', () => {
 });
 
 describe('waitlistFormSchema', () => {
-  const base = { patientLastName: 'Dupont', patientFirstName: 'Léa', ageValue: '7', ageUnit: 'ans', caregiverLastName: 'Dupont', caregiverFirstName: 'Marie', pathology: 'langage-ecrit', requestType: 'bilan_reeducation', acknowledged: 'on', consent: 'on' };
+  const base = { patientLastName: 'Dupont', patientFirstName: 'Léa', birthDate: '2019-03-01', caregiverLastName: 'Dupont', caregiverFirstName: 'Marie', pathology: 'langage-ecrit', requestType: 'bilan_reeducation', acknowledged: 'on', consent: 'on' };
   it('le contact est facultatif (email du compte par défaut)', () => expect(waitlistFormSchema.safeParse(base).success).toBe(true));
   it('accepte un email', () => expect(waitlistFormSchema.parse({ ...base, email: 'A@Example.com' }).email).toBe('a@example.com'));
   it('exige le parent pour un mineur', () => {
@@ -40,11 +40,11 @@ describe('waitlistFormSchema', () => {
     expect(r.success).toBe(false);
   });
   it('ignore le parent pour un majeur', () => {
-    const r = waitlistFormSchema.parse({ ...base, ageValue: '34', caregiverLastName: 'X' });
+    const r = waitlistFormSchema.parse({ ...base, birthDate: '1990-03-01', caregiverLastName: 'X' });
     expect(r.caregiverLastName).toBe('');
-    expect(r.patientAge).toBe('34 ans');
   });
-  it('accepte un âge en mois', () => expect(waitlistFormSchema.parse({ ...base, ageValue: '18', ageUnit: 'mois' }).patientAge).toBe('18 mois'));
+  it('refuse une date de naissance future', () => expect(waitlistFormSchema.safeParse({ ...base, birthDate: '2999-01-01' }).success).toBe(false));
+  it('date de naissance obligatoire', () => expect(waitlistFormSchema.safeParse({ ...base, birthDate: '' }).success).toBe(false));
   it('exige la case de lecture', () => expect(waitlistFormSchema.safeParse({ ...base, acknowledged: undefined }).success).toBe(false));
   it('refuse un motif inventé', () => expect(waitlistFormSchema.safeParse({ ...base, pathology: '<script>' }).success).toBe(false));
 });
@@ -91,7 +91,7 @@ describe('normalizePhone', () => {
 });
 
 describe('téléphone et nom dans les formulaires', () => {
-  const base = { patientLastName: 'Dupont', patientFirstName: 'Léa', ageValue: '34', ageUnit: 'ans', pathology: 'voix', requestType: 'reeducation', acknowledged: 'on', consent: 'on' };
+  const base = { patientLastName: 'Dupont', patientFirstName: 'Léa', birthDate: '1990-03-01', pathology: 'voix', requestType: 'reeducation', acknowledged: 'on', consent: 'on' };
   it('normalise le téléphone de la liste d’attente', () => expect(waitlistFormSchema.parse({ ...base, phone: '0612345678' }).phone).toBe('06 12 34 56 78'));
   it('téléphone vide accepté', () => expect(waitlistFormSchema.parse({ ...base, phone: '' }).phone).toBe(''));
   it('message clair si téléphone invalide', () => {
@@ -118,7 +118,7 @@ describe('matchesSearch', () => {
 });
 
 describe('type de demande', () => {
-  const base = { patientLastName: 'Dupont', patientFirstName: 'Léa', ageValue: '34', ageUnit: 'ans', pathology: 'voix', acknowledged: 'on', consent: 'on' };
+  const base = { patientLastName: 'Dupont', patientFirstName: 'Léa', birthDate: '1990-03-01', pathology: 'voix', acknowledged: 'on', consent: 'on' };
   it('obligatoire', () => expect(waitlistFormSchema.safeParse(base).success).toBe(false));
   it('refuse une valeur inventée', () => expect(waitlistFormSchema.safeParse({ ...base, requestType: 'autre' }).success).toBe(false));
   it('accepte les 3 types', () => {

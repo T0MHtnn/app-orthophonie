@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { requireOrtho } from '@/lib/auth';
-import { formatAge } from '@/lib/age';
+import { displayAge } from '@/lib/age';
 import { getT } from '@/lib/i18n';
-import { ageFromBirthDate, seriesState } from '@/lib/patient';
+import { seriesState } from '@/lib/patient';
 import { REQUEST_TYPES } from '@/lib/request-type';
 import { matchesSearch } from '@/lib/search';
 import { createClient } from '@/lib/supabase/server';
@@ -87,7 +87,6 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
             {rows.map((p) => {
               const { done, total, absences } = progressOf(p);
               const { state, left } = seriesState(done, total);
-              const age = p.birth_date ? ageFromBirthDate(p.birth_date, today) : p.patient_age;
               const next = nextOf.get(p.id);
               return (
                 <tr key={p.id}>
@@ -97,7 +96,7 @@ export default async function PatientsPage({ searchParams }: { searchParams: Pro
                         {p.last_name} {p.first_name}
                       </b>
                     </Link>
-                    <small>{formatAge(age, t.lang)}</small>
+                    <small>{displayAge(p.birth_date, p.patient_age, today, t.lang)}</small>
                     {!p.active && <span className="badge termine">{t('Prise en charge terminée')}</span>}
                   </td>
                   <td>

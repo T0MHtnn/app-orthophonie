@@ -5,8 +5,7 @@ import { requireOrtho } from '@/lib/auth';
 import { getT } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { addDays, formatDay, formatInstant, isDate, parisParts, parisToInstant, startOfWeek } from '@/lib/time';
-import { formatAge } from '@/lib/age';
-import { ageFromBirthDate } from '@/lib/patient';
+import { displayAge } from '@/lib/age';
 import { REQUEST_TYPE_LABEL } from '@/lib/request-type';
 import { SubmitButton } from '@/components/form';
 import { dismissCancellation } from './actions';
@@ -62,7 +61,7 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
         p.id,
         {
           name: `${p.first_name} ${p.last_name}`,
-          age: formatAge(p.birth_date ? ageFromBirthDate(p.birth_date, nowParts.date) : p.patient_age, t.lang),
+          age: displayAge(p.birth_date, p.patient_age, nowParts.date, t.lang),
           caregiver: [p.caregiver_first_name, p.caregiver_last_name].filter(Boolean).join(' ') || null,
           email: p.email,
           phone: p.phone,

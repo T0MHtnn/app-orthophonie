@@ -66,7 +66,7 @@ insert into auth.users (id, email, email_confirmed_at) values
 select set_config('request.jwt.claims', '{"role":"anon"}', false);
 set role anon;
 do $$ begin
-  perform public.submit_waitlist_entry('cabinet-a', 'Dupont', 'Léa', '7 ans', 'Dupont', 'Marie', 'm@example.com', null, 'langage-ecrit', 'bilan', null);
+  perform public.submit_waitlist_entry('cabinet-a', 'Dupont', 'Léa', '2019-01-01'::date, 'Dupont', 'Marie', 'm@example.com', null, 'langage-ecrit', 'bilan', null);
   raise exception 'ÉCHEC 4a : anon peut s''inscrire';
 exception when insufficient_privilege then null;
 end $$;
@@ -83,7 +83,7 @@ reset role;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000c', 'aal1');
 set role authenticated;
 do $$ begin
-  perform public.submit_waitlist_entry('cabinet-a', 'X', 'Y', '7 ans', null, null, null, '06 00 00 00 00', 'voix', 'bilan', null);
+  perform public.submit_waitlist_entry('cabinet-a', 'X', 'Y', '2019-01-01'::date, null, null, null, '06 00 00 00 00', 'voix', 'bilan', null);
   raise exception 'ÉCHEC 4e : inscription sans email confirmé';
 exception when insufficient_privilege then null;
 end $$;
@@ -91,14 +91,14 @@ reset role;
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1', 'aal1');
 set role authenticated;
 do $$ begin
-  if not public.submit_waitlist_entry('cabinet-a', 'Dupont', 'Léa', '7 ans', 'Dupont', 'Marie', '', null, 'langage-ecrit', 'bilan', 'note') then
+  if not public.submit_waitlist_entry('cabinet-a', 'Dupont', 'Léa', '2019-01-01'::date, 'Dupont', 'Marie', '', null, 'langage-ecrit', 'bilan', 'note') then
     raise exception 'ÉCHEC 4f : inscription refusée';
   end if;
-  if public.submit_waitlist_entry('cabinet-b', 'X', 'Y', '7 ans', null, null, 'x@example.com', null, 'voix', 'bilan', null) then
+  if public.submit_waitlist_entry('cabinet-b', 'X', 'Y', '2019-01-01'::date, null, null, 'x@example.com', null, 'voix', 'bilan', null) then
     raise exception 'ÉCHEC 4g : inscription acceptée sur un cabinet non vérifié';
   end if;
   begin
-    perform public.submit_waitlist_entry('cabinet-a', 'dupont', 'léa', '7 ans', null, null, null, '06 00 00 00 00', 'voix', 'bilan', null);
+    perform public.submit_waitlist_entry('cabinet-a', 'dupont', 'léa', '2019-01-01'::date, null, null, null, '06 00 00 00 00', 'voix', 'bilan', null);
     raise exception 'ÉCHEC 4h : doublon accepté';
   exception when unique_violation then null;
   end;
@@ -115,10 +115,10 @@ select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1', 'aal1');
 set role authenticated;
 do $$ declare i int; begin
   for i in 2..5 loop
-    perform public.submit_waitlist_entry('cabinet-a', 'Nom', 'Enfant' || i, '5 ans', null, null, null, '06 00 00 00 00', 'voix', 'bilan', null);
+    perform public.submit_waitlist_entry('cabinet-a', 'Nom', 'Enfant' || i, '2019-01-01'::date, null, null, null, '06 00 00 00 00', 'voix', 'bilan', null);
   end loop;
   begin
-    perform public.submit_waitlist_entry('cabinet-a', 'Nom', 'Enfant10', '5 ans', null, null, null, '06 00 00 00 00', 'voix', 'bilan', null);
+    perform public.submit_waitlist_entry('cabinet-a', 'Nom', 'Enfant10', '2019-01-01'::date, null, null, null, '06 00 00 00 00', 'voix', 'bilan', null);
     raise exception 'ÉCHEC 5 : pas de limitation de débit';
   exception when sqlstate 'P0429' then null;
   end;
@@ -243,7 +243,7 @@ end $$;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'aal2');
 set role authenticated;
 do $$ begin
-  perform public.submit_waitlist_entry('cabinet-a', 'Ortho', 'Test', '30 ans', null, null, 'a@example.com', null, 'voix', 'reeducation', null);
+  perform public.submit_waitlist_entry('cabinet-a', 'Ortho', 'Test', '2019-01-01'::date, null, null, 'a@example.com', null, 'voix', 'reeducation', null);
   raise exception 'ÉCHEC 12a : un ortho peut s''inscrire dans son propre cabinet';
 exception when sqlstate 'P0403' then null;
 end $$;
@@ -254,7 +254,7 @@ reset role;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000b', 'aal2');
 set role authenticated;
 do $$ begin
-  if not public.submit_waitlist_entry('cabinet-a', 'Enfant', 'DeB', '6 ans', 'B', 'Parent', 'b@example.com', null, 'voix', 'bilan', null) then
+  if not public.submit_waitlist_entry('cabinet-a', 'Enfant', 'DeB', '2019-01-01'::date, 'B', 'Parent', 'b@example.com', null, 'voix', 'bilan', null) then
     raise exception 'ÉCHEC 12c : un ortho ne peut pas inscrire son enfant ailleurs';
   end if;
 end $$;
@@ -432,14 +432,14 @@ update public.practices set listed = true where slug = 'cabinet-a';
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000f2', 'aal1');
 set role authenticated;
 do $$ begin
-  if not public.submit_waitlist_entry('cabinet-a', 'Marry', 'Léa', '6 ans', 'X', 'Y', 'f2@example.com', null, 'voix', 'bilan', null) then
+  if not public.submit_waitlist_entry('cabinet-a', 'Marry', 'Léa', '2019-01-01'::date, 'X', 'Y', 'f2@example.com', null, 'voix', 'bilan', null) then
     raise exception 'ÉCHEC 17a : demande pour un nouveau patient refusée';
   end if;
-  if not public.submit_waitlist_entry('cabinet-a', 'Eude', 'Jean', '8 ans', 'X', 'Y', 'f2@example.com', null, 'voix', 'bilan', null) then
+  if not public.submit_waitlist_entry('cabinet-a', 'Eude', 'Jean', '2019-01-01'::date, 'X', 'Y', 'f2@example.com', null, 'voix', 'bilan', null) then
     raise exception 'ÉCHEC 17b : deuxième patient refusé';
   end if;
   begin
-    perform public.submit_waitlist_entry('cabinet-a', 'EUDE', ' jean ', '8 ans', 'X', 'Y', 'f2@example.com', null, 'voix', 'bilan', null);
+    perform public.submit_waitlist_entry('cabinet-a', 'EUDE', ' jean ', '2019-01-01'::date, 'X', 'Y', 'f2@example.com', null, 'voix', 'bilan', null);
     raise exception 'ÉCHEC 17c : même patient inscrit deux fois';
   exception when unique_violation then null;
   end;
@@ -453,7 +453,7 @@ reset role;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000d', 'aal1');
 set role authenticated;
 do $$ begin
-  if not public.submit_waitlist_entry('cabinet-a', 'Eude', 'Jean', '8 ans', 'Z', 'W', 'd@example.com', null, 'voix', 'bilan', null) then
+  if not public.submit_waitlist_entry('cabinet-a', 'Eude', 'Jean', '2019-01-01'::date, 'Z', 'W', 'd@example.com', null, 'voix', 'bilan', null) then
     raise exception 'ÉCHEC 17e : homonyme d''un autre compte refusé';
   end if;
 end $$;
@@ -470,7 +470,7 @@ end $$;
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000f2', 'aal1');
 set role authenticated;
 do $$ begin
-  if not public.submit_waitlist_entry('cabinet-a', 'Marry', 'Léa', '7 ans', 'X', 'Y', 'f2@example.com', null, 'voix', 'reeducation', null) then
+  if not public.submit_waitlist_entry('cabinet-a', 'Marry', 'Léa', '2019-01-01'::date, 'X', 'Y', 'f2@example.com', null, 'voix', 'reeducation', null) then
     raise exception 'ÉCHEC 18b : réinscription refusée après la fin de prise en charge';
   end if;
 end $$;

@@ -723,4 +723,8 @@ export const EN: Record<string, string> = {
   "Rééducation de la cognition mathématique": "Mathematical cognition therapy",
   "Rééducation du langage oral (3 à 6 ans)": "Oral language therapy (ages 3–6)",
   "Rééducation des pathologies neurologiques": "Neurological disorders therapy",
+  // 29_birth_date
+  "Date de naissance du patient": "Patient's date of birth",
+  "Date de naissance requise": "Date of birth required",
+  "L’âge est calculé à partir de la date de naissance (indiquée à l’inscription, modifiable ici).": "The age is calculated from the date of birth (given at sign-up, editable here).",
 };

@@ -58,7 +58,8 @@ export type WaitlistEntryRow = {
   practice_id: string;
   patient_last_name: string;
   patient_first_name: string;
-  patient_age: string;
+  patient_age: string | null;
+  birth_date: string | null;
   caregiver_last_name: string | null;
   caregiver_first_name: string | null;
   email: string | null;
@@ -248,7 +249,7 @@ export type Database = {
           p_slug: string;
           p_patient_last_name: string;
           p_patient_first_name: string;
-          p_patient_age: string;
+          p_birth_date: string;
           p_caregiver_last_name: string;
           p_caregiver_first_name: string;
           p_email: string;

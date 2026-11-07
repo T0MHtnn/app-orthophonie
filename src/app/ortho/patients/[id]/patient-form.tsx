@@ -1,8 +1,9 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
 import { useT } from '@/components/i18n-provider';
+import { displayAge } from '@/lib/age';
 import type { PatientRow } from '@/lib/database.types';
 import { savePatient } from '../actions';
 
@@ -22,13 +23,12 @@ interface Props {
 export function PatientForm({ patient, acts, pathologies, requestTypes }: Props) {
   const [state, action] = useActionState<FormState, FormData>(savePatient, {});
   const t = useT();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toLocaleDateString('sv-SE');
   // Valeurs renvoyées après un enregistrement : React 19 réinitialise le formulaire, on le recrée avec elles.
   const v = state.values ?? {
     firstName: patient.first_name,
     lastName: patient.last_name,
     birthDate: patient.birth_date ?? '',
-    patientAge: patient.patient_age ?? '',
     caregiverFirstName: patient.caregiver_first_name ?? '',
     caregiverLastName: patient.caregiver_last_name ?? '',
     phone: patient.phone ?? '',
@@ -40,6 +40,7 @@ export function PatientForm({ patient, acts, pathologies, requestTypes }: Props)
     sessionsPrescribed: patient.sessions_prescribed ? String(patient.sessions_prescribed) : '',
   };
   const e = state.errors ?? {};
+  const [birthDate, setBirthDate] = useState(v.birthDate ?? '');
 
   return (
     <form key={JSON.stringify(v)} action={action} className="stack" noValidate>
@@ -50,10 +51,22 @@ export function PatientForm({ patient, acts, pathologies, requestTypes }: Props)
       <div className="form-grid">
         <Field label="Prénom" name="firstName" required maxLength={80} defaultValue={v.firstName} error={e.firstName} />
         <Field label="Nom" name="lastName" required maxLength={80} defaultValue={v.lastName} error={e.lastName} />
-        <Field label="Date de naissance" name="birthDate" type="date" min="1900-01-01" max={today} defaultValue={v.birthDate} error={e.birthDate} />
-        <Field label="Âge indiqué à l’inscription" name="patientAge" maxLength={30} defaultValue={v.patientAge} error={e.patientAge} />
+        <Field
+          label="Date de naissance"
+          name="birthDate"
+          type="date"
+          min="1900-01-01"
+          max={today}
+          defaultValue={v.birthDate}
+          error={e.birthDate}
+          onChange={(ev) => setBirthDate(ev.target.value)}
+        />
+        <label className="field">
+          <span>{t('Âge')}</span>
+          <input value={displayAge(birthDate, birthDate ? null : patient.patient_age, today, t.lang)} disabled readOnly />
+        </label>
       </div>
-      <p className="hint">{t('Avec la date de naissance, l’âge se met à jour tout seul.')}</p>
+      <p className="hint">{t('L’âge est calculé à partir de la date de naissance (indiquée à l’inscription, modifiable ici).')}</p>
 
       <h3>{t('Parent / aidant et contact')}</h3>
       <div className="form-grid">

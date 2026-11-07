@@ -17,14 +17,4 @@ export function seriesState(done: number, total: number | null): { state: Series
   return { state: left === 0 ? 'terminee' : left <= SERIES_WARNING_LEFT ? 'fin-proche' : 'en-cours', left };
 }
 
-/** Âge à partir de la date de naissance (AAAA-MM-JJ), au format de la liste d'attente : « 7 ans », « 1 an », « 18 mois ». */
-export function ageFromBirthDate(birth: string, today: string): string | null {
-  const [by, bm, bd] = birth.split('-').map(Number);
-  const [ty, tm, td] = today.split('-').map(Number);
-  if (!by || !bm || !bd || !ty || !tm || !td) return null;
-  const months = (ty - by) * 12 + (tm - bm) - (td < bd ? 1 : 0);
-  if (months < 0) return null;
-  if (months < 36) return `${months} mois`;
-  const years = Math.floor(months / 12);
-  return `${years} ${years <= 1 ? 'an' : 'ans'}`;
-}
+export { ageFromBirthDate } from './age';

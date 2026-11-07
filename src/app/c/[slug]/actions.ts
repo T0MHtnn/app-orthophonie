@@ -10,8 +10,7 @@ import { fieldErrors, waitlistFormSchema } from '@/lib/validation';
 const FIELDS = [
   'patientLastName',
   'patientFirstName',
-  'ageValue',
-  'ageUnit',
+  'birthDate',
   'caregiverLastName',
   'caregiverFirstName',
   'email',
@@ -49,7 +48,7 @@ export async function submitWaitlist(slug: string, _prev: FormState, formData: F
     p_slug: slug,
     p_patient_last_name: d.patientLastName,
     p_patient_first_name: d.patientFirstName,
-    p_patient_age: d.patientAge,
+    p_birth_date: d.birthDate,
     p_caregiver_last_name: d.caregiverLastName,
     p_caregiver_first_name: d.caregiverFirstName,
     p_email: d.email,
