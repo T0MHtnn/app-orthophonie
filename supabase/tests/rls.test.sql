@@ -401,12 +401,15 @@ set role authenticated;
 do $$
 declare v_patient uuid := (select id from public.my_patients() limit 1);
 begin
-  if public.book_appointment(v_patient, '2030-02-06 10:00+01') <> 'confirme' then raise exception 'ÉCHEC 16i : autonome non confirmé'; end if;
+  -- Une seule réservation active : la séance acceptée (16h) bloque toute nouvelle demande.
   begin
-    perform public.book_appointment(v_patient, '2030-02-06 10:15+01');
-    raise exception 'ÉCHEC 16j : chevauchement accepté';
-  exception when sqlstate 'P0409' then null;
+    perform public.book_appointment(v_patient, '2030-02-06 10:00+01');
+    raise exception 'ÉCHEC 16j : deuxième réservation acceptée alors qu''une est active';
+  exception when sqlstate 'P0412' then null;
   end;
+  if not (select active_booking from public.my_patients() where id = v_patient) then raise exception 'ÉCHEC 16m : réservation active non signalée'; end if;
+  if not public.family_cancel_appointment((select id from public.my_appointments() limit 1)) then raise exception 'ÉCHEC 16n : annulation refusée'; end if;
+  if public.book_appointment(v_patient, '2030-02-06 10:00+01') <> 'confirme' then raise exception 'ÉCHEC 16i : autonome non confirmé'; end if;
 end $$;
 reset role;
 -- Une autre famille ne voit rien et ne peut pas réserver pour ce patient.

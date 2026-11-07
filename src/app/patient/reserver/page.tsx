@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: 'Réserver une séance' };
 const ERRORS: Record<string, string> = {
   pris: 'Ce créneau vient d’être pris. Choisissez-en un autre.',
   delai: 'Ce créneau n’est plus réservable en ligne (délai trop court).',
-  attente: 'Une demande est déjà en attente de validation pour ce patient : attendez la réponse du cabinet.',
+  attente: 'Une réservation est déjà en cours pour ce patient : vous pourrez en demander une autre quand elle sera passée ou annulée.',
   limite: 'Trop de réservations aujourd’hui. Réessayez demain.',
   invalide: 'Créneau invalide. Réessayez.',
   autre: 'La réservation n’a pas pu être enregistrée. Réessayez.',
@@ -29,7 +29,8 @@ export default async function ReserverPage({ searchParams }: { searchParams: Pro
   const supabase = await createClient();
   const { data: patients } = await supabase.rpc('my_patients');
   const patient = (patients ?? []).find((p) => p.id === params.patient && p.can_book);
-  if (!patient) redirect('/patient');
+  // Réservation fermée par le cabinet, ou déjà une réservation active : retour à l'espace (message explicatif).
+  if (!patient || patient.active_booking) redirect('/patient');
 
   const now = new Date();
   const today = parisParts(now).date;

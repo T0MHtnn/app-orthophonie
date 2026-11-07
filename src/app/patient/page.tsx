@@ -92,14 +92,19 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
             </div>
           )}
           {(patients ?? []).map((p) =>
-            p.can_book ? (
+            !p.can_book ? (
+              <p key={p.id} className="alert warn">
+                <b>{p.practice_name}</b> ne propose pas la réservation en ligne pour {p.first_name} : c’est votre orthophoniste qui organise les
+                rendez-vous. Ils apparaîtront ici dès qu’ils seront fixés.
+              </p>
+            ) : p.active_booking ? (
+              <p key={p.id} className="hint">
+                {p.first_name} a déjà une réservation en cours : vous pourrez en demander une autre quand elle sera passée ou annulée.
+              </p>
+            ) : (
               <Link key={p.id} href={`/patient/reserver?patient=${p.id}`} className="btn primary" style={{ width: 'fit-content' }}>
                 Réserver une séance pour {p.first_name}
               </Link>
-            ) : (
-              <p key={p.id} className="hint">
-                {p.first_name} : les séances sont fixées par votre orthophoniste ({p.practice_name}).
-              </p>
             ),
           )}
         </section>

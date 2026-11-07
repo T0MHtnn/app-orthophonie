@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
+import { Modal } from '@/components/modal';
 import { RECURRENCES, isFree, type AgendaDay, type BlockInput, type Interval } from '@/lib/agenda';
 import { matchesSearch } from '@/lib/search';
 import { WEEKDAYS, formatDay, formatTime, minutesToTime } from '@/lib/time';
@@ -254,32 +255,6 @@ const pos = (i: Interval, rangeStart: number) => ({
   top: Math.max(0, i.start - rangeStart) * PX,
   height: Math.max(16, (i.end - Math.max(i.start, rangeStart)) * PX),
 });
-
-function Modal({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (el && !el.open) el.showModal();
-  }, []);
-  return (
-    <dialog
-      ref={ref}
-      className="modal card"
-      onClose={onClose}
-      onClick={(e) => {
-        // Clic sur le fond (hors de la boîte) : on ferme.
-        const r = e.currentTarget.getBoundingClientRect();
-        const outside = e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
-        if (e.target === e.currentTarget && outside) ref.current?.close();
-      }}
-    >
-      <button type="button" className="modal-x" aria-label="Fermer" onClick={() => ref.current?.close()}>
-        ×
-      </button>
-      {children}
-    </dialog>
-  );
-}
 
 /** Appelle onDone une seule fois quand l'action réussit. */
 function useOnSuccess(state: FormState, onDone: (text: string) => void) {

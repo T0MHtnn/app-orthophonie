@@ -221,7 +221,17 @@ export type Database = {
       };
       my_patients: {
         Args: Record<string, never>;
-        Returns: { id: string; first_name: string; last_name: string; practice_name: string; can_book: boolean; session_minutes: number; min_notice_hours: number }[];
+        Returns: {
+          id: string;
+          first_name: string;
+          last_name: string;
+          practice_name: string;
+          can_book: boolean;
+          session_minutes: number;
+          min_notice_hours: number;
+          /** Une réservation en ligne (en attente ou confirmée) est déjà à venir : pas d'autre demande. */
+          active_booking: boolean;
+        }[];
       };
     };
     Enums: { user_role: UserRole; waitlist_status: WaitlistStatus; waitlist_request_type: RequestType };
