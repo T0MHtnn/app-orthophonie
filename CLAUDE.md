@@ -155,6 +155,9 @@ Ordre proposé : Planning → Patients → Espace patient → Matériel → Tram
 - Brevo a deux clés : **SMTP** (`xsmtpsib-…`, pour Supabase Auth) et **API** (`xkeysib-…`, pour `BREVO_API_KEY` dans l'app). Les confondre = emails de l'app qui échouent alors que ceux d'auth passent.
 - Un `update` bloqué par la RLS ne renvoie **pas d'erreur** (0 ligne) : toujours ajouter `.select('id')` et vérifier le nombre de lignes.
 
+- **PL/pgSQL : `if a and new.colonne …` n'est pas court-circuité.** Un trigger partagé entre plusieurs tables qui lit `new.x` sur une table sans colonne `x` plante (`42703`) même si la 1re condition est fausse : mettre le test dans un `if` imbriqué.
+- Le message « Using the user object as returned from supabase.auth.getSession() … » dans les logs Vercel vient du client Storage de supabase-js (il lit le jeton de session pour l'envoi) : avertissement sans conséquence, notre code utilise bien `getClaims()`.
+
 - Formulaires à plusieurs boutons (Accepter / Refuser, Supprimer ce jour / la série) : **un formulaire par bouton avec un champ caché**, ne pas compter sur le `name`/`value` du bouton cliqué ; côté serveur, une valeur absente n'est jamais interprétée comme « refuser » ou « tout supprimer ».
 
 ## Retours en attente
