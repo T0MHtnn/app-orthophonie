@@ -476,4 +476,24 @@ do $$ begin
 end $$;
 reset role;
 
+-- 19. Pointage : seulement les séances commencées, confirmées, de son cabinet.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'aal2');
+set role authenticated;
+do $$
+declare v_patient uuid := (select id from public.patients where active limit 1); v_past uuid; v_future uuid;
+begin
+  v_past := public.save_appointment(null, v_patient, now() - interval '3 days', now() - interval '3 days' + interval '30 minutes');
+  v_future := public.save_appointment(null, v_patient, now() + interval '400 days', now() + interval '400 days' + interval '30 minutes');
+  if not public.mark_attendance(v_past, 'faite') then raise exception 'ÉCHEC 19a : pointage refusé'; end if;
+  if public.mark_attendance(v_future, 'faite') then raise exception 'ÉCHEC 19b : séance future pointée'; end if;
+  if (select attendance from public.appointments where id = v_past) <> 'faite' then raise exception 'ÉCHEC 19c : pointage non enregistré'; end if;
+end $$;
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b', 'aal2');
+set role authenticated;
+do $$ begin
+  if public.mark_attendance((select id from public.appointments limit 1), 'absent') then raise exception 'ÉCHEC 19d : pointage d''un autre cabinet'; end if;
+end $$;
+reset role;
+
 select 'TOUS LES TESTS DE SÉCURITÉ PASSENT' as resultat;

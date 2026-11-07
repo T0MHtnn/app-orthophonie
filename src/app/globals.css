@@ -239,6 +239,15 @@ a { color: var(--accent); }
 .progress { height: 10px; border-radius: 99px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
 .progress span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width 0.4s ease; }
 .progress.unknown { background: repeating-linear-gradient(-45deg, var(--surface), var(--surface) 6px, var(--surface-2) 6px, var(--surface-2) 12px); }
+/* Pointage des séances */
+.appt-flag.check { color: var(--warn); }
+.appt-flag.done { color: var(--ok); }
+.appt-flag.absent { color: var(--danger); }
+.agenda-appt.to-check { border-style: dashed; border-left-style: solid; }
+.agenda-appt.absent { opacity: 0.6; text-decoration: line-through; }
+.attendance { padding: 12px 14px; border-radius: 8px; background: var(--surface-2); }
+.attendance.pending { background: var(--warn-soft); }
+.absences { color: var(--danger); font-weight: 700; font-size: 13.5px; }
 .autonomous-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 16px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border: 1px solid var(--line); border-radius: 99px; font-size: 13.5px; background: var(--surface); }
 .chip-x { border: 0; background: none; width: 22px; height: 22px; border-radius: 99px; color: var(--muted); font-size: 16px; line-height: 1; }

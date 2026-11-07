@@ -37,10 +37,15 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
     supabase.from('appointments').select('patient_id, starts_at').neq('status', 'annule').gte('starts_at', now.toISOString()).order('starts_at'),
     supabase.from('patients').select('*').order('last_name'),
     supabase.from('pathologies').select('code, label'),
-    supabase.from('appointments').select('patient_id').eq('status', 'confirme').lt('ends_at', now.toISOString()),
+    supabase.from('appointments').select('patient_id, attendance').eq('status', 'confirme').not('attendance', 'is', null),
   ]);
+  // Avancement : seules les séances pointées « faites » comptent (un lapin n'est pas une séance).
   const doneCount = new Map<string, number>();
-  for (const a of done ?? []) doneCount.set(a.patient_id, (doneCount.get(a.patient_id) ?? 0) + 1);
+  const absentCount = new Map<string, number>();
+  for (const a of done ?? []) {
+    const m = a.attendance === 'faite' ? doneCount : absentCount;
+    m.set(a.patient_id, (m.get(a.patient_id) ?? 0) + 1);
+  }
   const pathologyLabel = new Map((pathologies ?? []).map((p) => [p.code, p.label]));
   // Fiche patient affichée dans la pop-up d'un rendez-vous.
   const details: Record<string, PatientDetail> = Object.fromEntries(
@@ -56,6 +61,7 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
         requestType: p.request_type ? t(REQUEST_TYPE_LABEL[p.request_type]) : null,
         autonomous: p.autonomous,
         sessionsDone: doneCount.get(p.id) ?? 0,
+        absences: absentCount.get(p.id) ?? 0,
         // Nombre de séances prévu par l'acte AMO : à brancher quand la liste des actes sera fournie.
         sessionsTotal: null,
       },

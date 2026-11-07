@@ -121,6 +121,9 @@ export type AppointmentRow = {
   status: AppointmentStatus;
   booked_by: 'ortho' | 'famille';
   cancelled_at: string | null;
+  /** Pointage après la séance : faite, absent (lapin), ou null = pas encore pointée. */
+  attendance: 'faite' | 'absent' | null;
+  attendance_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -201,6 +204,7 @@ export type Database = {
       withdraw_waitlist_entry: { Args: { p_id: string }; Returns: boolean };
       save_appointment: { Args: { p_id: string | null; p_patient_id: string; p_starts_at: string; p_ends_at: string }; Returns: string };
       cancel_appointment: { Args: { p_id: string }; Returns: boolean };
+      mark_attendance: { Args: { p_id: string; p_attendance: 'faite' | 'absent' | null }; Returns: boolean };
       review_appointment: { Args: { p_id: string; p_accept: boolean }; Returns: boolean };
       booking_busy: { Args: { p_patient_id: string; p_from: string; p_to: string }; Returns: { starts_at: string; ends_at: string }[] };
       /** Renvoie le statut créé : 'confirme' (patient autonome) ou 'a_valider'. */

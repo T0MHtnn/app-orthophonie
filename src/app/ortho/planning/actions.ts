@@ -188,3 +188,18 @@ export async function reviewAppointment(_prev: FormState, formData: FormData): P
   }
   return done(accept ? 'Demande acceptée : la famille est prévenue par email.' : 'Demande refusée : la famille est prévenue par email.');
 }
+
+/** Pointage d'une séance passée : faite, absent, ou effacer le pointage. */
+export async function markAttendance(_prev: FormState, formData: FormData): Promise<FormState> {
+  await requireOrtho();
+  const id = idSchema.safeParse(formData.get('id'));
+  const value = formData.get('attendance');
+  if (!id.success || (value !== 'faite' && value !== 'absent' && value !== 'aucun')) return { message: 'Choix manquant. Rechargez la page puis réessayez.' };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('mark_attendance', { p_id: id.data, p_attendance: value === 'aucun' ? null : value });
+  if (error || !data) {
+    if (error) console.error('mark_attendance', error.code);
+    return { message: 'Le pointage n’a pas pu être enregistré. Rechargez la page puis réessayez.' };
+  }
+  return done(value === 'faite' ? 'Séance pointée comme faite.' : value === 'absent' ? 'Absence enregistrée.' : 'Pointage effacé.');
+}

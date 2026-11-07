@@ -46,13 +46,14 @@ export interface AppointmentInput {
   ends_at: string;
   status: string;
   label: string;
+  attendance?: 'faite' | 'absent' | null;
 }
 
 export interface AgendaDay {
   date: string;
   weekday: number;
   blocks: BlockOccurrence[];
-  appointments: (Interval & { id: string; patientId: string; label: string; status: string })[];
+  appointments: (Interval & { id: string; patientId: string; label: string; status: string; attendance: 'faite' | 'absent' | null })[];
 }
 
 const DAY = 24 * 60;
@@ -114,7 +115,7 @@ export function buildWeek(week: string, blocks: BlockInput[], appointments: Appo
     );
     const appts = appointments.flatMap((a) => {
       const c = clipToDay(date, new Date(a.starts_at).getTime(), new Date(a.ends_at).getTime());
-      return c ? [{ ...c, id: a.id, patientId: a.patient_id, label: a.label, status: a.status }] : [];
+      return c ? [{ ...c, id: a.id, patientId: a.patient_id, label: a.label, status: a.status, attendance: a.attendance ?? null }] : [];
     });
     return { date, weekday: i + 1, blocks: occurrences, appointments: appts };
   });
