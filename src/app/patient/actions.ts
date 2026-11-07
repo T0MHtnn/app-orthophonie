@@ -47,3 +47,14 @@ export async function cancelMyAppointment(formData: FormData): Promise<void> {
   revalidatePath('/patient');
   redirect(`/patient?${!error && data ? 'ok=annule' : 'erreur=annulation'}`);
 }
+
+/** La famille supprime définitivement une de ses demandes retirées. */
+export async function deleteMyRequest(formData: FormData): Promise<void> {
+  await requireUser();
+  const id = z.uuid().safeParse(formData.get('id'));
+  if (!id.success) return;
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('delete_my_waitlist_entry', { p_id: id.data });
+  if (error) console.error('delete_my_waitlist_entry', error.code);
+  revalidatePath('/patient');
+}

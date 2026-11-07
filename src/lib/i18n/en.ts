@@ -503,4 +503,7 @@ export const EN: Record<string, string> = {
   "Le changement n’a pas pu être enregistré. Rechargez la page puis réessayez.": "The change could not be saved. Reload the page and try again.",
   "Rendez-vous marqué comme non honoré.": "Appointment marked as a no-show.",
   "Rendez-vous marqué comme réalisé.": "Appointment marked as done.",
+  // 12_famille2
+  "Demandes retirées": "Withdrawn requests",
+  "Supprimer cette demande": "Delete this request",
 };

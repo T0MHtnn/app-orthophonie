@@ -202,6 +202,7 @@ export type Database = {
         }[];
       };
       withdraw_waitlist_entry: { Args: { p_id: string }; Returns: boolean };
+      delete_my_waitlist_entry: { Args: { p_id: string }; Returns: boolean };
       save_appointment: { Args: { p_id: string | null; p_patient_id: string; p_starts_at: string; p_ends_at: string }; Returns: string };
       cancel_appointment: { Args: { p_id: string }; Returns: boolean };
       mark_attendance: { Args: { p_id: string; p_attendance: 'absent' | null }; Returns: boolean };

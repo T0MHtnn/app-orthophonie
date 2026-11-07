@@ -8,7 +8,7 @@ import { getT, type T } from '@/lib/i18n';
 import { REQUEST_TYPE_LABEL } from '@/lib/request-type';
 import { createClient } from '@/lib/supabase/server';
 import { formatInstant, formatShortDate } from '@/lib/time';
-import { cancelMyAppointment, withdrawRequest } from './actions';
+import { cancelMyAppointment, deleteMyRequest, withdrawRequest } from './actions';
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getT())('Mon espace') };
@@ -45,6 +45,9 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
   const followed = requests.filter((r) => r.status === 'rdv');
   const active = requests.filter((r) => r.status === 'attente' || r.status === 'contacte');
   const unlocked = followed.length > 0;
+  // Demandes retirées : à part (repliées), supprimables.
+  const current = requests.filter((r) => r.status !== 'retire');
+  const withdrawn = requests.filter((r) => r.status === 'retire');
 
   return (
     <>
@@ -95,16 +98,16 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
           )}
           {(patients ?? []).map((p) =>
             !p.can_book ? (
-              <p key={p.id} className="alert warn">
+              <Notice key={p.id} kind="info" autoHide={false}>
                 {t(
                   '{cabinet} ne propose pas la réservation en ligne pour {prenom} : c’est votre orthophoniste qui organise les rendez-vous. Ils apparaîtront ici dès qu’ils seront fixés.',
                   { cabinet: p.practice_name, prenom: p.first_name },
                 )}
-              </p>
+              </Notice>
             ) : p.active_booking ? (
-              <p key={p.id} className="hint">
+              <Notice key={p.id} kind="info">
                 {t('{prenom} a déjà une séance prévue : vous pourrez en réserver une autre quand elle sera passée ou annulée.', { prenom: p.first_name })}
-              </p>
+              </Notice>
             ) : (
               <Link key={p.id} href={`/patient/reserver?patient=${p.id}`} className="btn primary" style={{ width: 'fit-content' }}>
                 {t('Réserver une séance pour {prenom}', { prenom: p.first_name })}
@@ -130,13 +133,23 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
         </section>
       )}
 
-      {requests.length > 0 && (
+      {current.length > 0 && (
         <section className="card">
           <h2>{t('Mes demandes de liste d’attente')}</h2>
-          {requests.map((r) => (
+          {current.map((r) => (
             <RequestRow key={r.id} r={r} t={t} />
           ))}
         </section>
+      )}
+      {withdrawn.length > 0 && (
+        <details className="card withdrawn">
+          <summary>
+            <b>{t('Demandes retirées')}</b> <span className="count">{withdrawn.length}</span>
+          </summary>
+          {withdrawn.map((r) => (
+            <RequestRow key={r.id} r={r} t={t} />
+          ))}
+        </details>
       )}
     </>
   );
@@ -161,6 +174,16 @@ function RequestRow({ r, t }: { r: Request; t: T }) {
           <form action={withdrawRequest}>
             <input type="hidden" name="id" value={r.id} />
             <SubmitButton className="btn small">{t('Retirer ma demande')}</SubmitButton>
+          </form>
+        )}
+        {r.status === 'retire' && (
+          <form action={deleteMyRequest}>
+            <input type="hidden" name="id" value={r.id} />
+            <button type="submit" className="icon-btn" aria-label={t('Supprimer cette demande')} title={t('Supprimer cette demande')}>
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+              </svg>
+            </button>
           </form>
         )}
       </div>

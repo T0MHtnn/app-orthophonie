@@ -497,4 +497,16 @@ do $$ begin
 end $$;
 reset role;
 
+-- 20. La famille supprime ses demandes retirées, et seulement celles-là.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f2', 'aal1');
+set role authenticated;
+do $$
+declare v_active uuid := (select id from public.my_waitlist_entries() where status = 'attente' limit 1);
+begin
+  if public.delete_my_waitlist_entry(v_active) then raise exception 'ÉCHEC 20a : demande en cours supprimée'; end if;
+  perform public.withdraw_waitlist_entry(v_active);
+  if not public.delete_my_waitlist_entry(v_active) then raise exception 'ÉCHEC 20b : demande retirée non supprimée'; end if;
+end $$;
+reset role;
+
 select 'TOUS LES TESTS DE SÉCURITÉ PASSENT' as resultat;

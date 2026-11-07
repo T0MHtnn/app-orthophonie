@@ -7,7 +7,7 @@ import { useT } from './i18n-provider';
 export const NOTICE_MS = 5000;
 
 interface Props {
-  kind: 'ok' | 'warn' | 'error';
+  kind: 'ok' | 'warn' | 'error' | 'info';
   children: React.ReactNode;
   /**
    * Disparaît seul après 5 s (par défaut : oui pour « ok » / « warn », jamais pour une erreur).
