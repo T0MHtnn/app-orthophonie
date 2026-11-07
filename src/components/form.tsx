@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { useT } from './i18n-provider';
 import { Notice } from './notice';
 
 /** État renvoyé par les server actions des formulaires. */
@@ -27,9 +28,10 @@ export function SubmitButton({
   value?: string;
 }) {
   const { pending } = useFormStatus();
+  const t = useT();
   return (
     <button type="submit" className={className} disabled={pending} aria-disabled={pending} name={name} value={value}>
-      {pending ? (pendingText ?? 'Envoi…') : children}
+      {pending ? t(pendingText ?? 'Envoi…') : typeof children === 'string' ? t(children) : children}
     </button>
   );
 }
@@ -40,20 +42,26 @@ interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: string;
 }
 
-export function Field({ label, name, error, className, ...input }: FieldProps) {
+export function Field({ label, name, error, className, placeholder, ...input }: FieldProps) {
+  const t = useT();
   const errorId = error ? `${name}-error` : undefined;
   return (
     <label className={`field ${className ?? ''}`}>
-      <span>{label}</span>
-      <input name={name} id={name} aria-invalid={error ? true : undefined} aria-describedby={errorId} {...input} />
+      <span>{t(label)}</span>
+      <input name={name} id={name} aria-invalid={error ? true : undefined} aria-describedby={errorId} placeholder={placeholder && t(placeholder)} {...input} />
       {error && (
         <span className="error" id={errorId}>
-          {error}
+          {t(error)}
         </span>
       )}
     </label>
   );
 }
+
+/*
+ * Les composants ci-dessous traduisent eux-mêmes leurs textes (libellé, aide, erreur,
+ * message) : un texte français connu de en.ts s'affiche en anglais si besoin.
+ */
 
 /**
  * Message renvoyé par une action. Croix pour le fermer ; une confirmation disparaît
@@ -67,10 +75,11 @@ export function FormAlert({ state, persistent = false }: { state: FormState; per
   }, [state]);
   // Nouvel identifiant à chaque nouvel envoi (et seulement là) : le message réapparaît même s'il est identique.
   const id = useMemo(() => Math.random(), [state]);
+  const t = useT();
   if (!state.message) return null;
   return (
     <Notice key={id} ref={ref} kind={state.ok ? 'ok' : 'error'} autoHide={state.ok && !persistent}>
-      {state.message}
+      {t(state.message)}
     </Notice>
   );
 }
@@ -78,10 +87,11 @@ export function FormAlert({ state, persistent = false }: { state: FormState; per
 /** Champ mot de passe avec un bouton « œil » pour afficher ou masquer la saisie. */
 export function PasswordField({ label, name, error, ...input }: Omit<FieldProps, 'type'>) {
   const [visible, setVisible] = useState(false);
+  const t = useT();
   const errorId = error ? `${name}-error` : undefined;
   return (
     <label className="field">
-      <span>{label}</span>
+      <span>{t(label)}</span>
       <span className="password-wrap">
         <input
           name={name}
@@ -98,8 +108,8 @@ export function PasswordField({ label, name, error, ...input }: Omit<FieldProps,
           className="eye"
           onClick={() => setVisible((v) => !v)}
           aria-pressed={visible}
-          aria-label={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-          title={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+          aria-label={t(visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe')}
+          title={t(visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe')}
         >
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
@@ -110,7 +120,7 @@ export function PasswordField({ label, name, error, ...input }: Omit<FieldProps,
       </span>
       {error && (
         <span className="error" id={errorId}>
-          {error}
+          {t(error)}
         </span>
       )}
     </label>

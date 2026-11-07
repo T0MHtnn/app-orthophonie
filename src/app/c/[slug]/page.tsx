@@ -4,11 +4,14 @@ import { notFound } from 'next/navigation';
 import { logout } from '@/app/(auth)/actions';
 import { InfoText } from '@/components/info-text';
 import { getAuthContext } from '@/lib/auth';
-import { DEFAULT_WAITLIST_INFO } from '@/lib/defaults';
+import { waitlistInfoFor } from '@/lib/defaults';
+import { getT } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { WaitlistForm } from './waitlist-form';
 
-export const metadata: Metadata = { title: 'Liste d’attente' };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('Liste d’attente') };
+}
 
 /**
  * Page publique d'un cabinet vérifié : texte d'information, puis
@@ -29,6 +32,7 @@ export default async function PublicWaitlistPage({ params }: { params: Promise<{
   if (!practice) notFound();
 
   const back = encodeURIComponent(`/c/${slug}`);
+  const t = await getT();
 
   return (
     <main className="wrap public-page">
@@ -40,44 +44,44 @@ export default async function PublicWaitlistPage({ params }: { params: Promise<{
       </div>
       {!practice.waitlist_open ? (
         <div className="card">
-          <h1>Inscriptions fermées</h1>
-          <p className="sub">Le cabinet n’accepte pas de nouvelles inscriptions pour le moment. Revenez plus tard.</p>
+          <h1>{t('Inscriptions fermées')}</h1>
+          <p className="sub">{t('Le cabinet n’accepte pas de nouvelles inscriptions pour le moment. Revenez plus tard.')}</p>
         </div>
       ) : (
         <div className="card stack">
-          <InfoText source={practice.waitlist_info || DEFAULT_WAITLIST_INFO} />
+          <InfoText source={waitlistInfoFor(practice.waitlist_info, t.lang)} />
           {ctx?.practice?.slug === slug ? (
             <div className="alert warn stack">
-              <p>C’est votre propre cabinet : vous ne pouvez pas vous inscrire sur votre liste d’attente. Pour tester, utilisez un compte famille.</p>
+              <p>{t('C’est votre propre cabinet : vous ne pouvez pas vous inscrire sur votre liste d’attente. Pour tester, utilisez un compte famille.')}</p>
               <div className="row">
                 <form action={logout}>
                   <input type="hidden" name="suivant" value={`/c/${slug}`} />
                   <button className="btn small" type="submit">
-                    Me déconnecter et utiliser un compte famille
+                    {t('Me déconnecter et utiliser un compte famille')}
                   </button>
                 </form>
                 <Link className="btn small" href="/ortho">
-                  Retour à mon espace orthophoniste
+                  {t('Retour à mon espace orthophoniste')}
                 </Link>
               </div>
             </div>
           ) : ctx ? (
             <>
               <p className="hint">
-                Connecté en tant que <b>{ctx.email}</b>. Vous pourrez suivre votre demande depuis <Link href="/patient">votre espace</Link>.
+                {t('Connecté en tant que')} <b>{ctx.email}</b>. {t('Vous pourrez suivre votre demande depuis')} <Link href="/patient">{t('votre espace')}</Link>.
               </p>
-              <WaitlistForm slug={slug} practiceName={practice.name} accountEmail={ctx.email} pathologies={pathologies ?? []} />
+              <WaitlistForm slug={slug} practiceName={practice.name} accountEmail={ctx.email} pathologies={(pathologies ?? []).map((p) => ({ ...p, label: t(p.label) }))} />
             </>
           ) : (
             <div className="card stack login-cta">
-              <h2>Pour vous inscrire, connectez-vous</h2>
-              <p className="sub">Un compte vous permet de suivre votre demande et d’être prévenu quand une place se libère.</p>
+              <h2>{t('Pour vous inscrire, connectez-vous')}</h2>
+              <p className="sub">{t('Un compte vous permet de suivre votre demande et d’être prévenu quand une place se libère.')}</p>
               <div className="row">
                 <Link className="btn primary" href={`/inscription?type=patient&suivant=${back}`}>
-                  Créer mon compte
+                  {t('Créer mon compte')}
                 </Link>
                 <Link className="btn" href={`/connexion?suivant=${back}`}>
-                  J’ai déjà un compte
+                  {t('J’ai déjà un compte')}
                 </Link>
               </div>
             </div>

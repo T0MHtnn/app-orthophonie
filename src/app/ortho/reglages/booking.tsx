@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useTransition } from 'react';
 import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
+import { useT } from '@/components/i18n-provider';
 import { matchesSearch } from '@/lib/search';
 import { saveBookingSettings, setPatientAutonomous } from './actions';
 
@@ -20,21 +21,22 @@ export function BookingForm({ mode, minNoticeHours }: { mode: string; minNoticeH
 
 function BookingFields({ state, action, values: v }: { state: FormState; action: (fd: FormData) => void; values: Record<string, string> }) {
   const [m, setM] = useState(v.mode);
+  const t = useT();
   return (
     <form action={action} className="stack" noValidate>
       <FormAlert state={state} />
       <fieldset className="field plain">
         <legend>
-          <b>Qui peut réserver en ligne ?</b>
+          <b>{t('Qui peut réserver en ligne ?')}</b>
         </legend>
         <div className="choice choice-3">
           {MODES.map((o) => (
             <label key={o.code}>
               <input type="radio" name="mode" value={o.code} checked={m === o.code} onChange={() => setM(o.code)} />
               <span>
-                {o.label}
+                {t(o.label)}
                 <small className="hint" style={{ display: 'block', fontWeight: 400 }}>
-                  {o.hint}
+                  {t(o.hint)}
                 </small>
               </span>
             </label>
@@ -44,8 +46,9 @@ function BookingFields({ state, action, values: v }: { state: FormState; action:
       {m !== 'ortho' && (
         <>
           <p className="hint">
-            Un patient <b>autonome</b> qui réserve est confirmé tout de suite. En mode « tous », un patient non autonome envoie une demande : elle apparaît
-            en orange dans votre planning, à accepter ou refuser.
+            {t(
+              'Un patient autonome qui réserve est confirmé tout de suite. En mode « tous », un patient non autonome envoie une demande : elle apparaît en orange dans votre planning, à accepter ou refuser.',
+            )}
           </p>
           <Field
             label="Délai minimum avant un rendez-vous réservé en ligne (heures)"
@@ -77,6 +80,7 @@ export function AutonomousList({ patients, mode }: { patients: { id: string; nam
   const [error, setError] = useState(false);
   const [query, setQuery] = useState('');
   const [, startTransition] = useTransition();
+  const t = useT();
   const count = [...checked.values()].filter(Boolean).length;
 
   const toggle = (id: string, value: boolean) => {
@@ -90,17 +94,17 @@ export function AutonomousList({ patients, mode }: { patients: { id: string; nam
     });
   };
 
-  if (patients.length === 0) return <p className="hint">Aucun patient suivi pour l’instant.</p>;
+  if (patients.length === 0) return <p className="hint">{t('Aucun patient suivi pour l’instant.')}</p>;
   return (
     <div className="stack">
       <p className="sub">
-        {count} patient{count > 1 ? 's' : ''} autonome{count > 1 ? 's' : ''}
-        {mode === 'tous' && ' · en mode « tous », les autonomes sont confirmés tout de suite, les autres envoient une demande'}
-        {mode === 'ortho' && ' · en mode « moi seul·e », personne ne réserve en ligne'}
+        {t(count > 1 ? '{n} patients autonomes' : '{n} patient autonome', { n: count })}
+        {mode === 'tous' && ` · ${t('en mode « tous », les autonomes sont confirmés tout de suite, les autres envoient une demande')}`}
+        {mode === 'ortho' && ` · ${t('en mode « moi seul·e », personne ne réserve en ligne')}`}
       </p>
-      {error && <p className="alert error">Une modification n’a pas pu être enregistrée. Rechargez la page.</p>}
+      {error && <p className="alert error">{t('Une modification n’a pas pu être enregistrée. Rechargez la page.')}</p>}
       {patients.length > 8 && (
-        <input type="search" className="field-inline" placeholder="Rechercher" aria-label="Rechercher un patient" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <input type="search" className="field-inline" placeholder={t('Rechercher')} aria-label={t('Rechercher un patient')} value={query} onChange={(e) => setQuery(e.target.value)} />
       )}
       <div className="autonomous-list">
         {patients

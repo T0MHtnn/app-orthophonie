@@ -6,6 +6,7 @@ import type { FormState } from '@/components/form';
 import { APP_NAME } from '@/lib/app';
 import { sendEmail } from '@/lib/email';
 import { siteUrl } from '@/lib/env';
+import { getT } from '@/lib/i18n';
 import { safeRedirectPath } from '@/lib/security';
 import { createClient } from '@/lib/supabase/server';
 import { emailSchema, fieldErrors, loginSchema, passwordSchema, signupSchema } from '@/lib/validation';
@@ -115,7 +116,10 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
   }
   return {
     ok: true,
-    message: `Un email vient d’être envoyé à ${email}. Si vous ne le recevez pas d’ici quelques minutes (pensez aux spams), vous avez peut-être déjà un compte : connectez-vous ou utilisez « Mot de passe oublié ».`,
+    message: (await getT())(
+      'Un email vient d’être envoyé à {email}. Si vous ne le recevez pas d’ici quelques minutes (pensez aux spams), vous avez peut-être déjà un compte : connectez-vous ou utilisez « Mot de passe oublié ».',
+      { email },
+    ),
   };
 }
 

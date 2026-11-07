@@ -2,12 +2,16 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { buildWeek, visibleRange, type BlockInput } from '@/lib/agenda';
 import { requireOrtho } from '@/lib/auth';
+import { getT } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { addDays, formatDay, isDate, parisParts, parisToInstant, startOfWeek } from '@/lib/time';
+import { formatAge } from '@/lib/age';
 import { REQUEST_TYPE_LABEL } from '@/lib/request-type';
 import { Agenda, type PatientDetail, type PatientItem } from './agenda';
 
-export const metadata: Metadata = { title: 'Planning' };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('Planning') };
+}
 
 type Search = Record<string, string | undefined>;
 
@@ -18,6 +22,7 @@ type Search = Record<string, string | undefined>;
 export default async function PlanningPage({ searchParams }: { searchParams: Promise<Search> }) {
   const { practice } = await requireOrtho();
   const params = await searchParams;
+  const t = await getT();
   const now = new Date();
   const nowParts = parisParts(now);
   const week = startOfWeek(isDate(params.semaine) ? params.semaine : nowParts.date);
@@ -40,12 +45,12 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
       p.id,
       {
         name: `${p.first_name} ${p.last_name}`,
-        age: p.patient_age,
+        age: formatAge(p.patient_age, t.lang),
         caregiver: [p.caregiver_first_name, p.caregiver_last_name].filter(Boolean).join(' ') || null,
         email: p.email,
         phone: p.phone,
-        pathology: p.pathology_code ? (pathologyLabel.get(p.pathology_code) ?? p.pathology_code) : null,
-        requestType: p.request_type ? REQUEST_TYPE_LABEL[p.request_type] : null,
+        pathology: p.pathology_code ? t(pathologyLabel.get(p.pathology_code) ?? p.pathology_code) : null,
+        requestType: p.request_type ? t(REQUEST_TYPE_LABEL[p.request_type]) : null,
         autonomous: p.autonomous,
       },
     ]),
@@ -76,24 +81,24 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
     <>
       <div className="page-head">
         <div>
-          <h1>Planning</h1>
+          <h1>{t('Planning')}</h1>
           <p className="sub">
-            Semaine du {formatDay(week)} au {formatDay(lastDay)}
+            {t('Semaine du {debut} au {fin}', { debut: formatDay(week, false, t.locale), fin: formatDay(lastDay, false, t.locale) })}
           </p>
         </div>
         <div className="row">
-          <Link className="btn small" href={weekHref(addDays(week, -7))} aria-label="Semaine précédente">
+          <Link className="btn small" href={weekHref(addDays(week, -7))} aria-label={t('Semaine précédente')}>
             ←
           </Link>
           <Link className="btn small" href="/ortho/planning">
-            Aujourd’hui
+            {t('Aujourd’hui')}
           </Link>
-          <Link className="btn small" href={weekHref(addDays(week, 7))} aria-label="Semaine suivante">
+          <Link className="btn small" href={weekHref(addDays(week, 7))} aria-label={t('Semaine suivante')}>
             →
           </Link>
         </div>
       </div>
-      {(error || blocksError) && <p className="alert error">Impossible de charger le planning. Rechargez la page.</p>}
+      {(error || blocksError) && <p className="alert error">{t('Impossible de charger le planning. Rechargez la page.')}</p>}
 
       <Agenda
         days={shown}

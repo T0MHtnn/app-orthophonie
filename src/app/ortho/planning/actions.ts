@@ -6,6 +6,7 @@ import type { FormState } from '@/components/form';
 import { requireOrtho } from '@/lib/auth';
 import type { ScheduleBlockRow } from '@/lib/database.types';
 import { sendEmail } from '@/lib/email';
+import { getT } from '@/lib/i18n';
 import { siteUrl } from '@/lib/env';
 import { createClient } from '@/lib/supabase/server';
 import { formatDay, formatTime, parisParts, parisToInstant } from '@/lib/time';
@@ -14,11 +15,10 @@ import { appointmentSchema, blockSchema, fieldErrors } from '@/lib/validation';
 const idSchema = z.uuid();
 const str = (formData: FormData, k: string) => String(formData.get(k) ?? '');
 /** Erreurs de validation : toujours un message visible en plus des champs encadrés. */
-const invalid = (errors: Record<string, string>, values: Record<string, string>): FormState => ({
-  message: `À corriger : ${Object.values(errors).join(' · ')}`,
-  errors,
-  values,
-});
+const invalid = async (errors: Record<string, string>, values: Record<string, string>): Promise<FormState> => {
+  const t = await getT();
+  return { message: `${t('À corriger :')} ${Object.values(errors).map((e) => t(e)).join(' · ')}`, errors, values };
+};
 const done = (message: string): FormState => {
   revalidatePath('/ortho/planning');
   return { ok: true, message };
@@ -32,7 +32,7 @@ export async function saveAppointment(_prev: FormState, formData: FormData): Pro
   await requireOrtho();
   const raw = Object.fromEntries(['id', 'patientId', 'date', 'time', 'duration'].map((k) => [k, str(formData, k)]));
   const parsed = appointmentSchema.safeParse(raw);
-  if (!parsed.success) return invalid(fieldErrors(parsed.error), raw);
+  if (!parsed.success) return await invalid(fieldErrors(parsed.error), raw);
 
   const d = parsed.data;
   const start = parisToInstant(d.date, d.time);
@@ -72,7 +72,7 @@ export async function saveBlock(_prev: FormState, formData: FormData): Promise<F
   const raw = Object.fromEntries(['id', 'title', 'date', 'start', 'end', 'recurrence', 'until', 'scope', 'occurrence'].map((k) => [k, str(formData, k)]));
   const parsed = blockSchema.safeParse({ ...raw, weekdays: formData.getAll('weekdays').map(String) });
   const echo = { ...raw, weekdays: formData.getAll('weekdays').map(String).join(',') };
-  if (!parsed.success) return invalid(fieldErrors(parsed.error), echo);
+  if (!parsed.success) return await invalid(fieldErrors(parsed.error), echo);
 
   const d = parsed.data;
   const row = {

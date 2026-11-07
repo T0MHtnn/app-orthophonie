@@ -68,14 +68,35 @@ export function timeToMinutes(time: string): number {
 
 export const minutesToTime = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 
-const dayFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
-const shortDayFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+export type Locale = 'fr-FR' | 'en-GB';
 
-/** « lundi 9 novembre » (ou « lun. 9 nov. ») */
-export const formatDay = (date: string, short = false) => (short ? shortDayFormatter : dayFormatter).format(new Date(`${date}T12:00:00Z`));
+const formatters = new Map<string, Intl.DateTimeFormat>();
+const dayFormatter = (locale: Locale, short: boolean) => {
+  const key = `${locale}-${short}`;
+  let f = formatters.get(key);
+  if (!f) {
+    f = new Intl.DateTimeFormat(locale, short ? { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' } : { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+    formatters.set(key, f);
+  }
+  return f;
+};
 
-/** « 09:30 » → « 9 h 30 » */
-export function formatTime(time: string): string {
+/** « lundi 9 novembre » (ou « lun. 9 nov. ») ; « Monday 9 November » en anglais. */
+export const formatDay = (date: string, short = false, locale: Locale = 'fr-FR') => dayFormatter(locale, short).format(new Date(`${date}T12:00:00Z`));
+
+/** « 09:30 » → « 9 h 30 » (anglais : « 9:30 »). */
+export function formatTime(time: string, locale: Locale = 'fr-FR'): string {
   const [h = '0', m = '00'] = time.split(':');
-  return `${Number(h)} h ${m}`;
+  return locale === 'en-GB' ? `${Number(h)}:${m}` : `${Number(h)} h ${m}`;
+}
+
+/** Date et heure d'un instant à Paris : « lundi 9 novembre à 9 h 30 ». */
+export function formatInstant(iso: string, locale: Locale = 'fr-FR'): string {
+  const p = parisParts(new Date(iso));
+  return `${formatDay(p.date, false, locale)} ${locale === 'en-GB' ? 'at' : 'à'} ${formatTime(p.time, locale)}`;
+}
+
+/** Date courte d'un instant : « 9 nov. 2026 ». */
+export function formatShortDate(iso: string, locale: Locale = 'fr-FR'): string {
+  return new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: TIME_ZONE });
 }

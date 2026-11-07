@@ -8,10 +8,10 @@ export interface NavLink {
   label: string;
 }
 
-export function SideNav({ links }: { links: NavLink[] }) {
+export function SideNav({ links, label = 'Sections' }: { links: NavLink[]; label?: string }) {
   const path = usePathname();
   return (
-    <nav className="nav" aria-label="Sections">
+    <nav className="nav" aria-label={label}>
       {links.map((l) => (
         <Link key={l.href} href={l.href} aria-current={path.startsWith(l.href) ? 'page' : undefined}>
           {l.label}

@@ -4,16 +4,21 @@ import Link from 'next/link';
 import { SubmitButton } from '@/components/form';
 import type { WaitlistEntryRow, WaitlistStatus } from '@/lib/database.types';
 import { requireOrtho } from '@/lib/auth';
-import { DEFAULT_EMAIL_TEMPLATE } from '@/lib/defaults';
+import { formatAge } from '@/lib/age';
+import { emailTemplateFor } from '@/lib/defaults';
+import { getT, type T } from '@/lib/i18n';
 import { siteUrl } from '@/lib/env';
 import { createClient } from '@/lib/supabase/server';
 import { buildOfferEmail } from '@/lib/offer-email';
 import { REQUEST_TYPES, REQUEST_TYPE_LABEL } from '@/lib/request-type';
 import { matchesSearch } from '@/lib/search';
+import { formatShortDate } from '@/lib/time';
 import { deleteEntry, markContacted, sendOfferEmail, updateStatus } from './actions';
 import { CopyButton, FilterBar } from './client';
 
-export const metadata: Metadata = { title: 'Liste d’attente' };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('Liste d’attente') };
+}
 
 const STATUS_LABEL: Record<WaitlistStatus, string> = { attente: 'En attente', contacte: 'Place proposée', rdv: 'Pris en charge', retire: 'Retiré' };
 
@@ -29,7 +34,6 @@ const NEXT_STATUS: Record<WaitlistStatus, { status: WaitlistStatus; label: strin
   retire: [{ status: 'attente', label: 'Remettre en attente' }],
 };
 
-const formatDate = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Paris' });
 const fullName = (first: string | null, last: string | null) => [first, last].filter(Boolean).join(' ');
 
 type Search = Record<string, string | undefined>;
@@ -37,16 +41,18 @@ type Search = Record<string, string | undefined>;
 export default async function ListeAttentePage({ searchParams }: { searchParams: Promise<Search> }) {
   const { practice, profile } = await requireOrtho();
   const params = await searchParams;
+  const t = await getT();
+  const formatDate = (iso: string) => formatShortDate(iso, t.locale);
   const supabase = await createClient();
 
   const [{ data: pathologies }, { data: entries, error }] = await Promise.all([
     supabase.from('pathologies').select('code, label').order('sort_order'),
     supabase.from('waitlist_entries').select('*').order('created_at', { ascending: true }),
   ]);
-  const labels = new Map((pathologies ?? []).map((p) => [p.code, p.label]));
+  const labels = new Map((pathologies ?? []).map((p) => [p.code, t(p.label)]));
   const filter = params.motif && labels.has(params.motif) ? params.motif : '';
   const tab: 'attente' | 'suivis' = params.onglet === 'suivis' ? 'suivis' : 'attente';
-  const typeFilter = REQUEST_TYPES.find((t) => t.code === params.type)?.code ?? '';
+  const typeFilter = REQUEST_TYPES.find((r) => r.code === params.type)?.code ?? '';
   const showRemoved = params.retires === '1';
   const query = (params.q ?? '').slice(0, 80);
   const all = entries ?? [];
@@ -62,9 +68,9 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
   const waiting = all.filter((e) => e.status === 'attente').length;
   const followed = all.filter((e) => e.status === 'rdv').length;
   const queued = all.filter((e) => e.status === 'attente' || e.status === 'contacte').length;
-  const tabHref = (t: 'attente' | 'suivis') => {
+  const tabHref = (target: 'attente' | 'suivis') => {
     const keep = new URLSearchParams();
-    if (t === 'suivis') keep.set('onglet', 'suivis');
+    if (target === 'suivis') keep.set('onglet', 'suivis');
     if (query) keep.set('q', query);
     if (filter) keep.set('motif', filter);
     if (typeFilter) keep.set('type', typeFilter);
@@ -79,49 +85,50 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
     <>
       <div className="page-head">
         <div>
-          <h1>Liste d’attente</h1>
+          <h1>{t('Liste d’attente')}</h1>
           <p className="sub">
-            {waiting} personne{waiting > 1 ? 's' : ''} en attente · lien à donner aux familles : <a href={publicUrl}>{publicUrl}</a>
+            {t(waiting > 1 ? '{n} personnes en attente' : '{n} personne en attente', { n: waiting })} · {t('lien à donner aux familles :')} <a href={publicUrl}>{publicUrl}</a>
           </p>
         </div>
       </div>
 
-      {params.ok === 'contacte' && <Notice kind="ok">Statut passé à « Place proposée ».</Notice>}
-      {params.ok === 'envoye' && <Notice kind="ok">Email envoyé. Statut passé à « Place proposée ».</Notice>}
-      {params.erreur === 'envoi' && <p className="alert error">L’email n’a pas pu être envoyé. Réessayez, ou copiez le texte dans votre messagerie.</p>}
-      {params.erreur === 'email-config' && <p className="alert error">L’envoi d’emails n’est pas encore configuré (clé Brevo manquante). Copiez le texte dans votre messagerie en attendant.</p>}
-      {params.erreur === 'statut' && <p className="alert error">Le statut n’a pas pu être modifié. Rechargez la page puis réessayez.</p>}
-      {params.erreur === 'envoye-statut' && <p className="alert error">L’email est bien parti, mais le statut n’a pas pu passer à « Place proposée ». Réessayez avec « Marquer comme contacté sans envoyer ».</p>}
-      {params.erreur === 'email' && <p className="alert error">Cette personne n’a pas laissé d’adresse email : contactez-la par téléphone.</p>}
-      <p className="hint">Confirmer la prise en charge déplace la demande dans « Patients pris en charge » et débloque l’espace patient de la famille.</p>
-      {params.ok === 'supprime' && <Notice kind="ok">Inscription supprimée définitivement.</Notice>}
-      {error && <p className="alert error">Impossible de charger la liste. Rechargez la page.</p>}
+      {params.ok === 'contacte' && <Notice kind="ok">{t('Statut passé à « Place proposée ».')}</Notice>}
+      {params.ok === 'envoye' && <Notice kind="ok">{t('Email envoyé. Statut passé à « Place proposée ».')}</Notice>}
+      {params.erreur === 'envoi' && <p className="alert error">{t('L’email n’a pas pu être envoyé. Réessayez, ou copiez le texte dans votre messagerie.')}</p>}
+      {params.erreur === 'email-config' && <p className="alert error">{t('L’envoi d’emails n’est pas encore configuré (clé Brevo manquante). Copiez le texte dans votre messagerie en attendant.')}</p>}
+      {params.erreur === 'statut' && <p className="alert error">{t('Le statut n’a pas pu être modifié. Rechargez la page puis réessayez.')}</p>}
+      {params.erreur === 'envoye-statut' && <p className="alert error">{t('L’email est bien parti, mais le statut n’a pas pu passer à « Place proposée ». Réessayez avec « Marquer comme contacté sans envoyer ».')}</p>}
+      {params.erreur === 'email' && <p className="alert error">{t('Cette personne n’a pas laissé d’adresse email : contactez-la par téléphone.')}</p>}
+      <p className="hint">{t('Confirmer la prise en charge déplace la demande dans « Patients pris en charge » et débloque l’espace patient de la famille.')}</p>
+      {params.ok === 'supprime' && <Notice kind="ok">{t('Inscription supprimée définitivement.')}</Notice>}
+      {error && <p className="alert error">{t('Impossible de charger la liste. Rechargez la page.')}</p>}
 
-      <nav className="tabs" aria-label="Listes">
+      <nav className="tabs" aria-label={t('Listes')}>
         <Link href={tabHref('attente')} aria-current={tab === 'attente' ? 'page' : undefined}>
-          File d’attente <span className="count">{queued}</span>
+          {t('File d’attente')} <span className="count">{queued}</span>
         </Link>
         <Link href={tabHref('suivis')} aria-current={tab === 'suivis' ? 'page' : undefined}>
-          Patients pris en charge <span className="count">{followed}</span>
+          {t('Patients pris en charge')} <span className="count">{followed}</span>
         </Link>
       </nav>
 
-      <FilterBar key={tab} pathologies={pathologies ?? []} requestTypes={REQUEST_TYPES.map(({ code, label }) => ({ code, label }))} showRemovedToggle={tab === 'attente'} />
+      <FilterBar key={tab} pathologies={(pathologies ?? []).map((p) => ({ code: p.code, label: t(p.label) }))} requestTypes={REQUEST_TYPES.map(({ code, label }) => ({ code, label: t(label) }))} showRemovedToggle={tab === 'attente'} />
 
-      {emailFor && <EmailPreview entry={emailFor} template={practice.email_template || DEFAULT_EMAIL_TEMPLATE} orthoName={profile.full_name} practiceName={practice.name} />}
-      {deleteFor && <DeleteConfirm entry={deleteFor} />}
+      {/* L'email part en français (langue des familles), sauf modèle personnalisé par l'ortho. */}
+      {emailFor && <EmailPreview t={t} entry={emailFor} template={emailTemplateFor(practice.email_template, 'fr')} orthoName={profile.full_name} practiceName={practice.name} />}
+      {deleteFor && <DeleteConfirm t={t} entry={deleteFor} />}
 
       <div className="card table-wrap">
         <table className="table">
           <thead>
             <tr>
-              <th>Inscrit le</th>
-              <th>Patient</th>
-              <th>Motif</th>
-              <th>Contact</th>
-              <th>Statut</th>
+              <th>{t('Inscrit le')}</th>
+              <th>{t('Patient')}</th>
+              <th>{t('Motif')}</th>
+              <th>{t('Contact')}</th>
+              <th>{t('Statut')}</th>
               <th>
-                <span className="sr-only">Actions</span>
+                <span className="sr-only">{t('Actions')}</span>
               </th>
             </tr>
           </thead>
@@ -132,39 +139,39 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
                 <td>
                   <b>{fullName(e.patient_first_name, e.patient_last_name)}</b>
                   <small>
-                    {e.patient_age}
+                    {formatAge(e.patient_age, t.lang)}
                     {e.caregiver_last_name || e.caregiver_first_name ? ` · ${fullName(e.caregiver_first_name, e.caregiver_last_name)}` : ''}
                   </small>
                   {e.notes && <small>{e.notes}</small>}
                 </td>
                 <td>
                   {labels.get(e.pathology_code) ?? e.pathology_code}
-                  <small>{REQUEST_TYPE_LABEL[e.request_type]}</small>
+                  <small>{t(REQUEST_TYPE_LABEL[e.request_type])}</small>
                 </td>
                 <td>
                   {e.email && <small>{e.email}</small>}
                   {e.phone && <small>{e.phone}</small>}
                 </td>
                 <td>
-                  <span className={`badge ${e.status}`}>{STATUS_LABEL[e.status]}</span>
-                  {e.contacted_at && <small>contacté le {formatDate(e.contacted_at)}</small>}
+                  <span className={`badge ${e.status}`}>{t(STATUS_LABEL[e.status])}</span>
+                  {e.contacted_at && <small>{t('contacté le {date}', { date: formatDate(e.contacted_at) })}</small>}
                 </td>
                 <td>
                   <div className="row">
                     {(e.status === 'attente' || e.status === 'contacte') && (
                       <Link className="btn small" href={`?email=${e.id}${filter ? `&motif=${filter}` : ''}`}>
-                        {e.status === 'contacte' ? 'Renvoyer l’email' : 'Proposer une place'}
+                        {t(e.status === 'contacte' ? 'Renvoyer l’email' : 'Proposer une place')}
                       </Link>
                     )}
                     {NEXT_STATUS[e.status].map((next) => (
                       <form key={next.status} action={updateStatus}>
                         <input type="hidden" name="id" value={e.id} />
                         <input type="hidden" name="status" value={next.status} />
-                        <SubmitButton className="btn small">{next.label}</SubmitButton>
+                        <SubmitButton className="btn small">{t(next.label)}</SubmitButton>
                       </form>
                     ))}
                     <Link className="linkbtn" href={`?supprimer=${e.id}${tab === 'suivis' ? '&onglet=suivis' : ''}`}>
-                      Supprimer
+                      {t('Supprimer')}
                     </Link>
                   </div>
                 </td>
@@ -174,11 +181,13 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
         </table>
         {rows.length === 0 && (
           <p className="hint" style={{ padding: 16 }}>
-            {query || filter || typeFilter
-              ? 'Aucun résultat pour cette recherche.'
-              : tab === 'suivis'
-                ? 'Aucun patient pris en charge pour l’instant.'
-                : 'Personne pour l’instant. Partagez le lien de votre page publique aux familles.'}
+            {t(
+              query || filter || typeFilter
+                ? 'Aucun résultat pour cette recherche.'
+                : tab === 'suivis'
+                  ? 'Aucun patient pris en charge pour l’instant.'
+                  : 'Personne pour l’instant. Partagez le lien de votre page publique aux familles.',
+            )}
           </p>
         )}
       </div>
@@ -186,23 +195,22 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
   );
 }
 
-function EmailPreview({ entry, template, orthoName, practiceName }: { entry: WaitlistEntryRow; template: string; orthoName: string; practiceName: string }) {
-  const caregiver = entry.caregiver_first_name || entry.patient_first_name;
+function EmailPreview({ t, entry, template, orthoName, practiceName }: { t: T; entry: WaitlistEntryRow; template: string; orthoName: string; practiceName: string }) {
   const text = buildOfferEmail(template, entry, orthoName, practiceName);
   const [subjectLine, ...rest] = text.split('\n');
-  const subject = subjectLine?.replace(/^Objet\s*:\s*/i, '') ?? '';
+  const subject = subjectLine?.replace(/^(?:Objet|Subject)\s*:\s*/i, '') ?? '';
   const body = rest.join('\n').trim();
   const mailto = entry.email ? `mailto:${entry.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` : null;
 
   return (
-    <section className="card stack" aria-label="Email place libérée">
+    <section className="card stack" aria-label={t('Email place libérée')}>
       <div className="row spread">
         <div>
-          <h2>Email à {fullName(entry.caregiver_first_name, entry.caregiver_last_name) || fullName(entry.patient_first_name, entry.patient_last_name)}</h2>
-          <p className="sub">{entry.email ?? `Pas d’email, appeler le ${entry.phone}`}</p>
+          <h2>{t('Email à {nom}', { nom: fullName(entry.caregiver_first_name, entry.caregiver_last_name) || fullName(entry.patient_first_name, entry.patient_last_name) })}</h2>
+          <p className="sub">{entry.email ?? t('Pas d’email, appeler le {tel}', { tel: entry.phone ?? '' })}</p>
         </div>
         <Link href="/ortho/liste-attente" className="btn small">
-          Fermer
+          {t('Fermer')}
         </Link>
       </div>
       <pre className="email-body">{text}</pre>
@@ -216,7 +224,7 @@ function EmailPreview({ entry, template, orthoName, practiceName }: { entry: Wai
         <CopyButton text={text} />
         {mailto && (
           <a className="btn" href={mailto}>
-            Ouvrir dans ma messagerie
+            {t('Ouvrir dans ma messagerie')}
           </a>
         )}
         <form action={markContacted}>
@@ -224,23 +232,23 @@ function EmailPreview({ entry, template, orthoName, practiceName }: { entry: Wai
           <SubmitButton className="btn">Marquer comme contacté sans envoyer</SubmitButton>
         </form>
       </div>
-      <p className="hint">Si la famille répond, sa réponse arrive directement dans votre boîte email. Le modèle se modifie dans les Réglages.</p>
+      <p className="hint">{t('Si la famille répond, sa réponse arrive directement dans votre boîte email. Le modèle se modifie dans les Réglages.')}</p>
     </section>
   );
 }
 
-function DeleteConfirm({ entry }: { entry: WaitlistEntryRow }) {
+function DeleteConfirm({ t, entry }: { t: T; entry: WaitlistEntryRow }) {
   return (
-    <section className="card stack" aria-label="Confirmer la suppression">
-      <h2>Supprimer {fullName(entry.patient_first_name, entry.patient_last_name)} ?</h2>
-      <p className="sub">La suppression est définitive (par exemple à la demande de la famille). Pour garder une trace, préférez le statut « Retiré ».</p>
+    <section className="card stack" aria-label={t('Confirmer la suppression')}>
+      <h2>{t('Supprimer {nom} ?', { nom: fullName(entry.patient_first_name, entry.patient_last_name) })}</h2>
+      <p className="sub">{t('La suppression est définitive (par exemple à la demande de la famille). Pour garder une trace, préférez le statut « Retiré ».')}</p>
       <div className="row">
         <form action={deleteEntry}>
           <input type="hidden" name="id" value={entry.id} />
           <SubmitButton className="btn danger">Supprimer définitivement</SubmitButton>
         </form>
         <Link href="/ortho/liste-attente" className="btn">
-          Annuler
+          {t('Annuler')}
         </Link>
       </div>
     </section>

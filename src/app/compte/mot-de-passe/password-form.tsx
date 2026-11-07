@@ -3,18 +3,20 @@
 import Link from 'next/link';
 import { useActionState } from 'react';
 import { FormAlert, PasswordField, SubmitButton, type FormState } from '@/components/form';
+import { useT } from '@/components/i18n-provider';
 import { updatePassword } from '../../(auth)/actions';
 
 export function PasswordForm() {
   const [state, action] = useActionState<FormState, FormData>(updatePassword, {});
+  const t = useT();
   return (
     <main className="wrap auth-page">
       <div className="card auth-card">
-        <h1>Nouveau mot de passe</h1>
+        <h1>{t('Nouveau mot de passe')}</h1>
         <FormAlert state={state} persistent />
         {state.ok ? (
           <Link href="/" className="btn primary">
-            Continuer
+            {t('Continuer')}
           </Link>
         ) : (
           <form action={action} className="stack" noValidate>

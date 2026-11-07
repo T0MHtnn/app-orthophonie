@@ -7,14 +7,19 @@ import '@fontsource/atkinson-hyperlegible/700.css';
 import '@fontsource/bricolage-grotesque/500.css';
 import '@fontsource/bricolage-grotesque/700.css';
 import './globals.css';
+import { I18nProvider } from '@/components/i18n-provider';
 import { APP_NAME } from '@/lib/app';
+import { getT } from '@/lib/i18n';
 import { LANG_COOKIE, THEME_COOKIE, isLang, isTheme } from '@/lib/preferences';
 
-export const metadata: Metadata = {
-  title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
-  description: 'Gestion du cabinet d’orthophonie : liste d’attente, rendez-vous, dossiers.',
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return {
+    title: { default: t(APP_NAME), template: `%s · ${t(APP_NAME)}` },
+    description: t('Gestion du cabinet d’orthophonie : liste d’attente, rendez-vous, dossiers.'),
+    robots: { index: false, follow: false },
+  };
+}
 
 export const viewport: Viewport = { width: 'device-width', initialScale: 1 };
 
@@ -28,7 +33,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const theme = jar.get(THEME_COOKIE)?.value;
   return (
     <html lang={isLang(lang) ? lang : 'fr'} data-theme={isTheme(theme) ? theme : 'system'}>
-      <body>{children}</body>
+      <body>
+        <I18nProvider lang={isLang(lang) ? lang : 'fr'}>{children}</I18nProvider>
+      </body>
     </html>
   );
 }

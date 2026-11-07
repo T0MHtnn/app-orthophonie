@@ -5,7 +5,7 @@ const escape = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<':
 /** Sépare « Objet : … » (première ligne) du corps du message. */
 export function splitSubject(text: string, fallbackSubject: string): { subject: string; body: string } {
   const [first = '', ...rest] = text.split(/\r?\n/);
-  const match = first.match(/^\s*objet\s*:\s*(.+)$/i);
+  const match = first.match(/^\s*(?:objet|subject)\s*:\s*(.+)$/i);
   if (!match?.[1]) return { subject: fallbackSubject, body: text.trim() };
   return { subject: match[1].trim(), body: rest.join('\n').trim() };
 }

@@ -2,9 +2,11 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { useT } from '@/components/i18n-provider';
 
 export function CopyButton({ text }: { text: string }) {
   const [done, setDone] = useState(false);
+  const t = useT();
   return (
     <button
       type="button"
@@ -19,7 +21,7 @@ export function CopyButton({ text }: { text: string }) {
         }
       }}
     >
-      {done ? 'Copié' : 'Copier le texte'}
+      {t(done ? 'Copié' : 'Copier le texte')}
     </button>
   );
 }
@@ -36,6 +38,7 @@ export function FilterBar({ pathologies, requestTypes, showRemovedToggle }: { pa
   const params = useSearchParams();
   const [query, setQuery] = useState(params.get('q') ?? '');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const t = useT();
 
   const apply = (changes: Record<string, string>) => {
     const next = new URLSearchParams(params.toString());
@@ -60,8 +63,8 @@ export function FilterBar({ pathologies, requestTypes, showRemovedToggle }: { pa
         type="search"
         name="q"
         className="field-inline search"
-        placeholder="Rechercher un nom ou un prénom"
-        aria-label="Rechercher un nom ou un prénom"
+        placeholder={t('Rechercher un nom ou un prénom')}
+        aria-label={t('Rechercher un nom ou un prénom')}
         value={query}
         maxLength={80}
         onChange={(e) => {
@@ -72,9 +75,9 @@ export function FilterBar({ pathologies, requestTypes, showRemovedToggle }: { pa
         }}
       />
       <label className="row sub">
-        Motif
+        {t('Motif')}
         <select name="motif" className="field-inline" value={params.get('motif') ?? ''} onChange={(e) => apply({ motif: e.target.value })}>
-          <option value="">Tous</option>
+          <option value="">{t('Tous')}</option>
           {pathologies.map((p) => (
             <option key={p.code} value={p.code}>
               {p.label}
@@ -83,9 +86,9 @@ export function FilterBar({ pathologies, requestTypes, showRemovedToggle }: { pa
         </select>
       </label>
       <label className="row sub">
-        Demande
+        {t('Demande')}
         <select name="type" className="field-inline" value={params.get('type') ?? ''} onChange={(e) => apply({ type: e.target.value })}>
-          <option value="">Toutes</option>
+          <option value="">{t('Toutes')}</option>
           {requestTypes.map((t) => (
             <option key={t.code} value={t.code}>
               {t.label}
@@ -95,12 +98,12 @@ export function FilterBar({ pathologies, requestTypes, showRemovedToggle }: { pa
       </label>
       {showRemovedToggle && (
         <label className="check">
-          <input type="checkbox" name="retires" value="1" checked={params.get('retires') === '1'} onChange={(e) => apply({ retires: e.target.checked ? '1' : '' })} /> Afficher les demandes retirées
+          <input type="checkbox" name="retires" value="1" checked={params.get('retires') === '1'} onChange={(e) => apply({ retires: e.target.checked ? '1' : '' })} /> {t('Afficher les demandes retirées')}
         </label>
       )}
       <noscript>
         <button className="btn small" type="submit">
-          Filtrer
+          {t('Filtrer')}
         </button>
       </noscript>
     </form>

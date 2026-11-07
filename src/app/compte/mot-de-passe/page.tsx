@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
+import { getT } from '@/lib/i18n';
 import { PasswordForm } from './password-form';
 
-export const metadata: Metadata = { title: 'Nouveau mot de passe' };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('Nouveau mot de passe') };
+}
 
 /**
  * Avec la double authentification activée, Supabase n'accepte un nouveau mot

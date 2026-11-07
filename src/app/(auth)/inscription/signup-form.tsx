@@ -2,10 +2,12 @@
 
 import { useActionState } from 'react';
 import { Field, FormAlert, PasswordField, SubmitButton, type FormState } from '@/components/form';
+import { useT } from '@/components/i18n-provider';
 import { signup } from '../actions';
 
 export function SignupForm({ defaultType = 'ortho', lockType = false, next = '' }: { defaultType?: 'ortho' | 'patient'; lockType?: boolean; next?: string }) {
   const [state, action] = useActionState<FormState, FormData>(signup, {});
+  const t = useT();
   if (state.ok) return <FormAlert state={state} persistent />;
   const type = state.values?.accountType ?? defaultType;
   return (
@@ -17,13 +19,13 @@ export function SignupForm({ defaultType = 'ortho', lockType = false, next = '' 
       ) : (
         <fieldset className="choice" style={{ border: 0, padding: 0, margin: 0 }}>
           <legend className="sub" style={{ marginBottom: 6 }}>
-            Je suis…
+            {t('Je suis…')}
           </legend>
           <label>
-            <input type="radio" name="accountType" value="ortho" defaultChecked={type === 'ortho'} /> Orthophoniste
+            <input type="radio" name="accountType" value="ortho" defaultChecked={type === 'ortho'} /> {t('Orthophoniste')}
           </label>
           <label>
-            <input type="radio" name="accountType" value="patient" defaultChecked={type === 'patient'} /> Patient ou parent
+            <input type="radio" name="accountType" value="patient" defaultChecked={type === 'patient'} /> {t('Patient ou parent')}
           </label>
         </fieldset>
       )}
@@ -38,7 +40,7 @@ export function SignupForm({ defaultType = 'ortho', lockType = false, next = '' 
         minLength={12}
         error={state.errors?.password}
       />
-      <p className="hint">12 caractères minimum, avec majuscules, minuscules et chiffres.</p>
+      <p className="hint">{t('12 caractères minimum, avec majuscules, minuscules et chiffres.')}</p>
       <SubmitButton pendingText="Création…">Créer mon compte</SubmitButton>
     </form>
   );

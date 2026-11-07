@@ -1,14 +1,18 @@
 import type { Metadata } from 'next';
-import { Notice } from '@/components/notice';
 import Link from 'next/link';
 import { SubmitButton } from '@/components/form';
+import { Notice } from '@/components/notice';
 import type { Database, WaitlistStatus } from '@/lib/database.types';
 import { requireUser } from '@/lib/auth';
+import { getT, type T } from '@/lib/i18n';
 import { REQUEST_TYPE_LABEL } from '@/lib/request-type';
 import { createClient } from '@/lib/supabase/server';
+import { formatInstant, formatShortDate } from '@/lib/time';
 import { cancelMyAppointment, withdrawRequest } from './actions';
 
-export const metadata: Metadata = { title: 'Mon espace' };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('Mon espace') };
+}
 
 type Request = Database['public']['Functions']['my_waitlist_entries']['Returns'][number];
 
@@ -19,11 +23,6 @@ const STATUS: Record<WaitlistStatus, { label: string; help: string }> = {
   retire: { label: 'Demande retirée', help: 'Cette demande n’est plus active.' },
 };
 
-const formatSession = (iso: string) =>
-  new Date(iso).toLocaleString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
-
-const formatDate = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });
-
 /**
  * Espace famille. Il reste « verrouillé » tant qu'aucune demande n'est passée
  * en « Pris en charge » par l'orthophoniste : la famille ne voit alors que
@@ -32,6 +31,7 @@ const formatDate = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { 
 export default async function PatientPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const ctx = await requireUser();
   const params = await searchParams;
+  const t = await getT();
   const supabase = await createClient();
   const [{ data }, { data: appointments }, { data: patients }] = await Promise.all([
     supabase.rpc('my_waitlist_entries'),
@@ -49,42 +49,42 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
     <>
       <div className="page-head">
         <div>
-          <h1>Bonjour {ctx.profile.first_name || ctx.profile.full_name || ctx.email}</h1>
-          <p className="sub">Suivez ici vos demandes de liste d’attente et, ensuite, vos séances.</p>
+          <h1>{t('Bonjour {nom}', { nom: ctx.profile.first_name || ctx.profile.full_name || ctx.email })}</h1>
+          <p className="sub">{t('Suivez ici vos demandes de liste d’attente et, ensuite, vos séances.')}</p>
         </div>
         {requests.length > 0 && (
           <Link href="/trouver" className="btn">
-            Nouvelle demande
+            {t('Nouvelle demande')}
           </Link>
         )}
       </div>
 
-      {params.ok === 'reserve' && <Notice kind="ok">Séance réservée et confirmée.</Notice>}
-      {params.ok === 'demande' && <Notice kind="warn">Demande envoyée : la séance sera confirmée quand l’orthophoniste l’aura validée.</Notice>}
-      {params.ok === 'annule' && <Notice kind="ok">Séance annulée.</Notice>}
-      {params.erreur === 'annulation' && <p className="alert error">Cette séance ne peut plus être annulée en ligne : contactez le cabinet.</p>}
+      {params.ok === 'reserve' && <Notice kind="ok">{t('Séance réservée et confirmée.')}</Notice>}
+      {params.ok === 'demande' && <Notice kind="warn">{t('Demande envoyée : la séance sera confirmée quand l’orthophoniste l’aura validée.')}</Notice>}
+      {params.ok === 'annule' && <Notice kind="ok">{t('Séance annulée.')}</Notice>}
+      {params.erreur === 'annulation' && <p className="alert error">{t('Cette séance ne peut plus être annulée en ligne : contactez le cabinet.')}</p>}
 
       {unlocked ? (
         <section className="card stack">
-          <h2>Mes séances</h2>
+          <h2>{t('Mes séances')}</h2>
           {upcoming.length === 0 ? (
-            <p className="hint">Aucune séance à venir.</p>
+            <p className="hint">{t('Aucune séance à venir.')}</p>
           ) : (
             <div>
               {upcoming.map((a) => (
                 <div key={a.id} className="request">
                   <div>
-                    <b>{formatSession(a.starts_at)}</b>
+                    <b style={{ textTransform: 'capitalize' }}>{formatInstant(a.starts_at, t.locale)}</b>
                     <div className="hint">
                       {a.patient_first_name} {a.patient_last_name} · {a.practice_name}
                     </div>
                   </div>
                   <div className="row">
-                    <span className={`badge ${a.status === 'confirme' ? 'rdv' : 'attente'}`}>{a.status === 'confirme' ? 'Confirmée' : 'En attente de validation'}</span>
+                    <span className={`badge ${a.status === 'confirme' ? 'rdv' : 'attente'}`}>{t(a.status === 'confirme' ? 'Confirmée' : 'En attente de validation')}</span>
                     {a.can_cancel && (
                       <form action={cancelMyAppointment}>
                         <input type="hidden" name="id" value={a.id} />
-                        <SubmitButton className="btn small">{a.status === 'confirme' ? 'Annuler' : 'Retirer la demande'}</SubmitButton>
+                        <SubmitButton className="btn small">{t(a.status === 'confirme' ? 'Annuler' : 'Retirer la demande')}</SubmitButton>
                       </form>
                     )}
                   </div>
@@ -95,31 +95,35 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
           {(patients ?? []).map((p) =>
             !p.can_book ? (
               <p key={p.id} className="alert warn">
-                <b>{p.practice_name}</b> ne propose pas la réservation en ligne pour {p.first_name} : c’est votre orthophoniste qui organise les
-                rendez-vous. Ils apparaîtront ici dès qu’ils seront fixés.
+                {t(
+                  '{cabinet} ne propose pas la réservation en ligne pour {prenom} : c’est votre orthophoniste qui organise les rendez-vous. Ils apparaîtront ici dès qu’ils seront fixés.',
+                  { cabinet: p.practice_name, prenom: p.first_name },
+                )}
               </p>
             ) : p.active_booking ? (
               <p key={p.id} className="hint">
-                {p.first_name} a déjà une réservation en cours : vous pourrez en demander une autre quand elle sera passée ou annulée.
+                {t('{prenom} a déjà une réservation en cours : vous pourrez en demander une autre quand elle sera passée ou annulée.', { prenom: p.first_name })}
               </p>
             ) : (
               <Link key={p.id} href={`/patient/reserver?patient=${p.id}`} className="btn primary" style={{ width: 'fit-content' }}>
-                Réserver une séance pour {p.first_name}
+                {t('Réserver une séance pour {prenom}', { prenom: p.first_name })}
               </Link>
             ),
           )}
         </section>
       ) : (
         <section className="card stack locked">
-          <h2>{active.some((r) => r.status === 'contacte') ? 'Une place vous a été proposée' : 'Aucune place ne vous a encore été trouvée'}</h2>
+          <h2>{t(active.some((r) => r.status === 'contacte') ? 'Une place vous a été proposée' : 'Aucune place ne vous a encore été trouvée')}</h2>
           <p className="sub">
-            {requests.length === 0
-              ? 'Vous n’êtes inscrit sur aucune liste d’attente pour le moment.'
-              : 'Votre espace patient s’ouvrira dès que l’orthophoniste aura confirmé votre prise en charge.'}
+            {t(
+              requests.length === 0
+                ? 'Vous n’êtes inscrit sur aucune liste d’attente pour le moment.'
+                : 'Votre espace patient s’ouvrira dès que l’orthophoniste aura confirmé votre prise en charge.',
+            )}
           </p>
           {requests.length === 0 && (
             <Link href="/trouver" className="btn primary" style={{ width: 'fit-content' }}>
-              Trouver un orthophoniste
+              {t('Trouver un orthophoniste')}
             </Link>
           )}
         </section>
@@ -127,9 +131,9 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
 
       {requests.length > 0 && (
         <section className="card">
-          <h2>Mes demandes de liste d’attente</h2>
+          <h2>{t('Mes demandes de liste d’attente')}</h2>
           {requests.map((r) => (
-            <RequestRow key={r.id} r={r} />
+            <RequestRow key={r.id} r={r} t={t} />
           ))}
         </section>
       )}
@@ -137,7 +141,7 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
   );
 }
 
-function RequestRow({ r }: { r: Request }) {
+function RequestRow({ r, t }: { r: Request; t: T }) {
   return (
     <div className="request">
       <div>
@@ -146,16 +150,16 @@ function RequestRow({ r }: { r: Request }) {
         </b>{' '}
         · {r.practice_name}
         <div className="hint">
-          {REQUEST_TYPE_LABEL[r.request_type]} · {r.pathology_label} · inscrit le {formatDate(r.created_at)}
+          {t(REQUEST_TYPE_LABEL[r.request_type])} · {t(r.pathology_label)} · {t('inscrit le {date}', { date: formatShortDate(r.created_at, t.locale) })}
         </div>
-        <div className="hint">{STATUS[r.status].help}</div>
+        <div className="hint">{t(STATUS[r.status].help)}</div>
       </div>
       <div className="row">
-        <span className={`badge ${r.status}`}>{STATUS[r.status].label}</span>
+        <span className={`badge ${r.status}`}>{t(STATUS[r.status].label)}</span>
         {(r.status === 'attente' || r.status === 'contacte') && (
           <form action={withdrawRequest}>
             <input type="hidden" name="id" value={r.id} />
-            <SubmitButton className="btn small">Retirer ma demande</SubmitButton>
+            <SubmitButton className="btn small">{t('Retirer ma demande')}</SubmitButton>
           </form>
         )}
       </div>

@@ -4,11 +4,14 @@ import { redirect } from 'next/navigation';
 import { SubmitButton } from '@/components/form';
 import { freeSlots } from '@/lib/agenda';
 import { requireUser } from '@/lib/auth';
+import { getT } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { addDays, formatDay, formatTime, isDate, parisParts, parisToInstant, startOfWeek } from '@/lib/time';
 import { bookSlot } from '../actions';
 
-export const metadata: Metadata = { title: 'Réserver une séance' };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('Réserver une séance') };
+}
 
 const ERRORS: Record<string, string> = {
   pris: 'Ce créneau vient d’être pris. Choisissez-en un autre.',
@@ -46,50 +49,52 @@ export default async function ReserverPage({ searchParams }: { searchParams: Pro
   const chosenParts = chosen ? parisParts(chosen) : null;
   const base = `/patient/reserver?patient=${patient.id}`;
   const maxWeek = startOfWeek(addDays(today, 119));
+  const t = await getT();
+  const L = t.locale;
 
   return (
     <>
       <div className="page-head">
         <div>
-          <h1>Réserver une séance</h1>
+          <h1>{t('Réserver une séance')}</h1>
           <p className="sub">
-            Pour {patient.first_name} {patient.last_name} · {patient.practice_name} · séance de {patient.session_minutes} min
+            {t('Pour {prenom} {nom} · {cabinet} · séance de {min} min', { prenom: patient.first_name, nom: patient.last_name, cabinet: patient.practice_name, min: patient.session_minutes })}
           </p>
         </div>
         <Link href="/patient" className="btn small">
-          Retour
+          {t('Retour')}
         </Link>
       </div>
 
-      {params.erreur && <p className="alert error">{ERRORS[params.erreur] ?? ERRORS.autre}</p>}
-      {error && <p className="alert error">Les disponibilités n’ont pas pu être chargées. Rechargez la page.</p>}
+      {params.erreur && <p className="alert error">{t(ERRORS[params.erreur] ?? ERRORS.autre!)}</p>}
+      {error && <p className="alert error">{t('Les disponibilités n’ont pas pu être chargées. Rechargez la page.')}</p>}
 
       {chosen && chosenParts && (
         <section className="card stack" aria-label="Confirmer la réservation">
           <h2>
-            {formatDay(chosenParts.date)} à {formatTime(chosenParts.time)}
+            {t('{jour} à {heure}', { jour: formatDay(chosenParts.date, false, L), heure: formatTime(chosenParts.time, L) })}
           </h2>
-          <p className="sub">Séance de {patient.session_minutes} min pour {patient.first_name}.</p>
+          <p className="sub">{t('Séance de {min} min pour {prenom}.', { min: patient.session_minutes, prenom: patient.first_name })}</p>
           <form action={bookSlot}>
             <input type="hidden" name="patientId" value={patient.id} />
             <input type="hidden" name="startsAt" value={chosen.toISOString()} />
             <input type="hidden" name="semaine" value={week} />
             <SubmitButton pendingText="Réservation…">Confirmer la réservation</SubmitButton>
           </form>
-          <p className="hint">Pour changer, cliquez simplement sur un autre horaire.</p>
+          <p className="hint">{t('Pour changer, cliquez simplement sur un autre horaire.')}</p>
         </section>
       )}
 
       <div className="row">
         {week > startOfWeek(today) && (
           <Link className="btn small" href={`${base}&semaine=${addDays(week, -7)}`}>
-            ← Semaine précédente
+            ← {t('Semaine précédente')}
           </Link>
         )}
-        <span className="sub">Semaine du {formatDay(week)}</span>
+        <span className="sub">{t('Semaine du {jour}', { jour: formatDay(week, false, L) })}</span>
         {week < maxWeek && (
           <Link className="btn small" href={`${base}&semaine=${addDays(week, 7)}`}>
-            Semaine suivante →
+            {t('Semaine suivante')} →
           </Link>
         )}
       </div>
@@ -97,16 +102,16 @@ export default async function ReserverPage({ searchParams }: { searchParams: Pro
       <div className="slots-week">
         {days.map((d) => (
           <section key={d.date} className="card stack">
-            <h3 style={{ textTransform: 'capitalize' }}>{formatDay(d.date, true)}</h3>
+            <h3 style={{ textTransform: 'capitalize' }}>{formatDay(d.date, true, L)}</h3>
             {d.times.length === 0 ? (
-              <p className="hint">Aucun créneau</p>
+              <p className="hint">{t('Aucun créneau')}</p>
             ) : (
               <div className="slot-list">
-                {d.times.map((t) => {
-                  const iso = parisToInstant(d.date, t).toISOString();
+                {d.times.map((time) => {
+                  const iso = parisToInstant(d.date, time).toISOString();
                   return (
-                    <Link key={t} href={`${base}&semaine=${week}&creneau=${encodeURIComponent(iso)}`} className="btn small" aria-current={params.creneau === iso ? 'true' : undefined}>
-                      {formatTime(t)}
+                    <Link key={time} href={`${base}&semaine=${week}&creneau=${encodeURIComponent(iso)}`} className="btn small" aria-current={params.creneau === iso ? 'true' : undefined}>
+                      {formatTime(time, L)}
                     </Link>
                   );
                 })}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useT } from './i18n-provider';
 
 /** Durée de l'animation de fermeture (globals.css : .modal.closing). */
 const CLOSE_MS = 140;
@@ -8,6 +9,7 @@ const CLOSE_MS = 140;
 /** Pop-up modale (<dialog>) : Échap, croix ou clic sur le fond pour fermer, avec une courte animation. */
 export function Modal({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const t = useT();
   useEffect(() => {
     const el = ref.current;
     if (el && !el.open) el.showModal();
@@ -37,7 +39,7 @@ export function Modal({ onClose, children }: { onClose: () => void; children: Re
         if (e.target === e.currentTarget && outside) close();
       }}
     >
-      <button type="button" className="modal-x" aria-label="Fermer" onClick={close}>
+      <button type="button" className="modal-x" aria-label={t('Fermer')} onClick={close}>
         ×
       </button>
       {children}

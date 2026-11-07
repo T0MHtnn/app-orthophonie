@@ -1,6 +1,7 @@
 'use client';
 
 import { forwardRef, useEffect, useState } from 'react';
+import { useT } from './i18n-provider';
 
 /** Durée d'affichage d'un message de confirmation avant qu'il disparaisse seul. */
 export const NOTICE_MS = 5000;
@@ -19,6 +20,7 @@ interface Props {
 /** Message d'information avec une croix pour le fermer. */
 export const Notice = forwardRef<HTMLDivElement, Props>(function Notice({ kind, children, autoHide, onClose }, ref) {
   const [phase, setPhase] = useState<'open' | 'leaving' | 'closed'>('open');
+  const t = useT();
   const hides = autoHide ?? kind !== 'error';
   // Courte animation de sortie avant de retirer le message.
   const close = () => {
@@ -37,8 +39,8 @@ export const Notice = forwardRef<HTMLDivElement, Props>(function Notice({ kind, 
   if (phase === 'closed') return null;
   return (
     <div ref={ref} tabIndex={-1} className={`alert ${kind} notice ${phase === 'leaving' ? 'leaving' : ''}`} role={kind === 'error' ? 'alert' : 'status'}>
-      <span>{children}</span>
-      <button type="button" className="notice-x" aria-label="Fermer le message" onClick={close}>
+      <span>{typeof children === 'string' ? t(children) : children}</span>
+      <button type="button" className="notice-x" aria-label={t('Fermer le message')} onClick={close}>
         ×
       </button>
     </div>

@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
+import { useT } from '@/components/i18n-provider';
 import { Modal } from '@/components/modal';
 import { Notice } from '@/components/notice';
 import { RECURRENCES, isFree, type AgendaDay, type BlockInput, type Interval } from '@/lib/agenda';
@@ -58,6 +59,8 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
   const [notice, setNoticeState] = useState<{ id: number; kind: 'ok' | 'error'; text: string } | null>(null);
   const setNotice = (n: { kind: 'ok' | 'error'; text: string } | null) => setNoticeState(n && { ...n, id: Date.now() });
   const [pending, startTransition] = useTransition();
+  const t = useT();
+  const L = t.locale;
   const height = (range.end - range.start) * PX;
   const blockById = useMemo(() => new Map(blocks.map((b) => [b.id, b])), [blocks]);
 
@@ -114,10 +117,10 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
         {picked && (
           <p className="alert warn row spread">
             <span>
-              Cliquez sur l’agenda pour placer <b>{picked.name}</b>.
+              {t('Cliquez sur l’agenda pour placer {nom}.', { nom: picked.name })}
             </span>
             <button type="button" className="btn small" onClick={() => setPicked(null)}>
-              Annuler
+              {t('Annuler')}
             </button>
           </p>
         )}
@@ -126,13 +129,13 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
             <div />
             {days.map((d) => (
               <div key={d.date} className={`agenda-head ${d.date === today ? 'today' : ''}`}>
-                {formatDay(d.date, true)}
+                {formatDay(d.date, true, L)}
               </div>
             ))}
             <div className="agenda-hours" style={{ height }}>
               {Array.from({ length: (range.end - range.start) / 60 }, (_, i) => (
                 <span key={i} style={{ top: i * 60 * PX }}>
-                  {range.start / 60 + i} h
+                  {t.lang === 'en' ? `${range.start / 60 + i}:00` : `${range.start / 60 + i} h`}
                 </span>
               ))}
             </div>
@@ -159,8 +162,8 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
                       if (block) setDialog({ kind: 'block', date: b.date, start: b.start, end: b.end, block, occurrence: b.date });
                     }}
                   >
-                    {b.recurring && <span aria-label="répété">↻ </span>}
-                    {b.title || 'Bloqué'}
+                    {b.recurring && <span aria-label={t('répété')}>↻ </span>}
+                    {b.title || t('Bloqué')}
                   </button>
                 ))}
                 {d.appointments.map((a) => {
@@ -180,7 +183,7 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
                       }
                     >
                       <b>{minutesToTime(a.start)}</b> {a.label}
-                      {a.status === 'a_valider' && <small className="appt-flag">À valider</small>}
+                      {a.status === 'a_valider' && <small className="appt-flag">{t('À valider')}</small>}
                     </button>
                   );
                 })}
@@ -189,22 +192,23 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
           </div>
         </div>
         <p className="hint">
-          Cliquez sur un créneau vide pour le <b>bloquer</b> (pause, congés…). Glissez un patient depuis la liste pour lui poser un rendez-vous, ou glissez un
-          rendez-vous pour le déplacer.
+          {t(
+            'Cliquez sur un créneau vide pour le bloquer (pause, congés…). Glissez un patient depuis la liste pour lui poser un rendez-vous, ou glissez un rendez-vous pour le déplacer.',
+          )}
         </p>
       </div>
 
-      <aside className="card stack patients-panel" aria-label="Patients à placer">
-        <h2>Patients</h2>
+      <aside className="card stack patients-panel" aria-label={t('Patients à placer')}>
+        <h2>{t('Patients')}</h2>
         <input
           type="search"
           className="field-inline"
-          placeholder="Rechercher"
-          aria-label="Rechercher un patient"
+          placeholder={t('Rechercher')}
+          aria-label={t('Rechercher un patient')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        {patients.length === 0 && <p className="hint">Aucun patient suivi. Confirmez une prise en charge depuis la liste d’attente.</p>}
+        {patients.length === 0 && <p className="hint">{t('Aucun patient suivi. Confirmez une prise en charge depuis la liste d’attente.')}</p>}
         <ul className="patient-list">
           {shownPatients.map((p) => (
             <li
@@ -215,12 +219,12 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
             >
               <button type="button" onClick={() => setPicked(picked?.id === p.id ? null : p)} aria-pressed={picked?.id === p.id}>
                 <b>{p.name}</b>
-                <small>{p.next ? `Prochain RDV : ${formatDay(p.next, true)}` : 'Pas de RDV prévu'}</small>
+                <small>{p.next ? t('Prochain RDV : {jour}', { jour: formatDay(p.next, true, L) }) : t('Pas de RDV prévu')}</small>
               </button>
             </li>
           ))}
         </ul>
-        <p className="hint">Glissez un patient sur l’agenda, ou touchez-le puis touchez un créneau. Séance de {sessionMinutes} min.</p>
+        <p className="hint">{t('Glissez un patient sur l’agenda, ou touchez-le puis touchez un créneau. Séance de {min} min.', { min: sessionMinutes })}</p>
       </aside>
 
       {dialog && (
@@ -282,10 +286,11 @@ function BlockDialog({ dialog, onDone }: { dialog: Extract<Dialog, { kind: 'bloc
   const recurring = !!b && b.recurrence !== 'none';
   const weekdays = v?.weekdays !== undefined ? v.weekdays.split(',').filter(Boolean).map(Number) : (b?.weekdays ?? []);
   const err = state.errors ?? {};
+  const t = useT();
 
   return (
     <div className="stack">
-      <h2>{b ? 'Modifier le blocage' : 'Bloquer un créneau'}</h2>
+      <h2>{t(b ? 'Modifier le blocage' : 'Bloquer un créneau')}</h2>
       <form action={action} className="stack" noValidate>
         <FormAlert state={state} />
         <input type="hidden" name="id" value={b?.id ?? ''} />
@@ -293,10 +298,10 @@ function BlockDialog({ dialog, onDone }: { dialog: Extract<Dialog, { kind: 'bloc
         {recurring && (
           <fieldset className="choice plain">
             <label>
-              <input type="radio" name="scope" value="serie" checked={scope === 'serie'} onChange={() => setScope('serie')} /> Toute la série
+              <input type="radio" name="scope" value="serie" checked={scope === 'serie'} onChange={() => setScope('serie')} /> {t('Toute la série')}
             </label>
             <label>
-              <input type="radio" name="scope" value="jour" checked={scope === 'jour'} onChange={() => setScope('jour')} /> Ce jour seulement
+              <input type="radio" name="scope" value="jour" checked={scope === 'jour'} onChange={() => setScope('jour')} /> {t('Ce jour seulement')}
             </label>
           </fieldset>
         )}
@@ -309,11 +314,11 @@ function BlockDialog({ dialog, onDone }: { dialog: Extract<Dialog, { kind: 'bloc
         {!(recurring && scope === 'jour') && (
           <>
             <label className="field">
-              <span>Répétition</span>
+              <span>{t('Répétition')}</span>
               <select name="recurrence" value={recurrence} onChange={(e) => setRecurrence(e.target.value as typeof recurrence)}>
                 {RECURRENCES.map((r) => (
                   <option key={r.code} value={r.code}>
-                    {r.label}
+                    {t(r.label)}
                   </option>
                 ))}
               </select>
@@ -321,16 +326,16 @@ function BlockDialog({ dialog, onDone }: { dialog: Extract<Dialog, { kind: 'bloc
             {recurrence === 'weekdays' && (
               <fieldset className={`field plain ${err.weekdays ? 'invalid' : ''}`}>
                 <legend>
-                  <b>Jours</b>
+                  <b>{t('Jours')}</b>
                 </legend>
                 <div className="row">
                   {WEEKDAYS.map((label, i) => (
                     <label key={label} className="check">
-                      <input type="checkbox" name="weekdays" value={i + 1} defaultChecked={weekdays.includes(i + 1)} /> {label}
+                      <input type="checkbox" name="weekdays" value={i + 1} defaultChecked={weekdays.includes(i + 1)} /> {t(label)}
                     </label>
                   ))}
                 </div>
-                {err.weekdays && <span className="error">{err.weekdays}</span>}
+                {err.weekdays && <span className="error">{t(err.weekdays)}</span>}
               </fieldset>
             )}
             {recurrence !== 'none' && (
@@ -340,7 +345,7 @@ function BlockDialog({ dialog, onDone }: { dialog: Extract<Dialog, { kind: 'bloc
         )}
         {recurring && scope === 'jour' && <input type="hidden" name="recurrence" value="none" />}
         <div className="row">
-          <SubmitButton pendingText="Enregistrement…">{b ? 'Enregistrer' : 'Bloquer ce créneau'}</SubmitButton>
+          <SubmitButton pendingText="Enregistrement…">{t(b ? 'Enregistrer' : 'Bloquer ce créneau')}</SubmitButton>
         </div>
       </form>
       {b && (
@@ -353,7 +358,7 @@ function BlockDialog({ dialog, onDone }: { dialog: Extract<Dialog, { kind: 'bloc
                 <input type="hidden" name="id" value={b.id} />
                 <input type="hidden" name="occurrence" value={dialog.occurrence ?? ''} />
                 <input type="hidden" name="scope" value={scope} />
-                <SubmitButton className="btn danger small">{!recurring ? 'Supprimer' : scope === 'jour' ? 'Supprimer ce jour' : 'Supprimer toute la série'}</SubmitButton>
+                <SubmitButton className="btn danger small">{t(!recurring ? 'Supprimer' : scope === 'jour' ? 'Supprimer ce jour' : 'Supprimer toute la série')}</SubmitButton>
               </form>
             ))}
           </div>
@@ -385,6 +390,7 @@ function AppointmentDialog({
   const pendingReview = dialog.status === 'a_valider';
   const v = state.values;
   const err = state.errors ?? {};
+  const t = useT();
   const options = patients.some((p) => p.id === dialog.patientId) ? patients : [{ id: dialog.patientId, name: dialog.label, next: null }, ...patients];
 
   return (
@@ -392,14 +398,14 @@ function AppointmentDialog({
       <div>
         <h2>{dialog.label}</h2>
         <p className="sub">
-          Rendez-vous le {formatDay(dialog.date)} à {formatTime(minutesToTime(dialog.start))} · {dialog.duration} min
+          {t('Rendez-vous le {jour} à {heure} · {min} min', { jour: formatDay(dialog.date, false, t.locale), heure: formatTime(minutesToTime(dialog.start), t.locale), min: dialog.duration })}
         </p>
       </div>
       {detail && <PatientCard patientId={dialog.patientId} detail={detail} bookingMode={bookingMode} />}
       {pendingReview && (
         <div className="stack review">
           <p>
-            <b>Réservation en ligne en attente de votre validation.</b> La famille sera prévenue par email.
+            <b>{t('Réservation en ligne en attente de votre validation.')}</b> {t('La famille sera prévenue par email.')}
           </p>
           <FormAlert state={reviewState} />
           {/* Un formulaire par bouton : la décision part dans un champ caché, pas dans le bouton cliqué. */}
@@ -417,13 +423,13 @@ function AppointmentDialog({
           </div>
         </div>
       )}
-      {!pendingReview && <h3>Rendez-vous</h3>}
+      {!pendingReview && <h3>{t('Rendez-vous')}</h3>}
       {!pendingReview && (
         <form action={action} className="stack" noValidate>
           <FormAlert state={state} />
           <input type="hidden" name="id" value={dialog.id} />
           <label className="field">
-            <span>Patient</span>
+            <span>{t('Patient')}</span>
             <select name="patientId" defaultValue={v?.patientId ?? dialog.patientId}>
               {options.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -464,6 +470,7 @@ function PatientCard({ patientId, detail, bookingMode }: { patientId: string; de
   const [autonomous, setAutonomous] = useState(detail.autonomous);
   const [error, setError] = useState(false);
   const [saving, startTransition] = useTransition();
+  const t = useT();
   const rows: [string, React.ReactNode][] = [
     ['Âge', detail.age],
     ['Parent / aidant', detail.caregiver],
@@ -471,16 +478,16 @@ function PatientCard({ patientId, detail, bookingMode }: { patientId: string; de
     ['Téléphone', detail.phone && <a href={`tel:${detail.phone.replace(/\s/g, '')}`}>{detail.phone}</a>],
     ['Motif', detail.pathology],
     ['Demande', detail.requestType],
-    ['Acte AMO', <span key="amo" className="hint">à renseigner (bientôt : cotation, prix, durée des séances)</span>],
+    ['Acte AMO', <span key="amo" className="hint">{t('à renseigner (bientôt : cotation, prix, durée des séances)')}</span>],
   ];
   return (
-    <section className="patient-card stack" aria-label="Fiche patient">
+    <section className="patient-card stack" aria-label={t('Fiche patient')}>
       <dl className="facts">
         {rows
           .filter(([, value]) => value)
           .map(([label, value]) => (
             <div key={label}>
-              <dt>{label}</dt>
+              <dt>{t(label)}</dt>
               <dd>{value}</dd>
             </div>
           ))}
@@ -504,13 +511,13 @@ function PatientCard({ patientId, detail, bookingMode }: { patientId: string; de
           }}
         />
         <span>
-          <b>Patient autonome</b>
+          <b>{t('Patient autonome')}</b>
           <span className="hint" style={{ display: 'block' }}>
-            {BOOKING_HINT[bookingMode]}
+            {t(BOOKING_HINT[bookingMode])}
           </span>
         </span>
       </label>
-      {error && <p className="alert error">La modification n’a pas pu être enregistrée.</p>}
+      {error && <p className="alert error">{t('La modification n’a pas pu être enregistrée.')}</p>}
     </section>
   );
 }

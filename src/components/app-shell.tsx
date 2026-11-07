@@ -2,24 +2,22 @@ import Link from 'next/link';
 import { logout } from '@/app/(auth)/actions';
 import { APP_NAME } from '@/lib/app';
 import type { AuthContext } from '@/lib/auth';
-import { getDict } from '@/lib/i18n';
+import { getT, type T } from '@/lib/i18n';
 import { SideNav, type NavLink } from './side-nav';
 
-type Nav = Awaited<ReturnType<typeof getDict>>['t']['nav'];
-
-const orthoLinks = (n: Nav): NavLink[] => [
-  { href: '/ortho/planning', label: n.planning },
-  { href: '/ortho/liste-attente', label: n.waitlist },
-  { href: '/ortho/reglages', label: n.settings },
-  { href: '/compte', label: n.account },
+const orthoLinks = (t: T): NavLink[] => [
+  { href: '/ortho/planning', label: t('Planning') },
+  { href: '/ortho/liste-attente', label: t('Liste d’attente') },
+  { href: '/ortho/reglages', label: t('Réglages') },
+  { href: '/compte', label: t('Mon compte') },
   // Un ortho peut aussi inscrire ses enfants ou un proche dans un autre cabinet.
-  { href: '/patient', label: n.familyRequests },
+  { href: '/patient', label: t('Mes demandes (famille)') },
 ];
 
-const familyLinks = (n: Nav): NavLink[] => [
-  { href: '/patient', label: n.mySpace },
-  { href: '/trouver', label: n.find },
-  { href: '/compte', label: n.account },
+const familyLinks = (t: T): NavLink[] => [
+  { href: '/patient', label: t('Mon espace') },
+  { href: '/trouver', label: t('Trouver un orthophoniste') },
+  { href: '/compte', label: t('Mon compte') },
 ];
 
 /**
@@ -27,9 +25,9 @@ const familyLinks = (n: Nav): NavLink[] => [
  * déconnexion, menu à gauche. Le contenu et le menu dépendent du rôle.
  */
 export async function AppShell({ ctx, children }: { ctx: AuthContext; children: React.ReactNode }) {
-  const { t } = await getDict();
+  const t = await getT();
   const ortho = ctx.profile.role === 'ortho' && ctx.practice ? ctx.practice : null;
-  const title = ortho?.name ?? APP_NAME;
+  const title = ortho?.name ?? t(APP_NAME);
   const subtitle = ctx.profile.full_name || ctx.email;
   const initials = (ctx.profile.full_name || title)
     .split(/\s+/)
@@ -53,23 +51,23 @@ export async function AppShell({ ctx, children }: { ctx: AuthContext; children: 
           </div>
           <form action={logout}>
             <button className="btn" type="submit">
-              {t.logout}
+              {t('Se déconnecter')}
             </button>
           </form>
         </div>
       </header>
       <div className="wrap shell">
-        <SideNav links={ortho ? orthoLinks(t.nav) : familyLinks(t.nav)} />
+        <SideNav links={ortho ? orthoLinks(t) : familyLinks(t)} label={t('Sections')} />
         <main className="stack">
           {ortho && !ortho.city && (
             <p className="alert warn">
-              Renseignez le code postal et la ville de votre cabinet dans les <Link href="/ortho/reglages">Réglages</Link> pour que les familles vous trouvent dans
-              l’annuaire.
+              {t('Renseignez le code postal et la ville de votre cabinet dans les')} <Link href="/ortho/reglages">{t('Réglages')}</Link>{' '}
+              {t('pour que les familles vous trouvent dans l’annuaire.')}
             </p>
           )}
           {ortho && !ortho.verified && (
             <p className="alert warn">
-              Votre cabinet est en cours de vérification (numéro RPPS). Votre page publique de liste d’attente s’ouvrira une fois la vérification faite.
+              {t('Votre cabinet est en cours de vérification (numéro RPPS). Votre page publique de liste d’attente s’ouvrira une fois la vérification faite.')}
             </p>
           )}
           {children}

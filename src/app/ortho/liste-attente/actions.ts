@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { requireOrtho } from '@/lib/auth';
-import { DEFAULT_EMAIL_TEMPLATE } from '@/lib/defaults';
+import { emailTemplateFor } from '@/lib/defaults';
 import { sendEmail } from '@/lib/email';
 import { splitSubject } from '@/lib/email-format';
 import { buildOfferEmail } from '@/lib/offer-email';
@@ -71,7 +71,7 @@ export async function sendOfferEmail(formData: FormData): Promise<void> {
   const { data: entry } = await supabase.from('waitlist_entries').select('*').eq('id', id.data).maybeSingle();
   if (!entry?.email) redirect('/ortho/liste-attente?erreur=email');
 
-  const text = buildOfferEmail(practice.email_template || DEFAULT_EMAIL_TEMPLATE, entry, profile.full_name, practice.name);
+  const text = buildOfferEmail(emailTemplateFor(practice.email_template, 'fr'), entry, profile.full_name, practice.name);
   const { subject, body } = splitSubject(text, `Une place s’est libérée – ${practice.name}`);
   const result = await sendEmail({
     to: { email: entry.email },

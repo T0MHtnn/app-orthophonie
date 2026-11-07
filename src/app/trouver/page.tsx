@@ -2,9 +2,12 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
 import { getAuthContext } from '@/lib/auth';
+import { getT } from '@/lib/i18n';
 import { createClient } from '@/lib/supabase/server';
 
-export const metadata: Metadata = { title: 'Trouver un orthophoniste' };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('Trouver un orthophoniste') };
+}
 
 /**
  * Annuaire public : cabinets vérifiés, liste d'attente ouverte, présents dans
@@ -17,13 +20,14 @@ export default async function TrouverPage({ searchParams }: { searchParams: Prom
   const { data, error } = query ? await supabase.rpc('search_practices', { p_query: query }) : { data: null, error: null };
   if (error) console.error('search_practices', error.code);
   const results = data ?? [];
+  const t = await getT();
 
   const content = (
     <>
       <div className="page-head">
         <div>
-          <h1>Trouver un orthophoniste</h1>
-          <p className="sub">Cherchez un cabinet près de chez vous, puis inscrivez-vous sur sa liste d’attente.</p>
+          <h1>{t('Trouver un orthophoniste')}</h1>
+          <p className="sub">{t('Cherchez un cabinet près de chez vous, puis inscrivez-vous sur sa liste d’attente.')}</p>
         </div>
       </div>
 
@@ -32,26 +36,26 @@ export default async function TrouverPage({ searchParams }: { searchParams: Prom
           type="search"
           name="q"
           className="field-inline search-big"
-          placeholder="Ville, code postal ou nom du cabinet"
-          aria-label="Ville, code postal ou nom du cabinet"
+          placeholder={t('Ville, code postal ou nom du cabinet')}
+          aria-label={t('Ville, code postal ou nom du cabinet')}
           defaultValue={query}
           maxLength={80}
           autoFocus
         />
         <button className="btn primary" type="submit">
-          Rechercher
+          {t('Rechercher')}
         </button>
       </form>
 
-      {error && <p className="alert error">La recherche est indisponible pour le moment. Réessayez dans quelques minutes.</p>}
+      {error && <p className="alert error">{t('La recherche est indisponible pour le moment. Réessayez dans quelques minutes.')}</p>}
       {query && !error && results.length === 0 && (
-        <p className="hint">Aucun cabinet avec une liste d’attente ouverte ne correspond à « {query} ». Essayez une ville voisine ou le code postal.</p>
+        <p className="hint">{t('Aucun cabinet avec une liste d’attente ouverte ne correspond à « {query} ». Essayez une ville voisine ou le code postal.', { query })}</p>
       )}
 
       {results.length > 0 && (
         <section className="card">
           <h2>
-            {results.length} cabinet{results.length > 1 ? 's' : ''}
+            {t(results.length > 1 ? '{n} cabinets' : '{n} cabinet', { n: results.length })}
           </h2>
           {results.map((p) => (
             <div key={p.slug} className="request">
@@ -61,7 +65,7 @@ export default async function TrouverPage({ searchParams }: { searchParams: Prom
                 <div className="hint">{[p.address_line, `${p.postal_code} ${p.city}`].filter(Boolean).join(', ')}</div>
               </div>
               <Link className="btn primary small" href={`/c/${p.slug}`}>
-                S’inscrire sur la liste d’attente
+                {t('S’inscrire sur la liste d’attente')}
               </Link>
             </div>
           ))}
@@ -71,10 +75,10 @@ export default async function TrouverPage({ searchParams }: { searchParams: Prom
       {!ctx && (
         <section className="card stack">
           <p className="hint">
-            Déjà inscrit ? <Link href="/connexion">Se connecter</Link> pour suivre vos demandes.
+            {t('Déjà inscrit ?')} <Link href="/connexion">{t('Se connecter')}</Link> {t('pour suivre vos demandes.')}
           </p>
           <p className="hint">
-            Vous êtes orthophoniste ? <Link href="/inscription?type=ortho">Créer votre cabinet</Link> pour recevoir les demandes de liste d’attente.
+            {t('Vous êtes orthophoniste ?')} <Link href="/inscription?type=ortho">{t('Créer votre cabinet')}</Link> {t('pour recevoir les demandes de liste d’attente.')}
           </p>
         </section>
       )}
