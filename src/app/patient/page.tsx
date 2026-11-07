@@ -17,6 +17,14 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getT())('Mon espace') };
 }
 
+type Tab = 'seances' | 'exercices' | 'documents' | 'demandes';
+const TABS: { code: Tab; label: string }[] = [
+  { code: 'seances', label: 'Mes séances' },
+  { code: 'exercices', label: 'Exercices' },
+  { code: 'documents', label: 'Documents' },
+  { code: 'demandes', label: 'Mes demandes' },
+];
+
 type Request = Database['public']['Functions']['my_waitlist_entries']['Returns'][number];
 
 const STATUS: Record<WaitlistStatus, { label: string; help: string }> = {
@@ -59,6 +67,11 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
   // Demandes retirées : à part (repliées), supprimables.
   const current = requests.filter((r) => r.status !== 'retire');
   const withdrawn = requests.filter((r) => r.status === 'retire');
+  // Onglets (espace débloqué) ; avant la prise en charge, seules les demandes s'affichent.
+  const tab: Tab = unlocked ? (TABS.find((k) => k.code === params.onglet)?.code ?? 'seances') : 'demandes';
+  const counts: Record<Tab, number> = { seances: upcomingCount, exercices: todo, documents: (documents ?? []).length, demandes: current.length };
+  // Raccourci « Réserver » en tête des séances (le bouton reste aussi sur la ligne de la demande).
+  const bookable = (patients ?? []).filter((p) => p.can_book && !p.active_booking);
 
   return (
     <>
@@ -79,34 +92,47 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
       {params.ok === 'annule' && <Notice kind="ok">{t('Séance annulée.')}</Notice>}
       {params.erreur === 'annulation' && <p className="alert error">{t('Cette séance ne peut plus être annulée en ligne : contactez le cabinet.')}</p>}
 
-      {unlocked ? (
-        <details className="card foldable" open>
-          <summary>
-            <h2>{t('Mes séances')}</h2> <span className="count">{upcomingCount}</span>
-          </summary>
-          <Sessions sessions={appointments ?? []} />
-        </details>
-      ) : null}
       {unlocked && (
-        <details className="card foldable" open={todo > 0}>
-          <summary>
-            <h2>{t('Exercices à faire')}</h2> <span className="count">{todo}</span>
-          </summary>
-          <MyHomework items={homework ?? []} showPatient={(patients ?? []).length > 1} />
-        </details>
+        <nav className="tabs" aria-label={t('Mon espace')}>
+          {TABS.map((k) => (
+            <Link key={k.code} href={k.code === 'seances' ? '/patient' : `/patient?onglet=${k.code}`} aria-current={tab === k.code ? 'page' : undefined}>
+              {t(k.label)} {counts[k.code] > 0 && <span className="count">{counts[k.code]}</span>}
+            </Link>
+          ))}
+        </nav>
       )}
-      {unlocked && (
-        <details className="card foldable">
-          <summary>
-            <h2>{t('Documents')}</h2> <span className="count">{(documents ?? []).length}</span>
-          </summary>
+
+      {tab === 'seances' && (
+        <section className="card stack">
+          {bookable.length > 0 && (
+            <div className="row">
+              {bookable.map((p) => (
+                <Link key={p.id} href={`/patient/reserver?patient=${p.id}`} className="btn primary small">
+                  {t(bookable.length > 1 ? 'Réserver une séance pour {prenom}' : 'Réserver une séance', { prenom: p.first_name })}
+                </Link>
+              ))}
+            </div>
+          )}
+          <Sessions sessions={appointments ?? []} />
+        </section>
+      )}
+
+      {tab === 'exercices' && (
+        <section className="card stack">
+          <MyHomework items={homework ?? []} showPatient={(patients ?? []).length > 1} />
+        </section>
+      )}
+
+      {tab === 'documents' && (
+        <section className="card stack">
           <MyDocuments
             items={documents ?? []}
             accept={DOCUMENT_ACCEPT}
             patients={(patients ?? []).map((p) => ({ id: p.id, label: `${p.first_name} ${p.last_name} · ${p.practice_name}` }))}
           />
-        </details>
+        </section>
       )}
+
       {!unlocked && (
         <section className="card stack locked">
           <h2>{t(active.some((r) => r.status === 'contacte') ? 'Une place vous a été proposée' : 'Aucune place ne vous a encore été trouvée')}</h2>
@@ -125,17 +151,15 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
         </section>
       )}
 
-      {current.length > 0 && (
-        <details className="card foldable" open>
-          <summary>
-            <h2>{t('Mes demandes de liste d’attente')}</h2> <span className="count">{current.length}</span>
-          </summary>
+      {tab === 'demandes' && current.length > 0 && (
+        <section className="card">
+          {!unlocked && <h2>{t('Mes demandes de liste d’attente')}</h2>}
           {current.map((r) => (
             <RequestRow key={r.id} r={r} t={t} patient={patientOfEntry.get(r.id)} pending={pendingFor} />
           ))}
-        </details>
+        </section>
       )}
-      {withdrawn.length > 0 && (
+      {tab === 'demandes' && withdrawn.length > 0 && (
         <details className="card foldable">
           <summary>
             <h2>{t('Demandes retirées')}</h2> <span className="count">{withdrawn.length}</span>

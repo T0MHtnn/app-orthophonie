@@ -787,4 +787,7 @@ export const EN: Record<string, string> = {
   "C’est fait": "Done",
   "Choisir": "Choose",
   "Trop de documents envoyés aujourd’hui. Réessayez demain.": "Too many documents sent today. Try again tomorrow.",
+  // 31_family_tabs
+  "Mes demandes": "My requests",
+  "Exercices": "Exercises",
 };
