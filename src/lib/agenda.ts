@@ -179,38 +179,42 @@ export function freeSlots(week: string, busy: { starts_at: string; ends_at: stri
   });
 }
 
-/** Morceau d'un élément affiché : intervalle, colonne et nombre de colonnes sur ce morceau. */
+/** Place d'un élément dans la grille : sa colonne et le nombre de colonnes de son groupe. */
 export interface Piece extends Interval {
   col: number;
   cols: number;
-  /** Premier / dernier morceau de l'élément (pour le texte et les coins arrondis). */
+  /** Toujours vrai (un seul bloc par élément) ; gardés pour l'affichage. */
   first: boolean;
   last: boolean;
 }
 
 /**
  * Répartition en largeur des éléments qui se chevauchent (ex. une séance annulée et
- * le nouveau RDV posé dessus). Le temps est découpé aux débuts / fins de chaque
- * élément ; sur chaque tranche, les éléments présents se partagent la largeur, et
- * un élément seul reprend toute la largeur. L'ordre des colonnes suit `items`
- * (les premiers à gauche).
+ * le nouveau RDV posé dessus) : chaque élément reste UN seul bloc. Les éléments liés
+ * par des chevauchements forment un groupe ; chacun y reçoit une colonne pour toute sa
+ * durée et le groupe se partage la largeur. Un élément seul prend toute la largeur.
+ * L'ordre des colonnes suit `items` (les premiers à gauche).
  */
 export function layoutPieces(items: { id: string; start: number; end: number }[]): Map<string, Piece[]> {
-  const bounds = [...new Set(items.flatMap((i) => [i.start, i.end]))].sort((a, b) => a - b);
-  const raw = new Map<string, Omit<Piece, 'first' | 'last'>[]>(items.map((i) => [i.id, []]));
-  for (let k = 0; k + 1 < bounds.length; k++) {
-    const start = bounds[k]!;
-    const end = bounds[k + 1]!;
-    const active = items.filter((i) => i.start < end && i.end > start);
-    active.forEach((i, col) => {
-      const pieces = raw.get(i.id)!;
-      const prev = pieces[pieces.length - 1];
-      // Tranches consécutives avec la même place : un seul morceau.
-      if (prev && prev.end === start && prev.col === col && prev.cols === active.length) prev.end = end;
-      else pieces.push({ start, end, col, cols: active.length });
-    });
+  const order = new Map(items.map((i, k) => [i.id, k]));
+  const sorted = [...items].sort((a, b) => a.start - b.start || order.get(a.id)! - order.get(b.id)!);
+  const out = new Map<string, Piece[]>();
+  let group: { id: string; start: number; end: number; col: number }[] = [];
+  let groupEnd = -1;
+  const flush = () => {
+    const cols = Math.max(1, ...group.map((g) => g.col + 1));
+    for (const g of group) out.set(g.id, [{ start: g.start, end: g.end, col: g.col, cols, first: true, last: true }]);
+    group = [];
+  };
+  for (const item of sorted) {
+    if (group.length && item.start >= groupEnd) flush();
+    // Première colonne libre à ce moment-là (priorité à l'ordre d'origine pour départager).
+    const used = new Set(group.filter((g) => g.end > item.start).map((g) => g.col));
+    let col = 0;
+    while (used.has(col)) col++;
+    group.push({ ...item, col });
+    groupEnd = Math.max(groupEnd, item.end);
   }
-  return new Map(
-    [...raw].map(([id, pieces]) => [id, pieces.map((p, i) => ({ ...p, first: i === 0, last: i === pieces.length - 1 }))]),
-  );
+  if (group.length) flush();
+  return out;
 }

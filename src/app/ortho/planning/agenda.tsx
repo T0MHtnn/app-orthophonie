@@ -819,14 +819,44 @@ function AppointmentForm({
   const [notify, setNotify] = useState(state.values ? v.notify === 'on' : notifyDefault || !!values.id);
   const formId = useId();
   const editing = !!values.id;
-  const err = state.errors ?? {};
+  // Vérification avant d'ouvrir la pop-up « Prévenir le patient » (la base revérifie ensuite).
+  const [localErr, setLocalErr] = useState<Record<string, string>>({});
+  const err = { ...(state.errors ?? {}), ...localErr };
+  const validateThenConfirm = (form: HTMLFormElement | null) => {
+    const get = (name: string) => (form?.elements.namedItem(name) as HTMLInputElement | null)?.value ?? '';
+    const date = get('date');
+    const start = get('time');
+    const end = get('end');
+    const toMin = (v: string) => Number(v.slice(0, 2)) * 60 + Number(v.slice(3, 5));
+    const errors: Record<string, string> = {};
+    if (!patientId) errors.patientId = 'Choisissez un patient';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) errors.date = 'Date invalide';
+    if (!/^\d{2}:\d{2}/.test(start)) errors.time = 'Heure invalide';
+    if (!/^\d{2}:\d{2}/.test(end)) errors.end = 'Heure invalide';
+    else if (/^\d{2}:\d{2}/.test(start)) {
+      const minutes = toMin(end) - toMin(start);
+      if (minutes <= 0) errors.end = 'L’heure de fin doit être après le début';
+      else if (minutes < 10) errors.end = 'Durée minimale : 10 min';
+      else if (minutes > 240) errors.end = 'Durée maximale : 4 h';
+    }
+    setLocalErr(errors);
+    if (Object.keys(errors).length === 0) setConfirmSave(true);
+  };
   return (
     <>
       <form id={formId} action={action} className="stack" noValidate onSubmit={() => setConfirmSave(false)}>
         <FormAlert state={state} />
         <input type="hidden" name="id" value={values.id} />
         <input type="hidden" name="notify" value={notify ? 'on' : ''} />
-        <PatientPicker patients={patients} value={patientId} onChange={setPatientId} error={err.patientId} />
+        <PatientPicker
+          patients={patients}
+          value={patientId}
+          onChange={(id) => {
+            setPatientId(id);
+            setLocalErr(({ patientId: _, ...rest }) => rest);
+          }}
+          error={err.patientId}
+        />
         <div className="form-grid">
           <Field label="Date" name="date" type="date" required defaultValue={v.date} error={err.date} />
           <Field label="Début" name="time" type="time" step={300} required defaultValue={v.time} error={err.time} />
@@ -835,7 +865,7 @@ function AppointmentForm({
         <Field label="Titre (facultatif, visible par vous seul)" name="title" maxLength={120} defaultValue={v.title} error={err.title} />
         <div className="row">
           {/* « Prévenir le patient » se choisit dans la pop-up de confirmation. */}
-          <button type="button" className="btn primary" onClick={() => setConfirmSave(true)}>
+          <button type="button" className="btn primary" onClick={(e) => validateThenConfirm(e.currentTarget.form)}>
             {t(editing ? 'Enregistrer' : 'Planifier le rendez-vous')}
           </button>
           {deleteAction && (

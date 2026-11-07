@@ -8,7 +8,8 @@ import { getT, type T } from '@/lib/i18n';
 import { REQUEST_TYPE_LABEL } from '@/lib/request-type';
 import { createClient } from '@/lib/supabase/server';
 import { formatInstant, formatShortDate } from '@/lib/time';
-import { ackAppointment, cancelMyAppointment, deleteMyRequest, withdrawRequest } from './actions';
+import { deleteMyRequest, withdrawRequest } from './actions';
+import { Sessions } from './sessions';
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getT())('Mon espace') };
@@ -40,8 +41,8 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
     supabase.rpc('my_patients'),
   ]);
   const now = Date.now();
-  // Séances à venir, et annulations récentes (trace écrite de la raison).
-  const upcoming = (appointments ?? []).filter((a) => new Date(a.ends_at).getTime() > now || a.status === 'annule');
+  const upcoming = (appointments ?? []).filter((a) => new Date(a.ends_at).getTime() > now && a.status !== 'annule');
+  const upcomingCount = upcoming.length;
   const requests = data ?? [];
   const followed = requests.filter((r) => r.status === 'rdv');
   const active = requests.filter((r) => r.status === 'attente' || r.status === 'contacte');
@@ -76,60 +77,9 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
       {unlocked ? (
         <details className="card foldable" open>
           <summary>
-            <h2>{t('Mes séances')}</h2> <span className="count">{upcoming.length}</span>
+            <h2>{t('Mes séances')}</h2> <span className="count">{upcomingCount}</span>
           </summary>
-          {upcoming.length === 0 ? (
-            <p className="hint">{t('Aucune séance à venir.')}</p>
-          ) : (
-            <div>
-              {upcoming.map((a) => (
-                <div key={a.id} className="request">
-                  <div>
-                    <b style={{ textTransform: 'capitalize' }}>{formatInstant(a.starts_at, t.locale)}</b>
-                    {a.is_new && <span className="badge-new">{t('Nouveau')}</span>}
-                    <div className="hint">
-                      {a.patient_first_name} {a.patient_last_name} · {a.practice_name}
-                    </div>
-                    {a.status === 'annule' && (
-                      <div className="cancel-note">
-                        {t(a.cancelled_by === 'ortho' ? 'Annulée par le cabinet' : 'Annulée par vous')}
-                        {a.cancel_reason ? ` : « ${a.cancel_reason} »` : ''}
-                      </div>
-                    )}
-                  </div>
-                  <div className="row">
-                    {a.status === 'annule' ? (
-                      <span className="badge retire">{t('Annulée')}</span>
-                    ) : (
-                      <span className={`badge ${a.status === 'confirme' ? 'rdv' : 'attente'}`}>{t(a.status === 'confirme' ? 'Confirmée' : 'En attente de validation')}</span>
-                    )}
-                    {/* Nouvelle séance signalée par l'ortho : la pastille part quand la famille clique « Lu ». */}
-                    {a.is_new && (
-                      <form action={ackAppointment}>
-                        <input type="hidden" name="id" value={a.id} />
-                        <SubmitButton className="btn small primary">Lu</SubmitButton>
-                      </form>
-                    )}
-                    {a.can_cancel && (
-                      <details className="cancel-box">
-                        <summary className="btn small">{t(a.status === 'confirme' ? 'Annuler' : 'Retirer la demande')}</summary>
-                        <form action={cancelMyAppointment} className="stack">
-                          <input type="hidden" name="id" value={a.id} />
-                          <label className="field">
-                            <span>{t('Raison (facultatif, transmise à l’orthophoniste)')}</span>
-                            <textarea name="reason" rows={2} maxLength={500} placeholder={t('Ex. : enfant malade, empêchement…')} />
-                          </label>
-                          <div>
-                            <SubmitButton className="btn danger small">{a.status === 'confirme' ? 'Confirmer l’annulation' : 'Confirmer le retrait'}</SubmitButton>
-                          </div>
-                        </form>
-                      </details>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <Sessions sessions={appointments ?? []} />
         </details>
       ) : (
         <section className="card stack locked">

@@ -230,24 +230,32 @@ describe('répartition des éléments qui se chevauchent', () => {
   it('seul : toute la largeur', () => {
     expect(layoutPieces([{ id: 'a', start: 780, end: 840 }]).get('a')).toEqual([{ start: 780, end: 840, col: 0, cols: 1, first: true, last: true }]);
   });
-  it('annulé 13 h – 14 h + nouveau RDV 13 h 15 – 13 h 45', () => {
+  it('annulé 13 h – 14 h + nouveau RDV 13 h 15 – 13 h 45 : deux blocs entiers côte à côte', () => {
     const m = layoutPieces([
       { id: 'rdv', start: 795, end: 825 },
       { id: 'annule', start: 780, end: 840 },
     ]);
-    expect(m.get('rdv')).toEqual([{ start: 795, end: 825, col: 0, cols: 2, first: true, last: true }]);
-    expect(m.get('annule')!.map(({ start, end, col, cols }) => [start, end, col, cols])).toEqual([
-      [780, 795, 0, 1],
-      [795, 825, 1, 2],
-      [825, 840, 0, 1],
-    ]);
+    expect(m.get('annule')).toHaveLength(1);
+    expect(m.get('rdv')).toHaveLength(1);
+    expect(m.get('annule')![0]).toMatchObject({ start: 780, end: 840, cols: 2 });
+    expect(m.get('rdv')![0]).toMatchObject({ start: 795, end: 825, cols: 2 });
+    expect(m.get('annule')![0]!.col).not.toBe(m.get('rdv')![0]!.col);
   });
-  it('même créneau : côte à côte', () => {
+  it('éléments sans lien : chacun pleine largeur', () => {
+    const m = layoutPieces([
+      { id: 'a', start: 600, end: 630 },
+      { id: 'b', start: 630, end: 660 },
+    ]);
+    expect(m.get('a')![0]).toMatchObject({ cols: 1 });
+    expect(m.get('b')![0]).toMatchObject({ cols: 1 });
+  });
+  it('deux annulations à cheval + un RDV : trois colonnes au plus', () => {
     const m = layoutPieces([
       { id: 'rdv', start: 600, end: 630 },
-      { id: 'annule', start: 600, end: 630 },
+      { id: 'x', start: 590, end: 640 },
+      { id: 'y', start: 610, end: 650 },
     ]);
-    expect(m.get('rdv')![0]).toMatchObject({ col: 0, cols: 2 });
-    expect(m.get('annule')![0]).toMatchObject({ col: 1, cols: 2 });
+    expect(new Set([...m.values()].map((p) => p[0]!.col)).size).toBe(3);
   });
 });
+

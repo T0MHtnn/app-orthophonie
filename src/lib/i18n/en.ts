@@ -601,7 +601,6 @@ export const EN: Record<string, string> = {
   "Décoché : plus personne ne peut s’inscrire, même avec votre lien (et le cabinet disparaît de l’annuaire).": "Unticked: nobody can sign up, even with your link (and the practice disappears from the directory).",
   // 24_offers
   "Appliquer aussi ce délai aux liens envoyés par email": "Also apply this notice to links sent by email",
-  "Liens « place libérée » (liste d’attente) : décoché, la famille peut choisir un créneau dès maintenant.": "“Place available” links (waiting list): unticked, the family can choose a slot right away.",
   "Choisir mon premier rendez-vous": "Choose my first appointment",
   "Rendez-vous confirmé": "Appointment confirmed",
   "Votre premier rendez-vous est enregistré. Vous le retrouvez dans votre espace, avec vos prochaines séances.": "Your first appointment is saved. You will find it in your space, with your upcoming sessions.",
@@ -647,4 +646,14 @@ export const EN: Record<string, string> = {
   "L’envoi n’a pas pu être fait. Rechargez la page puis réessayez.": "The offer could not be sent. Reload the page and try again.",
   "Envoi programmé (nuit ou aucun patient disponible pour l’instant).": "Sending scheduled (night time, or no patient available for now).",
   "Créneau introuvable.": "Slot not found.",
+  // 25_notice_hint
+  "Créneaux proposés par email (place libérée, séance libérée). Décoché : le patient peut réserver un créneau même s’il commence dans moins de ce délai.": "Slots offered by email (place available, session freed). Unticked: the patient can book a slot even if it starts sooner than this notice.",
+  // 26_sessions_filter
+  "Prévues": "Upcoming",
+  "Passées": "Past",
+  "Annulées": "Cancelled",
+  "Afficher": "Show",
+  "Afficher les rendez-vous annulés": "Show cancelled appointments",
+  "Aucune séance à afficher.": "No sessions to show.",
+  "Passée": "Past",
 };
