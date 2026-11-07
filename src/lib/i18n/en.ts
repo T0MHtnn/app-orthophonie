@@ -646,4 +646,10 @@ export const EN: Record<string, string> = {
   "Afficher les rendez-vous annulés": "Show cancelled appointments",
   "Aucune séance à afficher.": "No sessions to show.",
   "Passée": "Past",
+  // 27_address
+  "Adresse du cabinet": "Practice address",
+  "Ex. : 12 rue de la Paix": "e.g. 12 rue de la Paix",
+  "Adresse du cabinet requise": "Practice address required",
+  "Adresse introuvable : choisissez une adresse proposée ou vérifiez le code postal et la ville.": "Address not found: pick a suggested address or check the postcode and city.",
+  "Choisissez une adresse proposée : le code postal et la ville se remplissent seuls (vous pouvez les corriger).": "Pick a suggested address: the postcode and city fill in automatically (you can correct them).",
 };

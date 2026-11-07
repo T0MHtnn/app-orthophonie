@@ -20,7 +20,7 @@ create trigger appointments_reset_reminder before update of starts_at on public.
 -- Séances confirmées du lendemain (jour de Paris), patients actifs avec un email.
 -- Marque les séances comme rappelées et renvoie de quoi écrire l'email (aucune donnée médicale).
 create function public.cron_session_reminders(p_secret text)
-returns table (email text, first_name text, practice_name text, starts_at timestamptz)
+returns table (email text, first_name text, practice_name text, address_line text, postal_code text, city text, starts_at timestamptz)
 language plpgsql security definer
 set search_path = ''
 as $$
@@ -38,7 +38,7 @@ begin
       and (a.starts_at at time zone 'Europe/Paris')::date = v_day
     returning a.patient_id, a.practice_id, a.starts_at
   )
-  select pa.email, pa.first_name, pr.name, d.starts_at
+  select pa.email, pa.first_name, pr.name, pr.address_line, pr.postal_code, pr.city, d.starts_at
   from due d
   join public.patients pa on pa.id = d.patient_id
   join public.practices pr on pr.id = d.practice_id
@@ -47,3 +47,19 @@ end;
 $$;
 revoke all on function public.cron_session_reminders(text) from public;
 grant execute on function public.cron_session_reminders(text) to anon, authenticated;
+
+-- Adresse du cabinet obligatoire (rue comprise) : elle figure dans les rappels.
+-- Trigger plutôt que check : les cabinets existants sans rue ne sont bloqués
+-- que lorsqu'ils modifient leur adresse (Réglages), pas pour le reste.
+create function private.require_practice_address() returns trigger
+language plpgsql set search_path = ''
+as $$
+begin
+  if coalesce(trim(new.address_line), '') = '' then
+    raise exception 'Adresse du cabinet requise' using errcode = '23514';
+  end if;
+  return new;
+end;
+$$;
+create trigger practices_require_address before insert or update of address_line on public.practices
+  for each row execute function private.require_practice_address();

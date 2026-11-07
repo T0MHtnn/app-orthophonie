@@ -37,6 +37,9 @@ export interface ReminderEmail {
   email: string;
   first_name: string;
   practice_name: string;
+  address_line: string | null;
+  postal_code: string | null;
+  city: string | null;
   starts_at: string;
 }
 
@@ -46,6 +49,7 @@ export async function sendReminders(rows: ReminderEmail[]): Promise<number> {
   for (const r of rows) {
     const p = parisParts(new Date(r.starts_at));
     const when = `${formatDay(p.date)} à ${formatTime(p.time)}`;
+    const address = [r.address_line, [r.postal_code, r.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
     const res = await sendEmail({
       to: { email: r.email },
       senderName: r.practice_name,
@@ -53,6 +57,7 @@ export async function sendReminders(rows: ReminderEmail[]): Promise<number> {
       text: [
         'Bonjour,',
         `Petit rappel : ${r.first_name} a une séance chez ${r.practice_name} demain, ${when}.`,
+        ...(address ? [`Adresse : ${address}`] : []),
         'En cas d’empêchement, vous pouvez prévenir le cabinet ou gérer vos séances depuis votre espace :',
         `${siteUrl}/patient`,
       ].join('\n\n'),

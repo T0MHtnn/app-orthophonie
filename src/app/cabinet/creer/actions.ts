@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import type { FormState } from '@/components/form';
+import { ADDRESS_NOT_FOUND, addressExists } from '@/lib/address';
 import { requireUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { fieldErrors, practiceSchema } from '@/lib/validation';
@@ -11,6 +12,9 @@ export async function createPractice(_prev: FormState, formData: FormData): Prom
   const raw = Object.fromEntries(['name', 'slug', 'rpps', 'addressLine', 'postalCode', 'city'].map((k) => [k, String(formData.get(k) ?? '')]));
   const parsed = practiceSchema.safeParse(raw);
   if (!parsed.success) return { errors: fieldErrors(parsed.error), values: raw };
+  if (!(await addressExists(parsed.data.addressLine, parsed.data.postalCode, parsed.data.city))) {
+    return { errors: { addressLine: ADDRESS_NOT_FOUND }, values: raw };
+  }
 
   const supabase = await createClient();
   const d = parsed.data;

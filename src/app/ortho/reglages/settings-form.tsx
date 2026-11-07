@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from 'react';
 import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
+import { AddressFields } from '@/components/address-fields';
 import { useT } from '@/components/i18n-provider';
 import { TEMPLATE_FIELDS } from '@/lib/defaults';
 import { saveSettings } from './actions';
@@ -52,11 +53,7 @@ export function SettingsForm(initial: Props) {
       <section className="card stack">
         <h2>{t('Cabinet')}</h2>
         <Field label="Nom du cabinet" name="name" required defaultValue={initial.name} error={state.errors?.name} />
-        <Field label="Adresse (facultatif)" name="addressLine" autoComplete="street-address" maxLength={200} defaultValue={initial.addressLine} error={state.errors?.addressLine} />
-        <div className="form-grid">
-          <Field label="Code postal" name="postalCode" inputMode="numeric" autoComplete="postal-code" required maxLength={5} defaultValue={initial.postalCode} error={state.errors?.postalCode} />
-          <Field label="Ville" name="city" autoComplete="address-level2" required maxLength={100} defaultValue={initial.city} error={state.errors?.city} />
-        </div>
+        <AddressFields initial={initial} errors={state.errors} />
         <label className="check">
           <input type="checkbox" name="listed" defaultChecked={initial.listed} />
           <span>

@@ -243,7 +243,10 @@ export type Database = {
       start_slot_offer: { Args: { p_freed_slot: string }; Returns: { email: string; first_name: string; practice_name: string; starts_at: string; token: string }[] };
       dismiss_freed_slots: { Args: { p_ids: string[] }; Returns: number };
       advance_my_offers: { Args: Record<string, never>; Returns: { email: string; first_name: string; practice_name: string; starts_at: string; token: string }[] };
-      cron_session_reminders: { Args: { p_secret: string }; Returns: { email: string; first_name: string; practice_name: string; starts_at: string }[] };
+      cron_session_reminders: {
+        Args: { p_secret: string };
+        Returns: { email: string; first_name: string; practice_name: string; address_line: string | null; postal_code: string | null; city: string | null; starts_at: string }[];
+      };
       cron_advance_offers: { Args: { p_secret: string }; Returns: { email: string; first_name: string; practice_name: string; starts_at: string; token: string }[] };
       slot_offer_info: {
         Args: { p_token: string };

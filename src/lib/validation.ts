@@ -55,7 +55,7 @@ export function isValidRpps(value: string): boolean {
 
 /** Adresse du cabinet (annuaire « Trouver un orthophoniste »). */
 const practiceAddress = {
-  addressLine: text(200).optional().default(''),
+  addressLine: required(200, 'Adresse du cabinet requise'),
   postalCode: z.string().trim().regex(/^[0-9]{5}$/, 'Code postal à 5 chiffres'),
   city: required(100, 'Ville requise'),
 };

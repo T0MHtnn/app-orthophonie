@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import type { FormState } from '@/components/form';
+import { ADDRESS_NOT_FOUND, addressExists } from '@/lib/address';
 import { requireOrtho } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
@@ -20,14 +21,17 @@ export async function saveSettings(_prev: FormState, formData: FormData): Promis
     emailTemplate: String(formData.get('emailTemplate') ?? ''),
   };
   const parsed = practiceSettingsSchema.safeParse(raw);
-  if (!parsed.success) return { errors: fieldErrors(parsed.error) };
+  if (!parsed.success) return { errors: fieldErrors(parsed.error), message: 'Certains champs sont à corriger.' };
+  if (!(await addressExists(parsed.data.addressLine, parsed.data.postalCode, parsed.data.city))) {
+    return { errors: { addressLine: ADDRESS_NOT_FOUND }, message: 'Certains champs sont à corriger.' };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase
     .from('practices')
     .update({
       name: parsed.data.name,
-      address_line: parsed.data.addressLine || null,
+      address_line: parsed.data.addressLine,
       postal_code: parsed.data.postalCode,
       city: parsed.data.city,
       listed: parsed.data.listed === 'on',
