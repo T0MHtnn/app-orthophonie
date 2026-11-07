@@ -39,7 +39,6 @@ Autres commandes :
    ```
    (pour « Reset password » : `&type=recovery&next=/compte/mot-de-passe`).
 7. **Authentication → Multi-Factor** : activer **TOTP** (gratuit).
-8. **Authentication → Providers → Google** (facultatif) : créer un identifiant OAuth sur [Google Cloud Console](https://console.cloud.google.com/apis/credentials), URI de redirection autorisée = celle affichée par Supabase (`https://<projet>.supabase.co/auth/v1/callback`), puis coller l'ID et le secret.
 
 ### Valider un cabinet (rôle admin)
 
@@ -80,7 +79,7 @@ src/
 ├── components/              Formulaires, affichage du texte d'information
 └── app/
     ├── (auth)/              Connexion, inscription, mot de passe oublié
-    ├── auth/                Liens des emails, retour Google
+    ├── auth/                Liens des emails
     ├── mfa/                 Activation et vérification de la double authentification
     ├── cabinet/creer/       Création du cabinet
     ├── c/[slug]/            Page publique de liste d'attente

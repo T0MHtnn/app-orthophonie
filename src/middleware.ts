@@ -25,8 +25,8 @@ function contentSecurityPolicy(nonce: string): string {
     `img-src 'self' data: blob:`,
     `font-src 'self'`,
     `connect-src 'self' ${supabase}${dev ? ' ws:' : ''}`,
-    // La connexion Google part d'un formulaire : il faut autoriser la redirection vers Supabase puis Google.
-    `form-action 'self' ${supabase} https://accounts.google.com`,
+    // Tous les formulaires restent sur le site (connexion par compte de l'app uniquement).
+    `form-action 'self'`,
     `frame-ancestors 'none'`,
     `base-uri 'self'`,
     `object-src 'none'`,

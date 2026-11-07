@@ -18,7 +18,7 @@ App web pour **orthophonistes libéraux** (France) : gérer le cabinet à moindr
 ## Stack
 
 - **Next.js 15.5** (App Router, Server Actions, TypeScript strict), React 19, zod 4. Pas de framework CSS : `src/app/globals.css` (couleurs reprises de la maquette).
-- **Supabase** : Postgres + Auth (email/mot de passe, Google prévu, MFA TOTP). Projet `obidpbldenamwdqvtwyz`, région **eu-west-2 (Londres)**, plan Free.
+- **Supabase** : Postgres + Auth (email/mot de passe uniquement — **pas de connexion Google**, choix de Tom —, MFA TOTP). Projet `obidpbldenamwdqvtwyz`, région **eu-west-2 (Londres)**, plan Free.
 - **Vercel** (Hobby) : `https://app-orthophonie.vercel.app`, déploiement auto sur push `main`.
 - **Brevo** (gratuit, 300 emails/jour, quota partagé avec une autre app de Tom) :
   - SMTP branché dans Supabase pour les emails d'auth (modèles dans `supabase/templates/`, à coller dans Supabase > Authentication > Emails > Templates) ;
@@ -59,7 +59,7 @@ Variables : voir `.env.example` (`NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_U
 
 ## Fait (V1)
 
-- Comptes : inscription (ortho ou patient/parent), confirmation email, connexion, mot de passe oublié, œil sur les mots de passe, Google (bouton présent, **provider pas encore configuré**).
+- Comptes : inscription (ortho ou patient/parent), confirmation email, connexion, mot de passe oublié, œil sur les mots de passe. Connexion uniquement par compte de l'app (pas de Google).
 - Ortho : création du cabinet (nom, adresse publique `/c/<slug>`, RPPS avec clé de Luhn ; cabinet `verified = false` jusqu'à validation manuelle en SQL), **MFA TOTP obligatoire**, déconnexion après 30 min d'inactivité (activité comptée sur toute l'app).
 - Liste d'attente :
   - page publique `/c/<slug>` : texte d'information modifiable + case de lecture obligatoire, **compte requis** (créer / se connecter, retour automatique au formulaire) ;
@@ -122,7 +122,6 @@ Ordre proposé : Planning → Patients → Espace patient → Matériel → Tram
 
 ## Plus tard / technique
 
-- Connexion Google : créer le client OAuth (Google Cloud Console), le coller dans Supabase > Providers > Google.
 - Nom de domaine + authentification dans Brevo (fin du warning « Non conforme », meilleure délivrabilité).
 - CAPTCHA (Cloudflare Turnstile), vérification RPPS via l'API Annuaire Santé, codes de secours MFA, sauvegardes, test d'intrusion.
 - Migration HDS : Supabase auto-hébergé ou Postgres + auth chez un hébergeur certifié HDS (Scaleway, OVHcloud, Clever Cloud, Scalingo), app hors Vercel. RGPD : AIPD, registre, contrats de sous-traitance, durées de conservation.

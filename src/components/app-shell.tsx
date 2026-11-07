@@ -16,8 +16,7 @@ const orthoLinks = (t: T): NavLink[] => [
 ];
 
 const familyLinks = (t: T): NavLink[] => [
-  { href: '/patient', label: t('Mon espace') },
-  { href: '/trouver', label: t('Trouver un orthophoniste') },
+  { href: '/patient', label: t('Mon espace'), also: ['/trouver'] },
   { href: '/compte', label: t('Réglages') },
 ];
 

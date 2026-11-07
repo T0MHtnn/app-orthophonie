@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useActionState } from 'react';
 import { Field, FormAlert, PasswordField, SubmitButton, type FormState } from '@/components/form';
 import { useT } from '@/components/i18n-provider';
-import { login, loginWithGoogle } from '../actions';
+import { login } from '../actions';
 
 export function LoginForm({ next }: { next: string }) {
   const [state, action] = useActionState<FormState, FormData>(login, {});
@@ -20,12 +20,6 @@ export function LoginForm({ next }: { next: string }) {
         <Link href="/mot-de-passe-oublie" className="hint">
           {t('Mot de passe oublié ?')}
         </Link>
-      </form>
-      <div className="divider">{t('ou')}</div>
-      <form action={loginWithGoogle}>
-        <SubmitButton className="btn full" pendingText="Redirection…">
-          Continuer avec Google
-        </SubmitButton>
       </form>
     </>
   );

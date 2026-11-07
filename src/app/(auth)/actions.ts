@@ -65,16 +65,6 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
   redirect(safeRedirectPath(formData.get('suivant'), '/'));
 }
 
-export async function loginWithGoogle(): Promise<void> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: `${siteUrl}/auth/callback` },
-  });
-  if (error || !data.url) redirect('/connexion?erreur=google');
-  redirect(data.url);
-}
-
 export async function signup(_prev: FormState, formData: FormData): Promise<FormState> {
   const raw = values(formData, ['firstName', 'lastName', 'email', 'password', 'accountType', 'suivant']);
   const parsed = signupSchema.safeParse(raw);
