@@ -596,4 +596,7 @@ export const EN: Record<string, string> = {
   "Envoyer le lien": "Send the link",
   // 22_back
   "Retour à mon espace": "Back to my space",
+  // 23_settings_hints
+  "Votre cabinet est trouvable dans « Trouver un orthophoniste ». Décoché : les inscriptions restent possibles, mais seulement avec votre lien direct.": "Your practice can be found in “Find a speech therapist”. Unticked: sign-ups remain possible, but only with your direct link.",
+  "Décoché : plus personne ne peut s’inscrire, même avec votre lien (et le cabinet disparaît de l’annuaire).": "Unticked: nobody can sign up, even with your link (and the practice disappears from the directory).",
 };

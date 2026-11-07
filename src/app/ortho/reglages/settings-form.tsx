@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
 import { useT } from '@/components/i18n-provider';
 import { TEMPLATE_FIELDS } from '@/lib/defaults';
@@ -20,10 +20,23 @@ interface Props {
 export function SettingsForm(initial: Props) {
   const [state, action] = useActionState<FormState, FormData>(saveSettings, {});
   const t = useT();
-  // Modifications pas encore enregistrées : barre visible en bas + alerte si on quitte la page.
+  // Modifications pas encore enregistrées : on compare le formulaire à son état enregistré.
+  // Revenir soi-même à la valeur d'origine (cocher puis décocher) efface donc la mention.
+  const form = useRef<HTMLFormElement>(null);
+  const saved = useRef('');
   const [dirty, setDirty] = useState(false);
+  const snapshot = () => (form.current ? JSON.stringify([...new FormData(form.current).entries()]) : '');
+  const check = () => setDirty(snapshot() !== saved.current);
   useEffect(() => {
-    if (state.ok) setDirty(false);
+    // Au chargement, puis après chaque enregistrement (le formulaire repart des valeurs enregistrées).
+    const id = requestAnimationFrame(() => {
+      if (state.ok || !saved.current) {
+        saved.current = snapshot();
+        setDirty(false);
+      }
+    });
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
   useEffect(() => {
     if (!dirty) return;
@@ -33,7 +46,7 @@ export function SettingsForm(initial: Props) {
   }, [dirty]);
 
   return (
-    <form action={action} className="stack" noValidate onChange={() => setDirty(true)}>
+    <form ref={form} action={action} className="stack" noValidate onChange={check} onInput={check}>
       <FormAlert state={state} />
 
       <section className="card stack">
@@ -49,7 +62,7 @@ export function SettingsForm(initial: Props) {
           <span>
             <b>{t('Apparaître dans l’annuaire')}</b>
             <span className="hint" style={{ display: 'block' }}>
-              {t('Les patients trouvent votre cabinet dans « Trouver un orthophoniste » (nom, ville, adresse). Décoché : seul votre lien direct permet de s’inscrire.')}
+              {t('Votre cabinet est trouvable dans « Trouver un orthophoniste ». Décoché : les inscriptions restent possibles, mais seulement avec votre lien direct.')}
             </span>
           </span>
         </label>
@@ -62,7 +75,7 @@ export function SettingsForm(initial: Props) {
           <span>
             <b>{t('Inscriptions ouvertes')}</b>
             <span className="hint" style={{ display: 'block' }}>
-              {t('Décochez pour fermer temporairement votre page publique.')}
+              {t('Décoché : plus personne ne peut s’inscrire, même avec votre lien (et le cabinet disparaît de l’annuaire).')}
             </span>
           </span>
         </label>
