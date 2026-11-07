@@ -1,0 +1,42 @@
+'use client';
+
+import { forwardRef, useEffect, useState } from 'react';
+
+/** Durée d'affichage d'un message de confirmation avant qu'il disparaisse seul. */
+export const NOTICE_MS = 5000;
+
+interface Props {
+  kind: 'ok' | 'warn' | 'error';
+  children: React.ReactNode;
+  /**
+   * Disparaît seul après 5 s (par défaut : oui pour « ok » / « warn », jamais pour une erreur).
+   * false pour un message qu'il faut pouvoir relire (ex. « vérifiez votre boîte mail »).
+   */
+  autoHide?: boolean;
+  onClose?: () => void;
+}
+
+/** Message d'information avec une croix pour le fermer. */
+export const Notice = forwardRef<HTMLDivElement, Props>(function Notice({ kind, children, autoHide, onClose }, ref) {
+  const [open, setOpen] = useState(true);
+  const hides = autoHide ?? kind !== 'error';
+  const close = () => {
+    setOpen(false);
+    onClose?.();
+  };
+  useEffect(() => {
+    if (!hides) return;
+    const t = setTimeout(close, NOTICE_MS);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hides]);
+  if (!open) return null;
+  return (
+    <div ref={ref} tabIndex={-1} className={`alert ${kind} notice`} role={kind === 'error' ? 'alert' : 'status'}>
+      <span>{children}</span>
+      <button type="button" className="notice-x" aria-label="Fermer le message" onClick={close}>
+        ×
+      </button>
+    </div>
+  );
+});

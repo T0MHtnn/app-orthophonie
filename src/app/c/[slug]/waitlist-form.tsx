@@ -20,7 +20,7 @@ export function WaitlistForm(props: Props) {
   if (state.ok) {
     return (
       <div className="stack">
-        <FormAlert state={state} />
+        <FormAlert state={state} persistent />
         <Link href="/patient" className="btn primary" style={{ width: 'fit-content' }}>
           Voir mes demandes
         </Link>

@@ -11,7 +11,7 @@ export function PasswordForm() {
     <main className="wrap auth-page">
       <div className="card auth-card">
         <h1>Nouveau mot de passe</h1>
-        <FormAlert state={state} />
+        <FormAlert state={state} persistent />
         {state.ok ? (
           <Link href="/" className="btn primary">
             Continuer

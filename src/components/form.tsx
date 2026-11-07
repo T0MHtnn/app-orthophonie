@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { Notice } from './notice';
 
 /** État renvoyé par les server actions des formulaires. */
 export interface FormState {
@@ -54,17 +55,23 @@ export function Field({ label, name, error, className, ...input }: FieldProps) {
   );
 }
 
-export function FormAlert({ state }: { state: FormState }) {
-  const ref = useRef<HTMLParagraphElement>(null);
+/**
+ * Message renvoyé par une action. Croix pour le fermer ; une confirmation disparaît
+ * seule après quelques secondes, sauf `persistent` (ex. « vérifiez votre boîte mail »).
+ */
+export function FormAlert({ state, persistent = false }: { state: FormState; persistent?: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
   // Fait défiler la page jusqu'au message : on voit tout de suite si c'est enregistré ou s'il y a une erreur.
   useEffect(() => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [state]);
+  // Nouvel identifiant à chaque nouvel envoi (et seulement là) : le message réapparaît même s'il est identique.
+  const id = useMemo(() => Math.random(), [state]);
   if (!state.message) return null;
   return (
-    <p ref={ref} tabIndex={-1} className={`alert ${state.ok ? 'ok' : 'error'}`} role={state.ok ? 'status' : 'alert'}>
+    <Notice key={id} ref={ref} kind={state.ok ? 'ok' : 'error'} autoHide={state.ok && !persistent}>
       {state.message}
-    </p>
+    </Notice>
   );
 }
 

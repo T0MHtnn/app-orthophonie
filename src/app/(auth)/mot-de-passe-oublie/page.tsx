@@ -11,7 +11,7 @@ export default function MotDePasseOubliePage() {
     <main className="wrap auth-page">
       <div className="card auth-card">
         <h1>Mot de passe oublié</h1>
-        <FormAlert state={state} />
+        <FormAlert state={state} persistent />
         {!state.ok && (
           <form action={action} className="stack" noValidate>
             <Field label="Email du compte" name="email" type="email" autoComplete="email" required error={state.errors?.email} />

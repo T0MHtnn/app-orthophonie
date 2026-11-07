@@ -6,7 +6,7 @@ import { signup } from '../actions';
 
 export function SignupForm({ defaultType = 'ortho', lockType = false, next = '' }: { defaultType?: 'ortho' | 'patient'; lockType?: boolean; next?: string }) {
   const [state, action] = useActionState<FormState, FormData>(signup, {});
-  if (state.ok) return <FormAlert state={state} />;
+  if (state.ok) return <FormAlert state={state} persistent />;
   const type = state.values?.accountType ?? defaultType;
   return (
     <form key={JSON.stringify(state.values ?? {})} action={action} className="stack" noValidate>

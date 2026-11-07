@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
 import { Modal } from '@/components/modal';
+import { Notice } from '@/components/notice';
 import { RECURRENCES, isFree, type AgendaDay, type BlockInput, type Interval } from '@/lib/agenda';
 import { matchesSearch } from '@/lib/search';
 import { WEEKDAYS, formatDay, formatTime, minutesToTime } from '@/lib/time';
@@ -54,7 +55,8 @@ type Dialog =
 export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessionMinutes, details, bookingMode }: Props) {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [picked, setPicked] = useState<PatientItem | null>(null);
-  const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [notice, setNoticeState] = useState<{ id: number; kind: 'ok' | 'error'; text: string } | null>(null);
+  const setNotice = (n: { kind: 'ok' | 'error'; text: string } | null) => setNoticeState(n && { ...n, id: Date.now() });
   const [pending, startTransition] = useTransition();
   const height = (range.end - range.start) * PX;
   const blockById = useMemo(() => new Map(blocks.map((b) => [b.id, b])), [blocks]);
@@ -105,9 +107,9 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
     <div className="planning-layout">
       <div className="stack">
         {notice && (
-          <p className={`alert ${notice.kind}`} role="status">
+          <Notice key={notice.id} kind={notice.kind} onClose={() => setNotice(null)}>
             {notice.text}
-          </p>
+          </Notice>
         )}
         {picked && (
           <p className="alert warn row spread">

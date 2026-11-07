@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Notice } from '@/components/notice';
 import Link from 'next/link';
 import { SubmitButton } from '@/components/form';
 import type { Database, WaitlistStatus } from '@/lib/database.types';
@@ -58,9 +59,9 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
         )}
       </div>
 
-      {params.ok === 'reserve' && <p className="alert ok">Séance réservée et confirmée.</p>}
-      {params.ok === 'demande' && <p className="alert warn">Demande envoyée : la séance sera confirmée quand l’orthophoniste l’aura validée.</p>}
-      {params.ok === 'annule' && <p className="alert ok">Séance annulée.</p>}
+      {params.ok === 'reserve' && <Notice kind="ok">Séance réservée et confirmée.</Notice>}
+      {params.ok === 'demande' && <Notice kind="warn">Demande envoyée : la séance sera confirmée quand l’orthophoniste l’aura validée.</Notice>}
+      {params.ok === 'annule' && <Notice kind="ok">Séance annulée.</Notice>}
       {params.erreur === 'annulation' && <p className="alert error">Cette séance ne peut plus être annulée en ligne : contactez le cabinet.</p>}
 
       {unlocked ? (

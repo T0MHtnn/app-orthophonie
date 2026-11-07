@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Notice } from '@/components/notice';
 import Link from 'next/link';
 import { SubmitButton } from '@/components/form';
 import type { WaitlistEntryRow, WaitlistStatus } from '@/lib/database.types';
@@ -85,15 +86,15 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
         </div>
       </div>
 
-      {params.ok === 'contacte' && <p className="alert ok">Statut passé à « Place proposée ».</p>}
-      {params.ok === 'envoye' && <p className="alert ok">Email envoyé. Statut passé à « Place proposée ».</p>}
+      {params.ok === 'contacte' && <Notice kind="ok">Statut passé à « Place proposée ».</Notice>}
+      {params.ok === 'envoye' && <Notice kind="ok">Email envoyé. Statut passé à « Place proposée ».</Notice>}
       {params.erreur === 'envoi' && <p className="alert error">L’email n’a pas pu être envoyé. Réessayez, ou copiez le texte dans votre messagerie.</p>}
       {params.erreur === 'email-config' && <p className="alert error">L’envoi d’emails n’est pas encore configuré (clé Brevo manquante). Copiez le texte dans votre messagerie en attendant.</p>}
       {params.erreur === 'statut' && <p className="alert error">Le statut n’a pas pu être modifié. Rechargez la page puis réessayez.</p>}
       {params.erreur === 'envoye-statut' && <p className="alert error">L’email est bien parti, mais le statut n’a pas pu passer à « Place proposée ». Réessayez avec « Marquer comme contacté sans envoyer ».</p>}
       {params.erreur === 'email' && <p className="alert error">Cette personne n’a pas laissé d’adresse email : contactez-la par téléphone.</p>}
       <p className="hint">Confirmer la prise en charge déplace la demande dans « Patients pris en charge » et débloque l’espace patient de la famille.</p>
-      {params.ok === 'supprime' && <p className="alert ok">Inscription supprimée définitivement.</p>}
+      {params.ok === 'supprime' && <Notice kind="ok">Inscription supprimée définitivement.</Notice>}
       {error && <p className="alert error">Impossible de charger la liste. Rechargez la page.</p>}
 
       <nav className="tabs" aria-label="Listes">
