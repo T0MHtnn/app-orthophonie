@@ -10,29 +10,27 @@ import { ackAppointment, cancelMyAppointment } from './actions';
 type Session = Database['public']['Functions']['my_appointments']['Returns'][number];
 type Filter = 'prevues' | 'passees' | 'toutes' | 'annulees';
 
+// « Toutes » en premier et par défaut (annulées comprises).
 const FILTERS: { code: Filter; label: string }[] = [
+  { code: 'toutes', label: 'Toutes' },
   { code: 'prevues', label: 'Prévues' },
   { code: 'passees', label: 'Passées' },
-  { code: 'toutes', label: 'Toutes' },
   { code: 'annulees', label: 'Annulées' },
 ];
 
-/** « Mes séances » : filtre (prévues / passées / toutes / annulées) et case pour afficher les annulées. */
+/** « Mes séances » : filtre toutes (par défaut) / prévues / passées / annulées. */
 export function Sessions({ sessions }: { sessions: Session[] }) {
   const t = useT();
-  const [filter, setFilter] = useState<Filter>('prevues');
-  const [showCancelled, setShowCancelled] = useState(false);
+  const [filter, setFilter] = useState<Filter>('toutes');
   // Calculé une fois par rendu de la liste (pas besoin d'une horloge qui tourne).
   const now = useMemo(() => Date.now(), [sessions]);
 
   const shown = sessions.filter((a) => {
     const cancelled = a.status === 'annule';
+    if (filter === 'toutes') return true;
     if (filter === 'annulees') return cancelled;
-    if (cancelled && !showCancelled) return false;
     const future = new Date(a.ends_at).getTime() > now;
-    if (filter === 'prevues') return future;
-    if (filter === 'passees') return !future;
-    return true;
+    return !cancelled && (filter === 'prevues' ? future : !future);
   });
 
   return (
@@ -48,12 +46,6 @@ export function Sessions({ sessions }: { sessions: Session[] }) {
             ))}
           </select>
         </label>
-        {filter !== 'annulees' && (
-          <label className="check">
-            <input type="checkbox" checked={showCancelled} onChange={(e) => setShowCancelled(e.target.checked)} />
-            <span>{t('Afficher les rendez-vous annulés')}</span>
-          </label>
-        )}
       </div>
 
       {shown.length === 0 ? (
