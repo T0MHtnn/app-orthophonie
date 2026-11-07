@@ -18,11 +18,15 @@ interface Props {
 
 /** Message d'information avec une croix pour le fermer. */
 export const Notice = forwardRef<HTMLDivElement, Props>(function Notice({ kind, children, autoHide, onClose }, ref) {
-  const [open, setOpen] = useState(true);
+  const [phase, setPhase] = useState<'open' | 'leaving' | 'closed'>('open');
   const hides = autoHide ?? kind !== 'error';
+  // Courte animation de sortie avant de retirer le message.
   const close = () => {
-    setOpen(false);
-    onClose?.();
+    setPhase((p) => (p === 'open' ? 'leaving' : p));
+    setTimeout(() => {
+      setPhase('closed');
+      onClose?.();
+    }, 160);
   };
   useEffect(() => {
     if (!hides) return;
@@ -30,9 +34,9 @@ export const Notice = forwardRef<HTMLDivElement, Props>(function Notice({ kind, 
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hides]);
-  if (!open) return null;
+  if (phase === 'closed') return null;
   return (
-    <div ref={ref} tabIndex={-1} className={`alert ${kind} notice`} role={kind === 'error' ? 'alert' : 'status'}>
+    <div ref={ref} tabIndex={-1} className={`alert ${kind} notice ${phase === 'leaving' ? 'leaving' : ''}`} role={kind === 'error' ? 'alert' : 'status'}>
       <span>{children}</span>
       <button type="button" className="notice-x" aria-label="Fermer le message" onClick={close}>
         ×
