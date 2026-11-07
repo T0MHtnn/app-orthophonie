@@ -53,7 +53,7 @@ export async function saveAppointment(_prev: FormState, formData: FormData): Pro
     console.error('save_appointment', error.code);
     return { message: 'Le rendez-vous n’a pas pu être enregistré. Rechargez la page puis réessayez.', values: raw };
   }
-  if (notify) await notifyFamily(d.patientId, start, practice.name);
+  if (notify) await notifyFamily(d.patientId, start, practice.name, !!d.id);
   return done(notify ? 'Rendez-vous enregistré. Le patient est prévenu par email.' : d.id ? 'Rendez-vous modifié.' : 'Rendez-vous ajouté.');
 }
 
@@ -210,7 +210,7 @@ export async function markAttendance(_prev: FormState, formData: FormData): Prom
 }
 
 /** Email « nouvelle séance » à la famille : date et heure seulement, aucune donnée médicale. */
-async function notifyFamily(patientId: string, start: Date, practiceName: string): Promise<void> {
+async function notifyFamily(patientId: string, start: Date, practiceName: string, changed: boolean): Promise<void> {
   const supabase = await createClient();
   const { data: patient } = await supabase.from('patients').select('first_name, email').eq('id', patientId).maybeSingle();
   if (!patient?.email) return;
@@ -219,10 +219,12 @@ async function notifyFamily(patientId: string, start: Date, practiceName: string
   await sendEmail({
     to: { email: patient.email },
     senderName: practiceName,
-    subject: `Nouvelle séance le ${when}`,
+    subject: changed ? `Séance déplacée au ${when}` : `Nouvelle séance le ${when}`,
     text: [
       'Bonjour,',
-      `${practiceName} a prévu une séance pour ${patient.first_name} le ${when}.`,
+      changed
+        ? `${practiceName} a déplacé la séance de ${patient.first_name} : elle a maintenant lieu le ${when}.`
+        : `${practiceName} a prévu une séance pour ${patient.first_name} le ${when}.`,
       'Vous la retrouvez dans votre espace :',
       `${siteUrl}/patient`,
     ].join('\n\n'),

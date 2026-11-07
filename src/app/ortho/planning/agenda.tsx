@@ -72,7 +72,9 @@ type Dialog =
       past: boolean;
       title: string;
     }
-  | { kind: 'cancelled'; id: string; label: string; date: string; start: number; reason: string | null };
+  | { kind: 'cancelled'; id: string; label: string; date: string; start: number; reason: string | null }
+  /** RDV glissé ailleurs : confirmation + choix de prévenir le patient. */
+  | { kind: 'move'; id: string; patientId: string; label: string; date: string; start: number; duration: number; title: string };
 
 export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessionMinutes, details, bookingMode }: Props) {
   const [dialog, setDialog] = useState<Dialog | null>(null);
@@ -93,18 +95,17 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
   };
 
   /** Déplacement d'un RDV existant par glisser-déposer (immédiat). */
-  const move = (day: AgendaDay, patientId: string, start: number, duration: number, appointmentId: string, title: string) => {
-    if (!isFree(day, { start, end: start + duration }, appointmentId)) {
-      setNotice({ kind: 'error', text: 'Ce créneau est déjà pris ou bloqué.' });
-      return;
-    }
+  const move = (target: { date: string; patientId: string; start: number; duration: number; id: string; title: string }, notify: boolean) => {
+    const { date, patientId, start, duration, id: appointmentId, title } = target;
     const fd = new FormData();
     fd.set('id', appointmentId);
     fd.set('patientId', patientId);
-    fd.set('date', day.date);
+    fd.set('date', date);
     fd.set('time', minutesToTime(start));
     fd.set('duration', String(duration));
     fd.set('title', title);
+    if (notify) fd.set('notify', 'on');
+    setDialog(null);
     startTransition(async () => {
       const res = await saveAppointment({}, fd);
       setNotice({ kind: res.ok ? 'ok' : 'error', text: res.message ?? (res.ok ? 'Enregistré.' : 'Enregistrement impossible.') });
@@ -131,7 +132,15 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
     if (!raw) return;
     const data = JSON.parse(raw) as { patientId: string; appointmentId?: string; duration?: number; title?: string };
     const start = minuteAt(e);
-    if (data.appointmentId) move(day, data.patientId, start, data.duration ?? sessionMinutes, data.appointmentId, data.title ?? '');
+    if (data.appointmentId) {
+      const duration = data.duration ?? sessionMinutes;
+      if (!isFree(day, { start, end: start + duration }, data.appointmentId)) {
+        setNotice({ kind: 'error', text: 'Ce créneau est déjà pris ou bloqué.' });
+        return;
+      }
+      const label = day.appointments.find((a) => a.id === data.appointmentId)?.label ?? days.flatMap((d) => d.appointments).find((a) => a.id === data.appointmentId)?.label ?? '';
+      setDialog({ kind: 'move', id: data.appointmentId, patientId: data.patientId, label, date: day.date, start, duration, title: data.title ?? '' });
+    }
     // Nouveau RDV : la pop-up s'ouvre pré-remplie (pour choisir de prévenir le patient).
     else setDialog({ kind: 'slot', date: day.date, start, end: Math.min(range.end, start + sessionMinutes), patientId: data.patientId, tab: 'rdv' });
   };
@@ -304,6 +313,8 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
             <SlotDialog key={`${dialog.date}-${dialog.start}-${dialog.patientId ?? ''}`} dialog={dialog} patients={patients} onDone={done} />
           ) : dialog.kind === 'block' ? (
             <BlockDialog key={`${dialog.block?.id ?? 'new'}-${dialog.date}-${dialog.start}`} dialog={dialog} onDone={done} />
+          ) : dialog.kind === 'move' ? (
+            <MoveDialog dialog={dialog} pending={pending} onConfirm={(notify) => move(dialog, notify)} onCancel={() => setDialog(null)} />
           ) : dialog.kind === 'cancelled' ? (
             <CancelledDialog key={dialog.id} dialog={dialog} onDone={done} />
           ) : (
@@ -787,6 +798,52 @@ function CancelledDialog({ dialog, onDone }: { dialog: Extract<Dialog, { kind: '
           <SubmitButton className="btn small">Retirer de l’agenda</SubmitButton>
         </div>
       </form>
+    </div>
+  );
+}
+
+/** Confirmation d'un déplacement par glisser-déposer, avec le choix de prévenir le patient. */
+function MoveDialog({
+  dialog,
+  pending,
+  onConfirm,
+  onCancel,
+}: {
+  dialog: Extract<Dialog, { kind: 'move' }>;
+  pending: boolean;
+  onConfirm: (notify: boolean) => void;
+  onCancel: () => void;
+}) {
+  const t = useT();
+  const [notify, setNotify] = useState(true);
+  return (
+    <div className="stack">
+      <h2>{t('Déplacer le rendez-vous ?')}</h2>
+      <p>
+        {t('{nom} : {jour} à {heure} ({min} min).', {
+          nom: dialog.label,
+          jour: formatDay(dialog.date, false, t.locale),
+          heure: formatTime(minutesToTime(dialog.start), t.locale),
+          min: dialog.duration,
+        })}
+      </p>
+      <label className="check">
+        <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+        <span>
+          <b>{t('Prévenir le patient du changement')}</b>
+          <span className="hint" style={{ display: 'block' }}>
+            {t('Email + pastille « Nouveau » dans son espace jusqu’à ce qu’il clique « Lu ».')}
+          </span>
+        </span>
+      </label>
+      <div className="row">
+        <button type="button" className="btn primary" disabled={pending} onClick={() => onConfirm(notify)}>
+          {t('Déplacer')}
+        </button>
+        <button type="button" className="btn" onClick={onCancel}>
+          {t('Annuler')}
+        </button>
+      </div>
     </div>
   );
 }

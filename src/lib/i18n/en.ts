@@ -542,4 +542,8 @@ export const EN: Record<string, string> = {
   "Confirmer le retrait": "Confirm withdrawal",
   "Demande de séance en cours": "Session request pending",
   "Aucun créneau disponible cette semaine. Essayez la semaine suivante.": "No slots available this week. Try next week.",
+  // 14_move
+  "Déplacer le rendez-vous ?": "Move the appointment?",
+  "{nom} : {jour} à {heure} ({min} min).": "{nom}: {jour} at {heure} ({min} min).",
+  "Déplacer": "Move",
 };
