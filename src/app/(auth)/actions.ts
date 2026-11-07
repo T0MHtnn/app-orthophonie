@@ -3,6 +3,8 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { FormState } from '@/components/form';
+import { APP_NAME } from '@/lib/app';
+import { sendEmail } from '@/lib/email';
 import { siteUrl } from '@/lib/env';
 import { safeRedirectPath } from '@/lib/security';
 import { createClient } from '@/lib/supabase/server';
@@ -81,7 +83,7 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
   // Famille sans lien de cabinet : on l'envoie sur l'annuaire pour choisir son orthophoniste.
   const next = accountType === 'ortho' ? '/cabinet/creer' : safeRedirectPath(formData.get('suivant'), '/trouver');
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -96,8 +98,25 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
     return { message: authErrorMessage(error.code, 'Inscription impossible pour le moment. Réessayez dans quelques minutes.'), values: { ...raw, password: '' } };
   }
 
-  // Même réponse que le compte existe ou non (pas d'énumération des comptes).
-  return { ok: true, message: `Si l’adresse ${email} est valide, vous allez recevoir un email pour confirmer votre compte.` };
+  // Adresse déjà inscrite : Supabase ne renvoie pas d'erreur (et n'envoie rien). On prévient la
+  // personne PAR EMAIL, pas à l'écran : l'écran reste identique pour ne pas révéler qui a un compte.
+  if (error?.code === 'user_already_exists' || (data.user && data.user.identities?.length === 0)) {
+    await sendEmail({
+      to: { email },
+      subject: `Vous avez déjà un compte – ${APP_NAME}`,
+      text: [
+        'Bonjour,',
+        'Quelqu’un (sans doute vous) a essayé de créer un compte avec cette adresse, mais un compte existe déjà.',
+        `Connectez-vous ici : ${siteUrl}/connexion`,
+        `Mot de passe oublié ? ${siteUrl}/mot-de-passe-oublie`,
+        'Si ce n’est pas vous, ignorez simplement cet email : votre compte n’a pas été modifié.',
+      ].join('\n\n'),
+    });
+  }
+  return {
+    ok: true,
+    message: `Un email vient d’être envoyé à ${email}. Si vous ne le recevez pas d’ici quelques minutes (pensez aux spams), vous avez peut-être déjà un compte : connectez-vous ou utilisez « Mot de passe oublié ».`,
+  };
 }
 
 export async function requestPasswordReset(_prev: FormState, formData: FormData): Promise<FormState> {

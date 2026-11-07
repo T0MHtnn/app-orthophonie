@@ -155,26 +155,24 @@ export const appointmentSchema = z.object({
   duration: z.coerce.number({ error: 'Durée invalide' }).int().min(10, 'Durée minimale : 10 min').max(240, 'Durée maximale : 4 h'),
 });
 
-export const openingHourSchema = z
+/** Blocage posé sur l'agenda (pause, congés…), éventuellement répété. */
+export const blockSchema = z
   .object({
-    weekday: z.coerce.number().int().min(1).max(7),
+    id: z.union([z.literal(''), z.uuid()]).optional().default(''),
+    title: text(120).optional().default(''),
+    date: dateField,
     start: timeField,
     end: timeField,
+    recurrence: z.enum(['none', 'daily', 'weekly', 'biweekly', 'triweekly', 'monthly', 'weekdays'], { error: 'Répétition invalide' }),
+    weekdays: z.array(z.coerce.number().int().min(1).max(7)).max(7).default([]),
+    until: z.union([z.literal(''), dateField]).optional().default(''),
+    // Modification d'un blocage répété : toute la série, ou ce jour seulement.
+    scope: z.enum(['serie', 'jour']).optional().default('serie'),
+    occurrence: z.union([z.literal(''), dateField]).optional().default(''),
   })
-  .refine((v) => minutes(v.end) > minutes(v.start), { path: ['end'], message: 'L’heure de fin doit être après le début' });
-
-export const scheduleExceptionSchema = z
-  .object({
-    kind: z.enum(['ferme', 'ouvert'], { error: 'Type invalide' }),
-    startDate: dateField,
-    startTime: timeField,
-    endDate: dateField,
-    endTime: timeField,
-    label: text(120).optional().default(''),
-  })
-  .refine((v) => `${v.endDate}T${v.endTime}` > `${v.startDate}T${v.startTime}`, { path: ['endTime'], message: 'La fin doit être après le début' });
-
-export const sessionMinutesSchema = z.coerce.number({ error: 'Durée invalide' }).int().min(10, '10 min minimum').max(180, '3 h maximum');
+  .refine((v) => minutes(v.end) > minutes(v.start), { path: ['end'], message: 'L’heure de fin doit être après le début' })
+  .refine((v) => v.recurrence !== 'weekdays' || v.weekdays.length > 0, { path: ['weekdays'], message: 'Choisissez au moins un jour' })
+  .refine((v) => !v.until || v.until >= v.date, { path: ['until'], message: 'La fin de la répétition doit être après la date' });
 
 export const totpCodeSchema = z.string().trim().regex(/^[0-9]{6}$/, 'Code à 6 chiffres');
 

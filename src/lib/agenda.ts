@@ -1,98 +1,137 @@
 /**
- * Calcul de la vue semaine du planning (pur, testable) : pour chaque jour, les
- * plages ouvertes, fermées, les rendez-vous et les créneaux libres, en minutes
- * depuis minuit (heure de Paris).
+ * Vue semaine du planning (pur, testable, utilisable côté client) : pour chaque
+ * jour, les blocages (répétitions dépliées) et les rendez-vous, en minutes
+ * depuis minuit, heure de Paris. Même règle de répétition que la fonction SQL
+ * private.block_overlaps.
  */
-import { addDays, parisParts, parisToInstant, timeToMinutes } from './time';
+import { addDays, isoWeekday, parisParts, parisToInstant } from './time';
 
 export type Interval = { start: number; end: number };
 
-export interface AgendaInput {
-  week: string; // lundi AAAA-MM-JJ
-  openingHours: { weekday: number; starts_at: string; ends_at: string }[];
-  exceptions: { kind: 'ferme' | 'ouvert'; starts_at: string; ends_at: string; label: string }[];
-  appointments: { id: string; starts_at: string; ends_at: string; label: string; status: string }[];
-  sessionMinutes: number;
-  now: Date;
+export type Recurrence = 'none' | 'daily' | 'weekly' | 'biweekly' | 'triweekly' | 'monthly' | 'weekdays';
+
+export const RECURRENCES: { code: Recurrence; label: string }[] = [
+  { code: 'none', label: 'Ne pas répéter' },
+  { code: 'daily', label: 'Tous les jours' },
+  { code: 'weekly', label: 'Chaque semaine' },
+  { code: 'biweekly', label: 'Toutes les 2 semaines' },
+  { code: 'triweekly', label: 'Toutes les 3 semaines' },
+  { code: 'monthly', label: 'Chaque mois (même date)' },
+  { code: 'weekdays', label: 'Certains jours de la semaine…' },
+];
+
+export interface BlockInput {
+  id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string;
+  recurrence: Recurrence;
+  weekdays: number[];
+  until: string | null;
+  skip_dates: string[];
+}
+
+export interface BlockOccurrence extends Interval {
+  blockId: string;
+  title: string;
+  /** Jour de cette occurrence (AAAA-MM-JJ). */
+  date: string;
+  recurring: boolean;
+}
+
+export interface AppointmentInput {
+  id: string;
+  patient_id: string;
+  starts_at: string;
+  ends_at: string;
+  status: string;
+  label: string;
 }
 
 export interface AgendaDay {
   date: string;
   weekday: number;
-  open: Interval[];
-  closed: (Interval & { label: string })[];
-  appointments: (Interval & { id: string; label: string; status: string })[];
-  /** Créneaux libres (durée de séance) dans les plages ouvertes, à venir. */
-  free: Interval[];
+  blocks: BlockOccurrence[];
+  appointments: (Interval & { id: string; patientId: string; label: string; status: string })[];
 }
 
 const DAY = 24 * 60;
+const MS_DAY = 86_400_000;
+
+const dayNumber = (date: string) => Date.parse(`${date}T00:00:00Z`) / MS_DAY;
+
+/** Le blocage a-t-il une occurrence qui commence ce jour-là ? */
+export function occursOn(block: BlockInput, date: string): boolean {
+  const first = parisParts(new Date(block.starts_at)).date;
+  if (date < first || (block.until && date > block.until) || block.skip_dates.includes(date)) return false;
+  const diff = dayNumber(date) - dayNumber(first);
+  switch (block.recurrence) {
+    case 'none':
+      return diff === 0;
+    case 'daily':
+      return true;
+    case 'weekly':
+      return diff % 7 === 0;
+    case 'biweekly':
+      return diff % 14 === 0;
+    case 'triweekly':
+      return diff % 21 === 0;
+    case 'monthly':
+      return date.slice(8) === first.slice(8);
+    case 'weekdays':
+      return block.weekdays.includes(isoWeekday(date));
+  }
+}
 
 /** Partie d'un intervalle d'instants qui tombe dans le jour donné, en minutes. */
-function clipToDay(date: string, startsAt: string, endsAt: string): Interval | null {
+function clipToDay(date: string, startMs: number, endMs: number): Interval | null {
   const dayStart = parisToInstant(date, '00:00').getTime();
   const dayEnd = parisToInstant(addDays(date, 1), '00:00').getTime();
-  const s = Math.max(new Date(startsAt).getTime(), dayStart);
-  const e = Math.min(new Date(endsAt).getTime(), dayEnd);
+  const s = Math.max(startMs, dayStart);
+  const e = Math.min(endMs, dayEnd);
   if (e <= s) return null;
   const toMin = (t: number) => (t >= dayEnd ? DAY : parisParts(new Date(t)).minutes);
   return { start: toMin(s), end: toMin(e) };
 }
 
-const overlaps = (a: Interval, b: Interval) => a.start < b.end && b.start < a.end;
-
-/** Fusionne des intervalles qui se chevauchent ou se touchent. */
-export function mergeIntervals(list: Interval[]): Interval[] {
-  const sorted = [...list].sort((a, b) => a.start - b.start);
-  const out: Interval[] = [];
-  for (const i of sorted) {
-    const last = out[out.length - 1];
-    if (last && i.start <= last.end) last.end = Math.max(last.end, i.end);
-    else out.push({ ...i });
-  }
-  return out;
+/** Début et fin (instants) de l'occurrence d'un blocage qui commence ce jour-là. */
+export function occurrenceRange(block: BlockInput, date: string): { start: Date; end: Date } {
+  const start = parisToInstant(date, parisParts(new Date(block.starts_at)).time);
+  const length = new Date(block.ends_at).getTime() - new Date(block.starts_at).getTime();
+  return { start, end: new Date(start.getTime() + length) };
 }
 
-export function buildAgenda(input: AgendaInput): AgendaDay[] {
-  const nowParts = parisParts(input.now);
+export function buildWeek(week: string, blocks: BlockInput[], appointments: AppointmentInput[]): AgendaDay[] {
   return Array.from({ length: 7 }, (_, i) => {
-    const date = addDays(input.week, i);
-    const weekday = i + 1;
-    const exceptions = input.exceptions.flatMap((x) => {
-      const c = clipToDay(date, x.starts_at, x.ends_at);
-      return c ? [{ ...c, kind: x.kind, label: x.label }] : [];
+    const date = addDays(week, i);
+    // Une occurrence commencée la veille (ex. 22 h → 2 h) déborde sur ce jour.
+    const occurrences = [addDays(date, -1), date].flatMap((startDay) =>
+      blocks.filter((b) => occursOn(b, startDay)).flatMap((b) => {
+        const r = occurrenceRange(b, startDay);
+        const c = clipToDay(date, r.start.getTime(), r.end.getTime());
+        return c ? [{ ...c, blockId: b.id, title: b.title, date: startDay, recurring: b.recurrence !== 'none' }] : [];
+      }),
+    );
+    const appts = appointments.flatMap((a) => {
+      const c = clipToDay(date, new Date(a.starts_at).getTime(), new Date(a.ends_at).getTime());
+      return c ? [{ ...c, id: a.id, patientId: a.patient_id, label: a.label, status: a.status }] : [];
     });
-    const open = mergeIntervals([
-      ...input.openingHours.filter((h) => h.weekday === weekday).map((h) => ({ start: timeToMinutes(h.starts_at), end: timeToMinutes(h.ends_at) })),
-      ...exceptions.filter((x) => x.kind === 'ouvert'),
-    ]);
-    const closed = exceptions.filter((x) => x.kind === 'ferme').map(({ start, end, label }) => ({ start, end, label }));
-    const appointments = input.appointments.flatMap((a) => {
-      const c = clipToDay(date, a.starts_at, a.ends_at);
-      return c ? [{ ...c, id: a.id, label: a.label, status: a.status }] : [];
-    });
-
-    // Créneaux libres : pas de séance, alignés sur le début de chaque plage ouverte.
-    const free: Interval[] = [];
-    const busy = [...closed, ...appointments];
-    const step = Math.max(10, input.sessionMinutes);
-    for (const o of open) {
-      for (let t = o.start; t + step <= o.end; t += step) {
-        const slot = { start: t, end: t + step };
-        const past = date < nowParts.date || (date === nowParts.date && t < nowParts.minutes);
-        if (!past && !busy.some((b) => overlaps(b, slot))) free.push(slot);
-      }
-    }
-    return { date, weekday, open, closed, appointments, free };
+    return { date, weekday: i + 1, blocks: occurrences, appointments: appts };
   });
 }
 
-/** Heures affichées : de 8 h à 19 h au minimum, élargies aux plages et rendez-vous. */
+const overlaps = (a: Interval, b: Interval) => a.start < b.end && b.start < a.end;
+
+/** Le créneau [start, end[ (minutes) est-il libre ce jour-là ? */
+export const isFree = (day: AgendaDay, slot: Interval, ignoreAppointment?: string) =>
+  !day.blocks.some((b) => overlaps(b, slot)) && !day.appointments.some((a) => a.id !== ignoreAppointment && overlaps(a, slot));
+
+/** Heures affichées : 7 h – 21 h au minimum, élargies aux rendez-vous et blocages courts. */
 export function visibleRange(days: AgendaDay[]): Interval {
-  let start = 8 * 60;
-  let end = 19 * 60;
+  let start = 7 * 60;
+  let end = 21 * 60;
   for (const d of days) {
-    for (const i of [...d.open, ...d.appointments, ...d.closed.filter((c) => c.end - c.start < DAY)]) {
+    for (const i of [...d.appointments, ...d.blocks.filter((b) => b.end - b.start < DAY)]) {
       start = Math.min(start, i.start);
       end = Math.max(end, i.end);
     }

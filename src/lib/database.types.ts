@@ -89,17 +89,21 @@ export type PatientRow = {
   updated_at: string;
 };
 
-/** weekday : 1 = lundi (ISO). Heures locales (Europe/Paris) au format HH:MM:SS. */
-export type OpeningHourRow = { id: string; practice_id: string; weekday: number; starts_at: string; ends_at: string };
-
-export type ScheduleExceptionRow = {
+export type ScheduleBlockRow = {
   id: string;
   practice_id: string;
-  kind: 'ferme' | 'ouvert';
+  title: string;
   starts_at: string;
   ends_at: string;
-  label: string;
+  recurrence: 'none' | 'daily' | 'weekly' | 'biweekly' | 'triweekly' | 'monthly' | 'weekdays';
+  /** Jours ISO (1 = lundi) pour recurrence = 'weekdays'. */
+  weekdays: number[];
+  /** Dernier jour de répétition (inclus), AAAA-MM-JJ. */
+  until: string | null;
+  /** Jours supprimés ou remplacés (« ce jour seulement »). */
+  skip_dates: string[];
   created_at: string;
+  updated_at: string;
 };
 
 export type AppointmentStatus = 'confirme' | 'a_valider' | 'annule';
@@ -132,8 +136,11 @@ export type Database = {
       waitlist_entries: Table<WaitlistEntryRow, NoInsert, Partial<Pick<WaitlistEntryRow, 'status'>>>;
       pathologies: Table<PathologyRow, NoInsert, NoInsert>;
       patients: Table<PatientRow, NoInsert, Partial<Pick<PatientRow, 'autonomous'>>>;
-      opening_hours: Table<OpeningHourRow, Omit<OpeningHourRow, 'id'>, NoInsert>;
-      schedule_exceptions: Table<ScheduleExceptionRow, Omit<ScheduleExceptionRow, 'id' | 'created_at'>, NoInsert>;
+      schedule_blocks: Table<
+        ScheduleBlockRow,
+        Pick<ScheduleBlockRow, 'practice_id' | 'title' | 'starts_at' | 'ends_at' | 'recurrence' | 'weekdays' | 'until' | 'skip_dates'>,
+        Partial<Pick<ScheduleBlockRow, 'title' | 'starts_at' | 'ends_at' | 'recurrence' | 'weekdays' | 'until' | 'skip_dates'>>
+      >;
       // Écritures via save_appointment / cancel_appointment uniquement.
       appointments: Table<AppointmentRow, NoInsert, NoInsert>;
       audit_log: Table<

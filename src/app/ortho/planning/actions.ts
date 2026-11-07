@@ -1,20 +1,24 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import type { FormState } from '@/components/form';
 import { requireOrtho } from '@/lib/auth';
+import type { ScheduleBlockRow } from '@/lib/database.types';
 import { createClient } from '@/lib/supabase/server';
-import { parisToInstant, startOfWeek } from '@/lib/time';
-import { appointmentSchema, fieldErrors, openingHourSchema, scheduleExceptionSchema, sessionMinutesSchema } from '@/lib/validation';
+import { parisParts, parisToInstant } from '@/lib/time';
+import { appointmentSchema, blockSchema, fieldErrors } from '@/lib/validation';
 
 const idSchema = z.uuid();
 const str = (formData: FormData, k: string) => String(formData.get(k) ?? '');
+const done = (message: string): FormState => {
+  revalidatePath('/ortho/planning');
+  return { ok: true, message };
+};
 
 /**
  * Chaque action revérifie l'accès (requireOrtho). La base revérifie le cabinet,
- * la double authentification et l'absence de chevauchement (save_appointment).
+ * la double authentification, les chevauchements (P0409) et les blocages (P0410).
  */
 export async function saveAppointment(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireOrtho();
@@ -32,90 +36,110 @@ export async function saveAppointment(_prev: FormState, formData: FormData): Pro
     p_starts_at: start.toISOString(),
     p_ends_at: end.toISOString(),
   });
-  if (error?.code === 'P0409') return { errors: { time: 'Ce créneau chevauche un autre rendez-vous.' }, values: raw };
+  if (error?.code === 'P0409') return { errors: { time: 'Ce créneau chevauche un autre rendez-vous.' }, message: 'Ce créneau chevauche un autre rendez-vous.', values: raw };
+  if (error?.code === 'P0410') return { errors: { time: 'Ce créneau est bloqué.' }, message: 'Ce créneau est bloqué dans votre planning.', values: raw };
   if (error) {
     console.error('save_appointment', error.code);
     return { message: 'Le rendez-vous n’a pas pu être enregistré. Rechargez la page puis réessayez.', values: raw };
   }
-  redirect(`/ortho/planning?semaine=${startOfWeek(d.date)}&ok=${d.id ? 'deplace' : 'ajoute'}`);
+  return done(d.id ? 'Rendez-vous déplacé.' : 'Rendez-vous ajouté.');
 }
 
-export async function cancelAppointment(formData: FormData): Promise<void> {
+export async function cancelAppointment(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireOrtho();
   const id = idSchema.safeParse(formData.get('id'));
-  const week = str(formData, 'semaine');
-  if (!id.success) return;
+  if (!id.success) return { message: 'Rendez-vous introuvable.' };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('cancel_appointment', { p_id: id.data });
-  if (error) console.error('cancel_appointment', error.code);
-  const back = /^\d{4}-\d{2}-\d{2}$/.test(week) ? `semaine=${week}&` : '';
-  redirect(`/ortho/planning?${back}${!error && data ? 'ok=annule' : 'erreur=annulation'}`);
+  if (error || !data) {
+    if (error) console.error('cancel_appointment', error.code);
+    return { message: 'Le rendez-vous n’a pas pu être annulé. Rechargez la page puis réessayez.' };
+  }
+  return done('Rendez-vous annulé.');
 }
 
-export async function saveSessionMinutes(_prev: FormState, formData: FormData): Promise<FormState> {
+/** Ajoute ou modifie un blocage. Sur une série : toute la série, ou ce jour seulement. */
+export async function saveBlock(_prev: FormState, formData: FormData): Promise<FormState> {
   const { practice } = await requireOrtho();
-  const parsed = sessionMinutesSchema.safeParse(formData.get('sessionMinutes'));
-  if (!parsed.success) return { errors: { sessionMinutes: parsed.error.issues[0]?.message ?? 'Durée invalide' } };
+  const raw = Object.fromEntries(['id', 'title', 'date', 'start', 'end', 'recurrence', 'until', 'scope', 'occurrence'].map((k) => [k, str(formData, k)]));
+  const parsed = blockSchema.safeParse({ ...raw, weekdays: formData.getAll('weekdays').map(String) });
+  const echo = { ...raw, weekdays: formData.getAll('weekdays').map(String).join(',') };
+  if (!parsed.success) return { errors: fieldErrors(parsed.error), values: echo };
+
+  const d = parsed.data;
+  const row = {
+    title: d.title,
+    starts_at: parisToInstant(d.date, d.start).toISOString(),
+    ends_at: parisToInstant(d.date, d.end).toISOString(),
+    recurrence: d.recurrence,
+    weekdays: d.recurrence === 'weekdays' ? [...new Set(d.weekdays)].sort() : [],
+    until: d.recurrence === 'none' ? null : d.until || null,
+  };
   const supabase = await createClient();
-  const { error } = await supabase.from('practices').update({ session_minutes: parsed.data }).eq('id', practice.id);
-  if (error) return { message: 'Enregistrement impossible. Réessayez.' };
-  revalidatePath('/ortho/planning', 'layout');
-  return { ok: true, message: 'Durée enregistrée.' };
+
+  if (!d.id) {
+    const { error } = await supabase.from('schedule_blocks').insert({ ...row, practice_id: practice.id, skip_dates: [] });
+    if (error) return failed('insert_block', error.code, echo);
+    return done('Créneau bloqué.');
+  }
+
+  const { data: existing } = await supabase.from('schedule_blocks').select('*').eq('id', d.id).maybeSingle();
+  if (!existing) return { message: 'Ce blocage n’existe plus. Rechargez la page.', values: echo };
+
+  if (d.scope === 'jour' && existing.recurrence !== 'none' && d.occurrence) {
+    // Ce jour seulement : on retire l'occurrence de la série et on crée un blocage ponctuel.
+    const skip = await skipOccurrence(existing, d.occurrence);
+    if (skip) return failed('skip_block', skip, echo);
+    const { error } = await supabase
+      .from('schedule_blocks')
+      .insert({ ...row, recurrence: 'none', weekdays: [], until: null, practice_id: practice.id, skip_dates: [] });
+    if (error) return failed('insert_block', error.code, echo);
+    return done('Blocage modifié pour ce jour.');
+  }
+
+  // Toute la série : elle garde son premier jour (sinon les occurrences passées disparaîtraient),
+  // seuls les horaires, le titre et la répétition changent.
+  if (existing.recurrence !== 'none' && d.recurrence !== 'none') {
+    const first = parisParts(new Date(existing.starts_at)).date;
+    row.starts_at = parisToInstant(first, d.start).toISOString();
+    row.ends_at = parisToInstant(first, d.end).toISOString();
+  }
+  const { error } = await supabase.from('schedule_blocks').update(row).eq('id', d.id);
+  if (error) return failed('update_block', error.code, echo);
+  return done('Blocage modifié.');
 }
 
-export async function addOpeningHour(_prev: FormState, formData: FormData): Promise<FormState> {
-  const { practice } = await requireOrtho();
-  const raw = Object.fromEntries(['weekday', 'start', 'end'].map((k) => [k, str(formData, k)]));
-  const parsed = openingHourSchema.safeParse(raw);
-  if (!parsed.success) return { errors: fieldErrors(parsed.error), values: raw };
+export async function deleteBlock(_prev: FormState, formData: FormData): Promise<FormState> {
+  await requireOrtho();
+  const id = idSchema.safeParse(formData.get('id'));
+  if (!id.success) return { message: 'Blocage introuvable.' };
+  const scope = str(formData, 'scope');
+  const occurrence = str(formData, 'occurrence');
+  const supabase = await createClient();
+  const { data: existing } = await supabase.from('schedule_blocks').select('*').eq('id', id.data).maybeSingle();
+  if (!existing) return done('Blocage supprimé.');
+
+  if (scope === 'jour' && existing.recurrence !== 'none' && /^\d{4}-\d{2}-\d{2}$/.test(occurrence)) {
+    const skip = await skipOccurrence(existing, occurrence);
+    if (skip) return failed('skip_block', skip, {});
+    return done('Blocage supprimé pour ce jour.');
+  }
+  const { error } = await supabase.from('schedule_blocks').delete().eq('id', id.data);
+  if (error) return failed('delete_block', error.code, {});
+  return done('Blocage supprimé.');
+}
+
+/** Retire un jour d'une série (renvoie un code d'erreur, ou null). */
+async function skipOccurrence(block: ScheduleBlockRow, date: string): Promise<string | null> {
   const supabase = await createClient();
   const { error } = await supabase
-    .from('opening_hours')
-    .insert({ practice_id: practice.id, weekday: parsed.data.weekday, starts_at: parsed.data.start, ends_at: parsed.data.end });
-  if (error) {
-    console.error('opening_hours', error.code);
-    return { message: 'Enregistrement impossible. Réessayez.', values: raw };
-  }
-  revalidatePath('/ortho/planning', 'layout');
-  return { ok: true, message: 'Plage ajoutée.', values: { weekday: raw.weekday ?? '1', start: raw.start ?? '', end: raw.end ?? '' } };
+    .from('schedule_blocks')
+    .update({ skip_dates: [...new Set([...block.skip_dates, date])] })
+    .eq('id', block.id);
+  return error ? (error.code ?? 'error') : null;
 }
 
-export async function deleteOpeningHour(formData: FormData): Promise<void> {
-  await requireOrtho();
-  const id = idSchema.safeParse(formData.get('id'));
-  if (!id.success) return;
-  const supabase = await createClient();
-  await supabase.from('opening_hours').delete().eq('id', id.data);
-  revalidatePath('/ortho/planning', 'layout');
-}
-
-export async function addScheduleException(_prev: FormState, formData: FormData): Promise<FormState> {
-  const { practice } = await requireOrtho();
-  const raw = Object.fromEntries(['kind', 'startDate', 'startTime', 'endDate', 'endTime', 'label'].map((k) => [k, str(formData, k)]));
-  const parsed = scheduleExceptionSchema.safeParse(raw);
-  if (!parsed.success) return { errors: fieldErrors(parsed.error), values: raw };
-  const d = parsed.data;
-  const supabase = await createClient();
-  const { error } = await supabase.from('schedule_exceptions').insert({
-    practice_id: practice.id,
-    kind: d.kind,
-    starts_at: parisToInstant(d.startDate, d.startTime).toISOString(),
-    ends_at: parisToInstant(d.endDate, d.endTime).toISOString(),
-    label: d.label,
-  });
-  if (error) {
-    console.error('schedule_exceptions', error.code);
-    return { message: 'Enregistrement impossible. Réessayez.', values: raw };
-  }
-  revalidatePath('/ortho/planning', 'layout');
-  return { ok: true, message: d.kind === 'ferme' ? 'Fermeture ajoutée.' : 'Ouverture exceptionnelle ajoutée.' };
-}
-
-export async function deleteScheduleException(formData: FormData): Promise<void> {
-  await requireOrtho();
-  const id = idSchema.safeParse(formData.get('id'));
-  if (!id.success) return;
-  const supabase = await createClient();
-  await supabase.from('schedule_exceptions').delete().eq('id', id.data);
-  revalidatePath('/ortho/planning', 'layout');
+function failed(where: string, code: string | undefined, values: Record<string, string>): FormState {
+  console.error(where, code);
+  return { message: 'Enregistrement impossible. Rechargez la page puis réessayez.', values };
 }

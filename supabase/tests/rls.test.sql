@@ -313,11 +313,33 @@ set role authenticated;
 do $$ begin
   if (select count(*) from public.appointments) <> 0 then raise exception 'ÉCHEC 14f : rendez-vous d''un autre cabinet visibles'; end if;
   begin
-    insert into public.opening_hours (practice_id, weekday, starts_at, ends_at)
-    select id, 1, '09:00', '12:00' from public.practices where slug = 'cabinet-a';
-    raise exception 'ÉCHEC 14g : horaires d''un autre cabinet modifiables';
+    insert into public.schedule_blocks (practice_id, title, starts_at, ends_at)
+    select id, 'X', '2030-01-07 12:00+01', '2030-01-07 13:00+01' from public.practices where slug = 'cabinet-a';
+    raise exception 'ÉCHEC 14g : planning d''un autre cabinet modifiable';
   exception when insufficient_privilege then null;
   end;
+end $$;
+reset role;
+
+-- 15. Blocages : un rendez-vous ne peut pas tomber sur un créneau bloqué (répétitions comprises).
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'aal2');
+set role authenticated;
+do $$
+declare v_patient uuid;
+begin
+  update public.waitlist_entries set status = 'rdv'
+  where id = (select waitlist_entry_id from public.patients limit 1);
+  select id into v_patient from public.patients where active limit 1;
+  -- Pause chaque lundi 12 h – 13 h 30, sauf le 14 janvier 2030.
+  insert into public.schedule_blocks (practice_id, title, starts_at, ends_at, recurrence, skip_dates)
+  select id, 'Pause', '2030-01-07 12:00+01', '2030-01-07 13:30+01', 'weekly', '{2030-01-14}' from public.practices where slug = 'cabinet-a';
+  begin
+    perform public.save_appointment(null, v_patient, '2030-01-21 13:00+01', '2030-01-21 13:30+01');
+    raise exception 'ÉCHEC 15a : rendez-vous accepté sur un créneau bloqué';
+  exception when sqlstate 'P0410' then null;
+  end;
+  perform public.save_appointment(null, v_patient, '2030-01-14 13:00+01', '2030-01-14 13:30+01'); -- jour supprimé : libre
+  perform public.save_appointment(null, v_patient, '2030-01-21 13:30+01', '2030-01-21 14:00+01'); -- juste après : libre
 end $$;
 reset role;
 

@@ -11,10 +11,23 @@ export interface FormState {
   values?: Record<string, string>;
 }
 
-export function SubmitButton({ children, pendingText, className = 'btn primary' }: { children: React.ReactNode; pendingText?: string; className?: string }) {
+export function SubmitButton({
+  children,
+  pendingText,
+  className = 'btn primary',
+  name,
+  value,
+}: {
+  children: React.ReactNode;
+  pendingText?: string;
+  className?: string;
+  /** Pour un formulaire à plusieurs boutons (la valeur du bouton cliqué est envoyée). */
+  name?: string;
+  value?: string;
+}) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className={className} disabled={pending} aria-disabled={pending}>
+    <button type="submit" className={className} disabled={pending} aria-disabled={pending} name={name} value={value}>
       {pending ? (pendingText ?? 'Envoi…') : children}
     </button>
   );

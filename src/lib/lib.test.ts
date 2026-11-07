@@ -5,7 +5,7 @@ import { fieldErrors, isValidRpps, passwordSchema, signupSchema, slugify, waitli
 import { normalizePhone } from './phone';
 import { matchesSearch } from './search';
 import { addDays, parisParts, parisToInstant, startOfWeek } from './time';
-import { buildAgenda, mergeIntervals } from './agenda';
+import { buildWeek, isFree, occursOn, type BlockInput } from './agenda';
 
 describe('safeRedirectPath', () => {
   it('garde un chemin interne', () => expect(safeRedirectPath('/ortho/reglages')).toBe('/ortho/reglages'));
@@ -139,29 +139,49 @@ describe('heures de Paris', () => {
 });
 
 describe('agenda semaine', () => {
-  const base = {
-    week: '2026-11-09',
-    openingHours: [{ weekday: 1, starts_at: '09:00:00', ends_at: '11:00:00' }],
-    exceptions: [] as { kind: 'ferme' | 'ouvert'; starts_at: string; ends_at: string; label: string }[],
-    appointments: [] as { id: string; starts_at: string; ends_at: string; label: string; status: string }[],
-    sessionMinutes: 30,
-    now: new Date('2026-11-01T00:00:00Z'),
-  };
-  it('découpe les plages en créneaux libres', () => {
-    const monday = buildAgenda(base)[0]!;
-    expect(monday.free.map((f) => f.start)).toEqual([540, 570, 600, 630]);
+  const block = (over: Partial<BlockInput>): BlockInput => ({
+    id: 'b',
+    title: 'Pause',
+    starts_at: '2026-11-09T11:00:00Z', // lundi 12 h Paris
+    ends_at: '2026-11-09T12:30:00Z', // 13 h 30
+    recurrence: 'none',
+    weekdays: [],
+    until: null,
+    skip_dates: [],
+    ...over,
   });
-  it('un rendez-vous occupe son créneau', () => {
-    const monday = buildAgenda({ ...base, appointments: [{ id: 'a', starts_at: '2026-11-09T08:30:00Z', ends_at: '2026-11-09T09:00:00Z', label: 'Léa', status: 'confirme' }] })[0]!;
-    expect(monday.appointments[0]).toMatchObject({ start: 570, end: 600 });
-    expect(monday.free.map((f) => f.start)).toEqual([540, 600, 630]);
+  it('blocage ponctuel : un seul jour', () => {
+    const w = buildWeek('2026-11-09', [block({})], []);
+    expect(w[0]!.blocks[0]).toMatchObject({ start: 720, end: 810 });
+    expect(w[1]!.blocks).toEqual([]);
   });
-  it('une fermeture supprime les créneaux', () => {
-    const monday = buildAgenda({ ...base, exceptions: [{ kind: 'ferme', starts_at: '2026-11-08T23:00:00Z', ends_at: '2026-11-09T23:00:00Z', label: 'Congés' }] })[0]!;
-    expect(monday.free).toEqual([]);
+  it('tous les jours, sauf un jour supprimé', () => {
+    const w = buildWeek('2026-11-09', [block({ recurrence: 'daily', skip_dates: ['2026-11-11'] })], []);
+    expect(w.map((d) => d.blocks.length)).toEqual([1, 1, 0, 1, 1, 1, 1]);
   });
-  it('pas de créneau libre dans le passé', () => {
-    expect(buildAgenda({ ...base, now: new Date('2026-11-09T09:10:00Z') })[0]!.free.map((f) => f.start)).toEqual([630]);
+  it('toutes les 2 semaines', () => {
+    const b = block({ recurrence: 'biweekly' });
+    expect(occursOn(b, '2026-11-16')).toBe(false);
+    expect(occursOn(b, '2026-11-23')).toBe(true);
   });
-  it('fusionne les plages qui se touchent', () => expect(mergeIntervals([{ start: 600, end: 660 }, { start: 540, end: 600 }])).toEqual([{ start: 540, end: 660 }]));
+  it('certains jours, jusqu’à une date', () => {
+    const b = block({ recurrence: 'weekdays', weekdays: [3, 5], until: '2026-11-20' });
+    expect(occursOn(b, '2026-11-11')).toBe(true);
+    expect(occursOn(b, '2026-11-12')).toBe(false);
+    expect(occursOn(b, '2026-11-25')).toBe(false);
+  });
+  it('chaque mois, même date', () => expect(occursOn(block({ recurrence: 'monthly' }), '2026-12-09')).toBe(true));
+  it('même heure locale après le changement d’heure', () => {
+    const b = block({ recurrence: 'weekly', starts_at: '2026-03-23T11:00:00Z', ends_at: '2026-03-23T12:00:00Z' }); // 12 h en hiver
+    expect(buildWeek('2026-03-30', [b], [])[0]!.blocks[0]).toMatchObject({ start: 720, end: 780 });
+  });
+  it('créneau libre ou non', () => {
+    const day = buildWeek('2026-11-09', [block({})], [
+      { id: 'a', patient_id: 'p', starts_at: '2026-11-09T08:00:00Z', ends_at: '2026-11-09T08:30:00Z', status: 'confirme', label: 'Léa' },
+    ])[0]!;
+    expect(isFree(day, { start: 540, end: 570 })).toBe(false); // 9 h : rendez-vous
+    expect(isFree(day, { start: 540, end: 570 }, 'a')).toBe(true); // on déplace ce même rendez-vous
+    expect(isFree(day, { start: 750, end: 780 })).toBe(false); // pause
+    expect(isFree(day, { start: 600, end: 630 })).toBe(true);
+  });
 });
