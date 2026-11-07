@@ -25,48 +25,39 @@ export function LanguageSwitch({ lang, label }: { lang: Lang; label: string }) {
   );
 }
 
-/** Choix du thème : appliqué tout de suite, puis enregistré. */
+/** Pastille coupée en diagonale : une part par couleur du thème. */
+function swatchBackground(colors: readonly string[]): string {
+  const step = 100 / colors.length;
+  return `linear-gradient(135deg, ${colors.map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`).join(', ')})`;
+}
+
+/** Choix du thème : petites pastilles, nom au survol ; appliqué tout de suite, puis enregistré. */
 export function ThemeSelect({ theme, lang, label }: { theme: Theme; lang: Lang; label: string }) {
   const [value, setValue] = useState(theme);
   const [, startTransition] = useTransition();
+  const current = THEMES.find((t) => t.code === value);
   return (
     <div className="stack">
-      <label className="field">
-        <span>{label}</span>
-        <select
-          value={value}
-          onChange={(e) => {
-            const next = e.target.value as Theme;
-            setValue(next);
-            document.documentElement.dataset.theme = next;
-            startTransition(() => savePreference('theme', next));
-          }}
-        >
-          {THEMES.map((t) => (
-            <option key={t.code} value={t.code}>
-              {t[lang]}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="theme-grid" aria-hidden="true">
+      <p>
+        <b>{label}</b> <span className="sub">· {current?.[lang]}</span>
+      </p>
+      <div className="theme-dots" role="radiogroup" aria-label={label}>
         {THEMES.map((t) => (
           <button
             type="button"
-            tabIndex={-1}
+            role="radio"
+            aria-checked={value === t.code}
+            aria-label={t[lang]}
+            data-label={t[lang]}
             key={t.code}
-            className={`theme-swatch ${value === t.code ? 'on' : ''}`}
-            title={t[lang]}
+            className="theme-dot"
+            style={{ background: swatchBackground(t.swatch) }}
             onClick={() => {
               setValue(t.code);
               document.documentElement.dataset.theme = t.code;
               startTransition(() => savePreference('theme', t.code));
             }}
-          >
-            {t.swatch.map((c) => (
-              <span key={c} style={{ background: c }} />
-            ))}
-          </button>
+          />
         ))}
       </div>
     </div>

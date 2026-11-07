@@ -273,11 +273,13 @@ fieldset.plain { border: 0; padding: 0; margin: 0; min-width: 0; }
 .switch[aria-checked="true"] .switch-knob { transform: translateX(20px); }
 .switch-label { color: var(--muted); font-weight: 700; transition: color 0.2s ease; }
 .switch-label.on { color: var(--ink); }
-.theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; max-width: 520px; }
-.theme-swatch { display: flex; height: 34px; padding: 0; overflow: hidden; border: 2px solid var(--line); border-radius: 8px; background: none; transition: transform 0.15s ease, border-color 0.15s ease; }
-.theme-swatch span { flex: 1; }
-.theme-swatch:hover { transform: translateY(-2px); }
-.theme-swatch.on { border-color: var(--accent); }
+.theme-dots { display: flex; flex-wrap: wrap; gap: 10px; }
+.theme-dot { position: relative; width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 1px solid var(--line); box-shadow: 0 0 0 2px var(--surface); transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.theme-dot:hover { transform: scale(1.12); }
+.theme-dot[aria-checked="true"] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+/* Nom du thème au survol (ou au clavier) */
+.theme-dot::after { content: attr(data-label); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translate(-50%, 4px); padding: 4px 8px; border-radius: 6px; background: var(--ink); color: var(--bg); font-size: 12px; font-weight: 700; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.12s ease, transform 0.12s ease; z-index: 3; }
+.theme-dot:hover::after, .theme-dot:focus-visible::after { opacity: 1; transform: translate(-50%, 0); }
 
 /* ---------------------------------------------------------------------------
    Animations légères : uniquement opacité / déplacement (peu coûteux), jamais au

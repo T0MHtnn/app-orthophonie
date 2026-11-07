@@ -10,9 +10,9 @@ export type Lang = (typeof LANGS)[number];
 
 /** Thèmes : les couleurs sont dans globals.css (:root[data-theme="…"]). */
 export const THEMES = [
-  { code: 'system', fr: 'Suivre le système', en: 'Follow system', swatch: ['#ffffff', '#191e28', '#2d55c8'] },
-  { code: 'light', fr: 'Clair', en: 'Light', swatch: ['#f3f5f8', '#ffffff', '#2d55c8'] },
-  { code: 'dark', fr: 'Sombre', en: 'Dark', swatch: ['#11141b', '#191e28', '#7f9cff'] },
+  { code: 'system', fr: 'Suivre le système', en: 'Follow system', swatch: ['#ffffff', '#191e28'] },
+  { code: 'light', fr: 'Clair', en: 'Light', swatch: ['#eef1f6', '#2d55c8'] },
+  { code: 'dark', fr: 'Sombre', en: 'Dark', swatch: ['#11141b', '#7f9cff'] },
   { code: 'foret', fr: 'Forêt (vert et brun)', en: 'Forest (green & brown)', swatch: ['#f1f4ee', '#3f6b3a', '#8a5a2b'] },
   { code: 'sakura', fr: 'Sakura (rose pâle et brun clair)', en: 'Sakura (pale pink & light brown)', swatch: ['#fbf4f4', '#b04a6a', '#a47a5a'] },
   { code: 'exotique', fr: 'Exotique (orange, jaune, rouge)', en: 'Exotic (orange, yellow, red)', swatch: ['#fff7ec', '#c4510f', '#c0261b'] },
