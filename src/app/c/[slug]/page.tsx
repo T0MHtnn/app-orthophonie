@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { logout } from '@/app/(auth)/actions';
 import { InfoText } from '@/components/info-text';
 import { getAuthContext } from '@/lib/auth';
 import { DEFAULT_WAITLIST_INFO } from '@/lib/defaults';
@@ -46,10 +47,20 @@ export default async function PublicWaitlistPage({ params }: { params: Promise<{
         <div className="card stack">
           <InfoText source={practice.waitlist_info || DEFAULT_WAITLIST_INFO} />
           {ctx?.profile.role === 'ortho' ? (
-            <p className="alert warn">
-              Vous êtes connecté avec un compte orthophoniste : un compte professionnel ne peut pas s’inscrire sur une liste d’attente. Pour tester, ouvrez cette
-              page dans une fenêtre privée avec un compte famille.
-            </p>
+            <div className="alert warn stack">
+              <p>Vous êtes connecté avec un compte orthophoniste : un compte professionnel ne peut pas s’inscrire sur une liste d’attente.</p>
+              <div className="row">
+                <form action={logout}>
+                  <input type="hidden" name="suivant" value={`/c/${slug}`} />
+                  <button className="btn small" type="submit">
+                    Me déconnecter et utiliser un compte famille
+                  </button>
+                </form>
+                <Link className="btn small" href="/ortho">
+                  Retour à mon espace orthophoniste
+                </Link>
+              </div>
+            </div>
           ) : ctx ? (
             <>
               <p className="hint">

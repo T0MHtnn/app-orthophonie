@@ -16,9 +16,16 @@ export default async function InscriptionPage({ searchParams }: { searchParams: 
         <p className="sub">
           {fromWaitlist
             ? 'Après avoir confirmé votre adresse email, vous reviendrez directement sur le formulaire de liste d’attente.'
-            : 'Patients et familles : après avoir confirmé votre email, vous choisirez votre orthophoniste et vous inscrirez sur sa liste d’attente.'}
+            : params.type === 'ortho'
+              ? 'Orthophonistes : créez votre compte, puis votre cabinet, pour recevoir les demandes de liste d’attente.'
+              : 'Patients et familles : après avoir confirmé votre email, vous choisirez votre orthophoniste et vous inscrirez sur sa liste d’attente.'}
         </p>
-        <SignupForm defaultType={params.type === 'patient' || fromWaitlist ? 'patient' : 'ortho'} next={next} />
+        {/* Depuis « Créer votre cabinet » ou depuis la page d'un cabinet, le type de compte est déjà connu : pas de choix. */}
+        <SignupForm
+          defaultType={params.type === 'patient' || fromWaitlist ? 'patient' : 'ortho'}
+          lockType={params.type === 'ortho' || fromWaitlist}
+          next={next}
+        />
         <p className="hint">
           Déjà un compte ? <Link href={next ? `/connexion?suivant=${encodeURIComponent(next)}` : '/connexion'}>Se connecter</Link>
         </p>

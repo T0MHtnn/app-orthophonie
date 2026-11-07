@@ -127,9 +127,11 @@ export async function updatePassword(_prev: FormState, formData: FormData): Prom
   return { ok: true, message: 'Mot de passe modifié.' };
 }
 
-export async function logout(): Promise<void> {
+export async function logout(formData?: FormData): Promise<void> {
   const supabase = await createClient();
   await supabase.auth.signOut();
   (await cookies()).delete('derniere_activite');
-  redirect('/connexion');
+  // Changer de compte (ex. ortho → famille) : on revient ensuite à la page d'origine.
+  const next = safeRedirectPath(formData?.get('suivant'), '');
+  redirect(next ? `/connexion?suivant=${encodeURIComponent(next)}` : '/connexion');
 }
