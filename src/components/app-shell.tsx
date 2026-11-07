@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { logout } from '@/app/(auth)/actions';
 import { APP_NAME } from '@/lib/app';
 import type { AuthContext } from '@/lib/auth';
@@ -11,6 +12,7 @@ const ORTHO_LINKS: NavLink[] = [
 
 const FAMILY_LINKS: NavLink[] = [
   { href: '/patient', label: 'Mon espace' },
+  { href: '/trouver', label: 'Trouver un orthophoniste' },
   { href: '/compte', label: 'Mon compte' },
 ];
 
@@ -52,6 +54,12 @@ export function AppShell({ ctx, children }: { ctx: AuthContext; children: React.
       <div className="wrap shell">
         <SideNav links={ortho ? ORTHO_LINKS : FAMILY_LINKS} />
         <main className="stack">
+          {ortho && !ortho.city && (
+            <p className="alert warn">
+              Renseignez le code postal et la ville de votre cabinet dans les <Link href="/ortho/reglages">Réglages</Link> pour que les familles vous trouvent dans
+              l’annuaire.
+            </p>
+          )}
           {ortho && !ortho.verified && (
             <p className="alert warn">
               Votre cabinet est en cours de vérification (numéro RPPS). Votre page publique de liste d’attente s’ouvrira une fois la vérification faite.

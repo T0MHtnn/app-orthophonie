@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { SubmitButton } from '@/components/form';
 import type { Database, WaitlistStatus } from '@/lib/database.types';
 import { requireUser } from '@/lib/auth';
+import { REQUEST_TYPE_LABEL } from '@/lib/request-type';
 import { createClient } from '@/lib/supabase/server';
 import { withdrawRequest } from './actions';
 
@@ -59,9 +61,14 @@ export default async function PatientPage() {
           <h2>{active.some((r) => r.status === 'contacte') ? 'Une place vous a été proposée' : 'Aucune place ne vous a encore été trouvée'}</h2>
           <p className="sub">
             {requests.length === 0
-              ? 'Vous n’êtes inscrit sur aucune liste d’attente. Utilisez le lien donné par votre orthophoniste pour vous inscrire.'
+              ? 'Vous n’êtes inscrit sur aucune liste d’attente pour le moment.'
               : 'Votre espace patient s’ouvrira dès que l’orthophoniste aura confirmé votre prise en charge.'}
           </p>
+          {requests.length === 0 && (
+            <Link href="/trouver" className="btn primary" style={{ width: 'fit-content' }}>
+              Trouver un orthophoniste
+            </Link>
+          )}
         </section>
       )}
 
@@ -86,7 +93,7 @@ function RequestRow({ r }: { r: Request }) {
         </b>{' '}
         · {r.practice_name}
         <div className="hint">
-          {r.pathology_label} · inscrit le {formatDate(r.created_at)}
+          {REQUEST_TYPE_LABEL[r.request_type]} · {r.pathology_label} · inscrit le {formatDate(r.created_at)}
         </div>
         <div className="hint">{STATUS[r.status].help}</div>
       </div>

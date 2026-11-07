@@ -1,3 +1,4 @@
+import type { RequestType } from './request-type';
 /**
  * Types de la base, écrits à la main pour démarrer.
  * À régénérer quand le schéma évolue :
@@ -35,6 +36,11 @@ export type PracticeRow = {
   waitlist_open: boolean;
   waitlist_info: string;
   email_template: string;
+  address_line: string | null;
+  postal_code: string | null;
+  city: string | null;
+  /** Visible dans l'annuaire « Trouver un orthophoniste ». */
+  listed: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -50,6 +56,7 @@ export type WaitlistEntryRow = {
   email: string | null;
   phone: string | null;
   pathology_code: string;
+  request_type: RequestType;
   notes: string | null;
   status: WaitlistStatus;
   info_acknowledged_at: string;
@@ -71,7 +78,7 @@ export type Database = {
     Tables: {
       // Insert est vide : aucune insertion directe n'est autorisée (fonctions RPC uniquement).
       profiles: Table<ProfileRow, NoInsert, Partial<Pick<ProfileRow, 'first_name' | 'last_name'>>>;
-      practices: Table<PracticeRow, NoInsert, Partial<Pick<PracticeRow, 'name' | 'waitlist_open' | 'waitlist_info' | 'email_template'>>>;
+      practices: Table<PracticeRow, NoInsert, Partial<Pick<PracticeRow, 'name' | 'waitlist_open' | 'waitlist_info' | 'email_template' | 'address_line' | 'postal_code' | 'city' | 'listed'>>>;
       waitlist_entries: Table<WaitlistEntryRow, NoInsert, Partial<Pick<WaitlistEntryRow, 'status'>>>;
       pathologies: Table<PathologyRow, NoInsert, NoInsert>;
       audit_log: Table<
@@ -82,8 +89,18 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
-      register_practice: { Args: { p_name: string; p_slug: string; p_rpps: string }; Returns: string };
-      get_public_practice: { Args: { p_slug: string }; Returns: { name: string; waitlist_info: string; waitlist_open: boolean }[] };
+      register_practice: {
+        Args: { p_name: string; p_slug: string; p_rpps: string; p_address_line: string; p_postal_code: string; p_city: string };
+        Returns: string;
+      };
+      get_public_practice: {
+        Args: { p_slug: string };
+        Returns: { name: string; waitlist_info: string; waitlist_open: boolean; address_line: string | null; postal_code: string | null; city: string | null }[];
+      };
+      search_practices: {
+        Args: { p_query: string };
+        Returns: { name: string; slug: string; ortho_name: string; address_line: string | null; postal_code: string; city: string }[];
+      };
       submit_waitlist_entry: {
         Args: {
           p_slug: string;
@@ -95,6 +112,7 @@ export type Database = {
           p_email: string;
           p_phone: string;
           p_pathology_code: string;
+          p_request_type: RequestType;
           p_notes: string;
         };
         Returns: boolean;
@@ -107,6 +125,7 @@ export type Database = {
           patient_first_name: string;
           patient_last_name: string;
           pathology_label: string;
+          request_type: RequestType;
           status: WaitlistStatus;
           created_at: string;
           contacted_at: string | null;
@@ -114,7 +133,7 @@ export type Database = {
       };
       withdraw_waitlist_entry: { Args: { p_id: string }; Returns: boolean };
     };
-    Enums: { user_role: UserRole; waitlist_status: WaitlistStatus };
+    Enums: { user_role: UserRole; waitlist_status: WaitlistStatus; waitlist_request_type: RequestType };
     CompositeTypes: { [_ in never]: never };
   };
 };

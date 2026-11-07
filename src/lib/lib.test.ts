@@ -29,7 +29,7 @@ describe('slugify', () => {
 });
 
 describe('waitlistFormSchema', () => {
-  const base = { patientLastName: 'Dupont', patientFirstName: 'Léa', ageValue: '7', ageUnit: 'ans', caregiverLastName: 'Dupont', caregiverFirstName: 'Marie', pathology: 'langage-ecrit', acknowledged: 'on', consent: 'on' };
+  const base = { patientLastName: 'Dupont', patientFirstName: 'Léa', ageValue: '7', ageUnit: 'ans', caregiverLastName: 'Dupont', caregiverFirstName: 'Marie', pathology: 'langage-ecrit', requestType: 'bilan_reeducation', acknowledged: 'on', consent: 'on' };
   it('le contact est facultatif (email du compte par défaut)', () => expect(waitlistFormSchema.safeParse(base).success).toBe(true));
   it('accepte un email', () => expect(waitlistFormSchema.parse({ ...base, email: 'A@Example.com' }).email).toBe('a@example.com'));
   it('exige le parent pour un mineur', () => {
@@ -88,7 +88,7 @@ describe('normalizePhone', () => {
 });
 
 describe('téléphone et nom dans les formulaires', () => {
-  const base = { patientLastName: 'Dupont', patientFirstName: 'Léa', ageValue: '34', ageUnit: 'ans', pathology: 'voix', acknowledged: 'on', consent: 'on' };
+  const base = { patientLastName: 'Dupont', patientFirstName: 'Léa', ageValue: '34', ageUnit: 'ans', pathology: 'voix', requestType: 'reeducation', acknowledged: 'on', consent: 'on' };
   it('normalise le téléphone de la liste d’attente', () => expect(waitlistFormSchema.parse({ ...base, phone: '0612345678' }).phone).toBe('06 12 34 56 78'));
   it('téléphone vide accepté', () => expect(waitlistFormSchema.parse({ ...base, phone: '' }).phone).toBe(''));
   it('message clair si téléphone invalide', () => {
@@ -112,4 +112,13 @@ describe('matchesSearch', () => {
   it('trouve par le parent', () => expect(matchesSearch('marie', fields)).toBe(true));
   it('recherche vide = tout', () => expect(matchesSearch('  ', fields)).toBe(true));
   it('refuse un autre nom', () => expect(matchesSearch('martin', fields)).toBe(false));
+});
+
+describe('type de demande', () => {
+  const base = { patientLastName: 'Dupont', patientFirstName: 'Léa', ageValue: '34', ageUnit: 'ans', pathology: 'voix', acknowledged: 'on', consent: 'on' };
+  it('obligatoire', () => expect(waitlistFormSchema.safeParse(base).success).toBe(false));
+  it('refuse une valeur inventée', () => expect(waitlistFormSchema.safeParse({ ...base, requestType: 'autre' }).success).toBe(false));
+  it('accepte les 3 types', () => {
+    for (const requestType of ['bilan', 'bilan_reeducation', 'reeducation']) expect(waitlistFormSchema.safeParse({ ...base, requestType }).success).toBe(true);
+  });
 });

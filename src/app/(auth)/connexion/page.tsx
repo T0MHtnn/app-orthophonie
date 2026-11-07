@@ -31,6 +31,9 @@ export default async function ConnexionPage({ searchParams }: { searchParams: Pr
           Pas encore de compte ?{' '}
           <Link href={params.suivant ? `/inscription?suivant=${encodeURIComponent(safeRedirectPath(params.suivant, '/'))}` : '/inscription'}>Créer un compte</Link>
         </p>
+        <p className="hint">
+          Vous cherchez un orthophoniste ? <Link href="/trouver">Trouver un cabinet près de chez vous</Link>
+        </p>
       </div>
     </main>
   );

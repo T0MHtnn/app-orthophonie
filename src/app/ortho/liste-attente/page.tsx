@@ -7,6 +7,7 @@ import { DEFAULT_EMAIL_TEMPLATE } from '@/lib/defaults';
 import { siteUrl } from '@/lib/env';
 import { createClient } from '@/lib/supabase/server';
 import { buildOfferEmail } from '@/lib/offer-email';
+import { REQUEST_TYPES, REQUEST_TYPE_LABEL } from '@/lib/request-type';
 import { matchesSearch } from '@/lib/search';
 import { deleteEntry, markContacted, sendOfferEmail, updateStatus } from './actions';
 import { CopyButton, FilterBar } from './client';
@@ -44,6 +45,7 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
   const labels = new Map((pathologies ?? []).map((p) => [p.code, p.label]));
   const filter = params.motif && labels.has(params.motif) ? params.motif : '';
   const tab: 'attente' | 'suivis' = params.onglet === 'suivis' ? 'suivis' : 'attente';
+  const typeFilter = REQUEST_TYPES.find((t) => t.code === params.type)?.code ?? '';
   const showRemoved = params.retires === '1';
   const query = (params.q ?? '').slice(0, 80);
   const all = entries ?? [];
@@ -53,6 +55,7 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
     (e) =>
       inTab(e) &&
       (!filter || e.pathology_code === filter) &&
+      (!typeFilter || e.request_type === typeFilter) &&
       matchesSearch(query, [e.patient_first_name, e.patient_last_name, e.caregiver_first_name, e.caregiver_last_name]),
   );
   const waiting = all.filter((e) => e.status === 'attente').length;
@@ -63,6 +66,7 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
     if (t === 'suivis') keep.set('onglet', 'suivis');
     if (query) keep.set('q', query);
     if (filter) keep.set('motif', filter);
+    if (typeFilter) keep.set('type', typeFilter);
     const qs = keep.toString();
     return qs ? `?${qs}` : '/ortho/liste-attente';
   };
@@ -101,7 +105,7 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
         </Link>
       </nav>
 
-      <FilterBar key={tab} pathologies={pathologies ?? []} showRemovedToggle={tab === 'attente'} />
+      <FilterBar key={tab} pathologies={pathologies ?? []} requestTypes={REQUEST_TYPES.map(({ code, label }) => ({ code, label }))} showRemovedToggle={tab === 'attente'} />
 
       {emailFor && <EmailPreview entry={emailFor} template={practice.email_template || DEFAULT_EMAIL_TEMPLATE} orthoName={profile.full_name} practiceName={practice.name} />}
       {deleteFor && <DeleteConfirm entry={deleteFor} />}
@@ -132,7 +136,10 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
                   </small>
                   {e.notes && <small>{e.notes}</small>}
                 </td>
-                <td>{labels.get(e.pathology_code) ?? e.pathology_code}</td>
+                <td>
+                  {labels.get(e.pathology_code) ?? e.pathology_code}
+                  <small>{REQUEST_TYPE_LABEL[e.request_type]}</small>
+                </td>
                 <td>
                   {e.email && <small>{e.email}</small>}
                   {e.phone && <small>{e.phone}</small>}
@@ -166,7 +173,7 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
         </table>
         {rows.length === 0 && (
           <p className="hint" style={{ padding: 16 }}>
-            {query || filter
+            {query || filter || typeFilter
               ? 'Aucun résultat pour cette recherche.'
               : tab === 'suivis'
                 ? 'Aucun patient pris en charge pour l’instant.'

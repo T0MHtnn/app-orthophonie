@@ -16,7 +16,7 @@ export default async function InscriptionPage({ searchParams }: { searchParams: 
         <p className="sub">
           {fromWaitlist
             ? 'Après avoir confirmé votre adresse email, vous reviendrez directement sur le formulaire de liste d’attente.'
-            : 'Patients et familles : votre compte vous permet de vous inscrire sur la liste d’attente et de suivre votre demande.'}
+            : 'Patients et familles : après avoir confirmé votre email, vous choisirez votre orthophoniste et vous inscrirez sur sa liste d’attente.'}
         </p>
         <SignupForm defaultType={params.type === 'patient' || fromWaitlist ? 'patient' : 'ortho'} next={next} />
         <p className="hint">

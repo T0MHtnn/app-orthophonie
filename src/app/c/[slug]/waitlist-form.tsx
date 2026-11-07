@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useActionState, useState } from 'react';
 import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
 import { isAdultAge } from '@/lib/age';
+import { REQUEST_TYPES } from '@/lib/request-type';
 import { submitWaitlist } from './actions';
 
 interface Props {
@@ -39,6 +40,7 @@ function FormFields({ state, action, practiceName, accountEmail, pathologies }: 
   const [ageUnit, setAgeUnit] = useState(v.ageUnit ?? 'ans');
   // Listes et cases contrôlées : leur valeur survit à la réinitialisation du formulaire par React.
   const [pathology, setPathology] = useState(v.pathology ?? '');
+  const [requestType, setRequestType] = useState(v.requestType ?? '');
   const [consent, setConsent] = useState(v.consent === 'on');
   const adult = isAdultAge(ageValue, ageUnit);
 
@@ -52,6 +54,27 @@ function FormFields({ state, action, practiceName, accountEmail, pathologies }: 
 
       <fieldset disabled={!acknowledged} className="stack plain">
         <FormAlert state={state} />
+        <fieldset className={`field plain ${err.requestType ? 'invalid' : ''}`} aria-describedby={err.requestType ? 'requestType-error' : undefined}>
+          <legend>
+            <b>Votre demande</b>
+          </legend>
+          <div className="choice choice-3">
+            {REQUEST_TYPES.map((t) => (
+              <label key={t.code}>
+                <input type="radio" name="requestType" value={t.code} checked={requestType === t.code} onChange={() => setRequestType(t.code)} />
+                <span>
+                  {t.label}
+                  {'hint' in t && <small className="hint"> ({t.hint})</small>}
+                </span>
+              </label>
+            ))}
+          </div>
+          {err.requestType && (
+            <span className="error" id="requestType-error">
+              {err.requestType}
+            </span>
+          )}
+        </fieldset>
         <div className="form-grid">
           <Field label="Nom du patient" name="patientLastName" autoComplete="family-name" required defaultValue={v.patientLastName} error={err.patientLastName} />
           <Field label="Prénom du patient" name="patientFirstName" autoComplete="given-name" required defaultValue={v.patientFirstName} error={err.patientFirstName} />

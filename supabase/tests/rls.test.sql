@@ -22,16 +22,16 @@ end $$;
 -- 2. Création de cabinet : OK si email confirmé, refusé sinon.
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'aal1');
 set role authenticated;
-select public.register_practice('Cabinet A', 'cabinet-a', '10000000001');
+select public.register_practice('Cabinet A', 'cabinet-a', '10000000001', '', '75011', 'Paris');
 reset role;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000b', 'aal1');
 set role authenticated;
-select public.register_practice('Cabinet B', 'cabinet-b', '10000000002');
+select public.register_practice('Cabinet B', 'cabinet-b', '10000000002', '', '75011', 'Paris');
 reset role;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000c', 'aal1');
 set role authenticated;
 do $$ begin
-  perform public.register_practice('Cabinet C', 'cabinet-c', '10000000003');
+  perform public.register_practice('Cabinet C', 'cabinet-c', '10000000003', '', '75011', 'Paris');
   raise exception 'ÉCHEC 2 : cabinet créé sans email confirmé';
 exception when insufficient_privilege then null;
 end $$;
@@ -66,7 +66,7 @@ insert into auth.users (id, email, email_confirmed_at) values
 select set_config('request.jwt.claims', '{"role":"anon"}', false);
 set role anon;
 do $$ begin
-  perform public.submit_waitlist_entry('cabinet-a', 'Dupont', 'Léa', '7 ans', 'Dupont', 'Marie', 'm@example.com', null, 'langage-ecrit', null);
+  perform public.submit_waitlist_entry('cabinet-a', 'Dupont', 'Léa', '7 ans', 'Dupont', 'Marie', 'm@example.com', null, 'langage-ecrit', 'bilan', null);
   raise exception 'ÉCHEC 4a : anon peut s''inscrire';
 exception when insufficient_privilege then null;
 end $$;
@@ -83,7 +83,7 @@ reset role;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000c', 'aal1');
 set role authenticated;
 do $$ begin
-  perform public.submit_waitlist_entry('cabinet-a', 'X', 'Y', '7 ans', null, null, null, '06 00 00 00 00', 'voix', null);
+  perform public.submit_waitlist_entry('cabinet-a', 'X', 'Y', '7 ans', null, null, null, '06 00 00 00 00', 'voix', 'bilan', null);
   raise exception 'ÉCHEC 4e : inscription sans email confirmé';
 exception when insufficient_privilege then null;
 end $$;
@@ -91,14 +91,14 @@ reset role;
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1', 'aal1');
 set role authenticated;
 do $$ begin
-  if not public.submit_waitlist_entry('cabinet-a', 'Dupont', 'Léa', '7 ans', 'Dupont', 'Marie', '', null, 'langage-ecrit', 'note') then
+  if not public.submit_waitlist_entry('cabinet-a', 'Dupont', 'Léa', '7 ans', 'Dupont', 'Marie', '', null, 'langage-ecrit', 'bilan', 'note') then
     raise exception 'ÉCHEC 4f : inscription refusée';
   end if;
-  if public.submit_waitlist_entry('cabinet-b', 'X', 'Y', '7 ans', null, null, 'x@example.com', null, 'voix', null) then
+  if public.submit_waitlist_entry('cabinet-b', 'X', 'Y', '7 ans', null, null, 'x@example.com', null, 'voix', 'bilan', null) then
     raise exception 'ÉCHEC 4g : inscription acceptée sur un cabinet non vérifié';
   end if;
   begin
-    perform public.submit_waitlist_entry('cabinet-a', 'dupont', 'léa', '7 ans', null, null, null, '06 00 00 00 00', 'voix', null);
+    perform public.submit_waitlist_entry('cabinet-a', 'dupont', 'léa', '7 ans', null, null, null, '06 00 00 00 00', 'voix', 'bilan', null);
     raise exception 'ÉCHEC 4h : doublon accepté';
   exception when unique_violation then null;
   end;
@@ -115,10 +115,10 @@ select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1', 'aal1');
 set role authenticated;
 do $$ declare i int; begin
   for i in 2..5 loop
-    perform public.submit_waitlist_entry('cabinet-a', 'Nom', 'Enfant' || i, '5 ans', null, null, null, '06 00 00 00 00', 'voix', null);
+    perform public.submit_waitlist_entry('cabinet-a', 'Nom', 'Enfant' || i, '5 ans', null, null, null, '06 00 00 00 00', 'voix', 'bilan', null);
   end loop;
   begin
-    perform public.submit_waitlist_entry('cabinet-a', 'Nom', 'Enfant10', '5 ans', null, null, null, '06 00 00 00 00', 'voix', null);
+    perform public.submit_waitlist_entry('cabinet-a', 'Nom', 'Enfant10', '5 ans', null, null, null, '06 00 00 00 00', 'voix', 'bilan', null);
     raise exception 'ÉCHEC 5 : pas de limitation de débit';
   exception when sqlstate 'P0429' then null;
   end;
@@ -238,5 +238,30 @@ do $$ begin
   raise exception 'ÉCHEC 11 : téléphone mal formé accepté';
 exception when check_violation then null;
 end $$;
+
+-- 12. Un compte orthophoniste ne peut pas s'inscrire sur une liste d'attente.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000b', 'aal2');
+set role authenticated;
+do $$ begin
+  perform public.submit_waitlist_entry('cabinet-a', 'Ortho', 'Test', '30 ans', null, null, 'b@example.com', null, 'voix', 'reeducation', null);
+  raise exception 'ÉCHEC 12 : un ortho peut s''inscrire';
+exception when sqlstate 'P0403' then null;
+end $$;
+reset role;
+
+-- 13. Annuaire : seuls les cabinets vérifiés, ouverts et listés apparaissent, sans accents.
+set role anon;
+do $$ begin
+  if (select count(*) from public.search_practices('paris')) <> 1 then raise exception 'ÉCHEC 13a : annuaire incorrect (cabinet non vérifié visible ?)'; end if;
+  if (select slug from public.search_practices('CABINÉT a 750')) <> 'cabinet-a' then raise exception 'ÉCHEC 13b : recherche sans accents / code postal'; end if;
+  if exists (select 1 from public.search_practices('lyon')) then raise exception 'ÉCHEC 13c : résultat inattendu'; end if;
+end $$;
+reset role;
+update public.practices set listed = false where slug = 'cabinet-a';
+set role anon;
+do $$ begin
+  if exists (select 1 from public.search_practices('paris')) then raise exception 'ÉCHEC 13d : cabinet hors annuaire visible'; end if;
+end $$;
+reset role;
 
 select 'TOUS LES TESTS DE SÉCURITÉ PASSENT' as resultat;

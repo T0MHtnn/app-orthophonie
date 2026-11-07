@@ -28,7 +28,9 @@ export function CopyButton({ text }: { text: string }) {
  * Recherche et filtres appliqués tout de suite (URL mise à jour, la page
  * serveur refiltre). La recherche attend une courte pause dans la frappe.
  */
-export function FilterBar({ pathologies, showRemovedToggle }: { pathologies: { code: string; label: string }[]; showRemovedToggle: boolean }) {
+type Option = { code: string; label: string };
+
+export function FilterBar({ pathologies, requestTypes, showRemovedToggle }: { pathologies: Option[]; requestTypes: Option[]; showRemovedToggle: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -76,6 +78,17 @@ export function FilterBar({ pathologies, showRemovedToggle }: { pathologies: { c
           {pathologies.map((p) => (
             <option key={p.code} value={p.code}>
               {p.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="row sub">
+        Demande
+        <select name="type" className="field-inline" value={params.get('type') ?? ''} onChange={(e) => apply({ type: e.target.value })}>
+          <option value="">Toutes</option>
+          {requestTypes.map((t) => (
+            <option key={t.code} value={t.code}>
+              {t.label}
             </option>
           ))}
         </select>

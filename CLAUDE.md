@@ -73,11 +73,16 @@ Variables : voir `.env.example` (`NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_U
 - Téléphone normalisé (`lib/phone.ts`) : `06 12 34 56 78` ou international `+32…`, revérifié par un trigger SQL.
 - Emails de l'app : nom d'expéditeur = nom du cabinet, adresse = `EMAIL_SENDER_EMAIL`, reply-to = l'ortho.
 - Liste d'attente en 2 onglets : « File d'attente » (en attente + place proposée, retirés en option) et « Patients pris en charge » ; recherche nom/prénom (patient ou aidant, sans accents) et filtre motif appliqués tout de suite (`?q=` `?motif=` `?onglet=suivis`). Futur module Patients : partira de cet onglet.
+- Type de demande (brainstorm) : « Bilan seul » / « Bilan + rééducation si nécessaire » / « Rééducation uniquement », obligatoire dans le formulaire, affiché et filtrable côté ortho, visible dans l'espace famille.
+- **Annuaire** `/trouver` (public, sans compte) : recherche ville / code postal / nom du cabinet ou de l'ortho (`search_practices`, sans accents), uniquement cabinets vérifiés + liste ouverte + `listed` + ville renseignée. Adresse du cabinet (rue facultative, code postal, ville) demandée à la création et modifiable dans les Réglages, case « Apparaître dans l'annuaire » (cochée par défaut). Une famille inscrite depuis `/inscription` (sans lien de cabinet) arrive sur `/trouver` après confirmation. Le but : l'ortho n'a rien à faire, les familles trouvent le cabinet seules.
+- Un compte ortho ne peut pas s'inscrire sur une liste d'attente (message sur `/c/<slug>`, refus `P0403` dans `submit_waitlist_entry`).
 - Statut de la liste d'attente affiché en badge, avec boutons selon l'étape (« Place proposée » passe automatiquement à l'envoi de l'email).
 - Changement de mot de passe : demande d'abord le code MFA si le compte en a un (Supabase exige aal2).
 - Sessions orphelines (compte supprimé en partie, profil absent) : déconnexion propre + message.
 
 ## À faire (specs validées avec Tom)
+
+0. **Bilan existant** (brainstorm) : pour « Rééducation uniquement », le bilan n'est **pas** envoyé pendant la liste d'attente ; il est demandé quand un RDV est fixé (upload dans l'espace patient, avec le module Documents).
 
 Ordre proposé : Planning → Patients → Espace patient → Matériel → Trame CRBO → Comptabilité → Réglages complets.
 
@@ -119,4 +124,4 @@ Ordre proposé : Planning → Patients → Espace patient → Matériel → Tram
 
 ## Retours en attente
 
-- `/c/<slug>` connecté en **ortho** : le formulaire s'affiche et l'ortho peut s'inscrire sur la liste d'attente (même la sienne). Afficher à la place « Vous êtes connecté en tant qu'orthophoniste : déconnectez-vous ou ouvrez une fenêtre privée pour vous inscrire » (et refuser aussi côté Server Action / SQL).
+_(vide)_

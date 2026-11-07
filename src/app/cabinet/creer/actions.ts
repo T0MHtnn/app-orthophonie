@@ -8,12 +8,20 @@ import { fieldErrors, practiceSchema } from '@/lib/validation';
 
 export async function createPractice(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireUser();
-  const raw = { name: String(formData.get('name') ?? ''), slug: String(formData.get('slug') ?? ''), rpps: String(formData.get('rpps') ?? '') };
+  const raw = Object.fromEntries(['name', 'slug', 'rpps', 'addressLine', 'postalCode', 'city'].map((k) => [k, String(formData.get(k) ?? '')]));
   const parsed = practiceSchema.safeParse(raw);
   if (!parsed.success) return { errors: fieldErrors(parsed.error), values: raw };
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc('register_practice', { p_name: parsed.data.name, p_slug: parsed.data.slug, p_rpps: parsed.data.rpps });
+  const d = parsed.data;
+  const { error } = await supabase.rpc('register_practice', {
+    p_name: d.name,
+    p_slug: d.slug,
+    p_rpps: d.rpps,
+    p_address_line: d.addressLine,
+    p_postal_code: d.postalCode,
+    p_city: d.city,
+  });
   if (error) {
     if (error.code === '23505' && error.message.includes('slug')) return { errors: { slug: 'Cette adresse est déjà prise.' }, values: raw };
     if (error.code === '23505') return { message: 'Un cabinet existe déjà pour ce compte.', values: raw };

@@ -10,6 +10,10 @@ export async function saveSettings(_prev: FormState, formData: FormData): Promis
   const { practice } = await requireOrtho();
   const raw = {
     name: String(formData.get('name') ?? ''),
+    addressLine: String(formData.get('addressLine') ?? ''),
+    postalCode: String(formData.get('postalCode') ?? ''),
+    city: String(formData.get('city') ?? ''),
+    listed: formData.get('listed') ?? undefined,
     waitlistOpen: formData.get('waitlistOpen') ?? undefined,
     waitlistInfo: String(formData.get('waitlistInfo') ?? ''),
     emailTemplate: String(formData.get('emailTemplate') ?? ''),
@@ -22,6 +26,10 @@ export async function saveSettings(_prev: FormState, formData: FormData): Promis
     .from('practices')
     .update({
       name: parsed.data.name,
+      address_line: parsed.data.addressLine || null,
+      postal_code: parsed.data.postalCode,
+      city: parsed.data.city,
+      listed: parsed.data.listed === 'on',
       waitlist_open: parsed.data.waitlistOpen === 'on',
       waitlist_info: parsed.data.waitlistInfo,
       email_template: parsed.data.emailTemplate,

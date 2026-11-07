@@ -31,7 +31,12 @@ export default async function PublicWaitlistPage({ params }: { params: Promise<{
 
   return (
     <main className="wrap public-page">
-      <p className="sub">{practice.name}</p>
+      <div>
+        <p className="sub">
+          <b>{practice.name}</b>
+        </p>
+        {practice.city && <p className="hint">{[practice.address_line, `${practice.postal_code ?? ''} ${practice.city}`.trim()].filter(Boolean).join(', ')}</p>}
+      </div>
       {!practice.waitlist_open ? (
         <div className="card">
           <h1>Inscriptions fermées</h1>
@@ -40,7 +45,12 @@ export default async function PublicWaitlistPage({ params }: { params: Promise<{
       ) : (
         <div className="card stack">
           <InfoText source={practice.waitlist_info || DEFAULT_WAITLIST_INFO} />
-          {ctx ? (
+          {ctx?.profile.role === 'ortho' ? (
+            <p className="alert warn">
+              Vous êtes connecté avec un compte orthophoniste : un compte professionnel ne peut pas s’inscrire sur une liste d’attente. Pour tester, ouvrez cette
+              page dans une fenêtre privée avec un compte famille.
+            </p>
+          ) : ctx ? (
             <>
               <p className="hint">
                 Connecté en tant que <b>{ctx.email}</b>. Vous pourrez suivre votre demande depuis <Link href="/patient">votre espace</Link>.

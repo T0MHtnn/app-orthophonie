@@ -21,6 +21,10 @@ export default async function ReglagesPage() {
       </div>
       <SettingsForm
         name={practice.name}
+        addressLine={practice.address_line ?? ''}
+        postalCode={practice.postal_code ?? ''}
+        city={practice.city ?? ''}
+        listed={practice.listed}
         waitlistOpen={practice.waitlist_open}
         waitlistInfo={practice.waitlist_info || DEFAULT_WAITLIST_INFO}
         emailTemplate={practice.email_template || DEFAULT_EMAIL_TEMPLATE}

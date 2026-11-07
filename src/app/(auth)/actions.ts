@@ -78,7 +78,8 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
   if (!parsed.success) return { errors: fieldErrors(parsed.error), values: { ...raw, password: '' } };
 
   const { firstName, lastName, email, password, accountType } = parsed.data;
-  const next = accountType === 'ortho' ? '/cabinet/creer' : safeRedirectPath(formData.get('suivant'), '/patient');
+  // Famille sans lien de cabinet : on l'envoie sur l'annuaire pour choisir son orthophoniste.
+  const next = accountType === 'ortho' ? '/cabinet/creer' : safeRedirectPath(formData.get('suivant'), '/trouver');
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
     email,

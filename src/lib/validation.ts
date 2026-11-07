@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { isAdultAge } from './age';
 import { normalizePhone } from './phone';
+import { REQUEST_TYPES } from './request-type';
 export { slugify } from './slug';
 export { ADULT_AGE, isAdultAge } from './age';
 
@@ -52,7 +53,15 @@ export function isValidRpps(value: string): boolean {
   return sum % 10 === 0;
 }
 
+/** Adresse du cabinet (annuaire « Trouver un orthophoniste »). */
+const practiceAddress = {
+  addressLine: text(200).optional().default(''),
+  postalCode: z.string().trim().regex(/^[0-9]{5}$/, 'Code postal à 5 chiffres'),
+  city: required(100, 'Ville requise'),
+};
+
 export const practiceSchema = z.object({
+  ...practiceAddress,
   name: z.string().trim().min(2, 'Nom du cabinet trop court').max(120),
   slug: z
     .string()
@@ -97,6 +106,7 @@ export const waitlistFormSchema = z
     caregiverFirstName: text(80).optional().default(''),
     email: z.union([z.literal(''), emailSchema]).optional().default(''),
     phone: phoneSchema.optional().default(''),
+    requestType: z.enum(REQUEST_TYPES.map((t) => t.code), { error: 'Choisissez le type de demande' }),
     pathology: z.string({ error: 'Choisissez un motif' }).regex(/^[a-z0-9-]{2,40}$/, 'Choisissez un motif'),
     notes: text(2000).optional().default(''),
     acknowledged: z.literal('on', { error: 'Merci de confirmer avoir lu les informations' }),
@@ -123,6 +133,8 @@ export const waitlistFormSchema = z
 
 export const practiceSettingsSchema = z.object({
   name: z.string().trim().min(2, 'Nom du cabinet trop court').max(120),
+  ...practiceAddress,
+  listed: z.enum(['on']).optional(),
   waitlistOpen: z.enum(['on']).optional(),
   waitlistInfo: z.string().max(10000, 'Texte trop long (10 000 caractères max.)'),
   emailTemplate: z.string().max(5000, 'Modèle trop long (5 000 caractères max.)'),
