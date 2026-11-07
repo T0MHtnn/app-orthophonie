@@ -43,6 +43,12 @@ export type PracticeRow = {
   listed: boolean;
   /** Durée de séance proposée par défaut dans l'agenda (minutes). */
   session_minutes: number;
+  /** Qui réserve en ligne : l'ortho seul·e, les patients autonomes, ou tous les patients suivis. */
+  booking_mode: 'ortho' | 'autonomes' | 'tous';
+  /** Réservations en ligne : validées par l'ortho, ou confirmées automatiquement. */
+  booking_validation: 'manuelle' | 'auto';
+  /** Délai minimum (heures) entre la réservation en ligne et le rendez-vous. */
+  booking_min_notice_hours: number;
   created_at: string;
   updated_at: string;
 };
@@ -132,7 +138,7 @@ export type Database = {
     Tables: {
       // Insert est vide : aucune insertion directe n'est autorisée (fonctions RPC uniquement).
       profiles: Table<ProfileRow, NoInsert, Partial<Pick<ProfileRow, 'first_name' | 'last_name'>>>;
-      practices: Table<PracticeRow, NoInsert, Partial<Pick<PracticeRow, 'name' | 'waitlist_open' | 'waitlist_info' | 'email_template' | 'address_line' | 'postal_code' | 'city' | 'listed' | 'session_minutes'>>>;
+      practices: Table<PracticeRow, NoInsert, Partial<Pick<PracticeRow, 'name' | 'waitlist_open' | 'waitlist_info' | 'email_template' | 'address_line' | 'postal_code' | 'city' | 'listed' | 'session_minutes' | 'booking_mode' | 'booking_validation' | 'booking_min_notice_hours'>>>;
       waitlist_entries: Table<WaitlistEntryRow, NoInsert, Partial<Pick<WaitlistEntryRow, 'status'>>>;
       pathologies: Table<PathologyRow, NoInsert, NoInsert>;
       patients: Table<PatientRow, NoInsert, Partial<Pick<PatientRow, 'autonomous'>>>;

@@ -5,6 +5,7 @@ import { Field, FormAlert, SubmitButton, type FormState } from '@/components/for
 import { RECURRENCES, isFree, type AgendaDay, type BlockInput, type Interval } from '@/lib/agenda';
 import { matchesSearch } from '@/lib/search';
 import { WEEKDAYS, formatDay, formatTime, minutesToTime } from '@/lib/time';
+import { setPatientAutonomous } from '../reglages/actions';
 import { cancelAppointment, deleteBlock, saveAppointment, saveBlock } from './actions';
 
 /** Hauteur d'une minute dans la grille, en pixels. */
@@ -19,7 +20,23 @@ export interface PatientItem {
   next: string | null;
 }
 
+/** Fiche patient (pop-up d'un rendez-vous). */
+export interface PatientDetail {
+  name: string;
+  age: string | null;
+  caregiver: string | null;
+  email: string | null;
+  phone: string | null;
+  pathology: string | null;
+  requestType: string | null;
+  autonomous: boolean;
+}
+
+type BookingMode = 'ortho' | 'autonomes' | 'tous';
+
 interface Props {
+  details: Record<string, PatientDetail>;
+  bookingMode: BookingMode;
   days: AgendaDay[];
   range: Interval;
   today: string;
@@ -33,7 +50,7 @@ type Dialog =
   | { kind: 'block'; date: string; start: number; end: number; block?: BlockInput; occurrence?: string }
   | { kind: 'appointment'; id: string; patientId: string; date: string; start: number; duration: number; label: string };
 
-export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessionMinutes }: Props) {
+export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessionMinutes, details, bookingMode }: Props) {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [picked, setPicked] = useState<PatientItem | null>(null);
   const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
@@ -218,6 +235,8 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
               key={dialog.id}
               dialog={dialog}
               patients={patients}
+              detail={details[dialog.patientId]}
+              bookingMode={bookingMode}
               onDone={(text) => {
                 setDialog(null);
                 setNotice({ kind: 'ok', text });
@@ -374,10 +393,14 @@ function BlockDialog({ dialog, onDone }: { dialog: Extract<Dialog, { kind: 'bloc
 function AppointmentDialog({
   dialog,
   patients,
+  detail,
+  bookingMode,
   onDone,
 }: {
   dialog: Extract<Dialog, { kind: 'appointment' }>;
   patients: PatientItem[];
+  detail: PatientDetail | undefined;
+  bookingMode: BookingMode;
   onDone: (text: string) => void;
 }) {
   const [state, action] = useActionState<FormState, FormData>(saveAppointment, {});
@@ -393,9 +416,11 @@ function AppointmentDialog({
       <div>
         <h2>{dialog.label}</h2>
         <p className="sub">
-          {formatDay(dialog.date)} à {formatTime(minutesToTime(dialog.start))} · {dialog.duration} min
+          Rendez-vous le {formatDay(dialog.date)} à {formatTime(minutesToTime(dialog.start))} · {dialog.duration} min
         </p>
       </div>
+      {detail && <PatientCard patientId={dialog.patientId} detail={detail} bookingMode={bookingMode} />}
+      <h3>Rendez-vous</h3>
       <form action={action} className="stack" noValidate>
         <FormAlert state={state} />
         <input type="hidden" name="id" value={dialog.id} />
@@ -424,5 +449,67 @@ function AppointmentDialog({
         <SubmitButton className="btn danger small">Annuler ce rendez-vous</SubmitButton>
       </form>
     </div>
+  );
+}
+
+const BOOKING_HINT: Record<BookingMode, string> = {
+  autonomes: 'Peut réserver ses séances en ligne.',
+  tous: 'Mode « tous » actif : tout le monde réserve en ligne ; cette case compte quand vous revenez au mode « autonomes ».',
+  ortho: 'Mode « moi seul·e » actif : personne ne réserve en ligne pour l’instant (Réglages).',
+};
+
+/** Fiche patient : identité, contact, motif, case « autonome », acte AMO (à venir). */
+function PatientCard({ patientId, detail, bookingMode }: { patientId: string; detail: PatientDetail; bookingMode: BookingMode }) {
+  const [autonomous, setAutonomous] = useState(detail.autonomous);
+  const [error, setError] = useState(false);
+  const [saving, startTransition] = useTransition();
+  const rows: [string, React.ReactNode][] = [
+    ['Âge', detail.age],
+    ['Parent / aidant', detail.caregiver],
+    ['Email', detail.email && <a href={`mailto:${detail.email}`}>{detail.email}</a>],
+    ['Téléphone', detail.phone && <a href={`tel:${detail.phone.replace(/\s/g, '')}`}>{detail.phone}</a>],
+    ['Motif', detail.pathology],
+    ['Demande', detail.requestType],
+    ['Acte AMO', <span className="hint">à renseigner (bientôt : cotation, prix, durée des séances)</span>],
+  ];
+  return (
+    <section className="patient-card stack" aria-label="Fiche patient">
+      <dl className="facts">
+        {rows
+          .filter(([, value]) => value)
+          .map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+      </dl>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={autonomous}
+          disabled={saving}
+          onChange={(e) => {
+            const value = e.target.checked;
+            setAutonomous(value);
+            setError(false);
+            startTransition(async () => {
+              const res = await setPatientAutonomous(patientId, value);
+              if (!res.ok) {
+                setAutonomous(!value);
+                setError(true);
+              }
+            });
+          }}
+        />
+        <span>
+          <b>Patient autonome</b>
+          <span className="hint" style={{ display: 'block' }}>
+            {BOOKING_HINT[bookingMode]}
+          </span>
+        </span>
+      </label>
+      {error && <p className="alert error">La modification n’a pas pu être enregistrée.</p>}
+    </section>
   );
 }

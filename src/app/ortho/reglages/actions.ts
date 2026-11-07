@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 import type { FormState } from '@/components/form';
 import { requireOrtho } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { fieldErrors, practiceSettingsSchema } from '@/lib/validation';
+import { z } from 'zod';
+import { bookingSettingsSchema, fieldErrors, practiceSettingsSchema } from '@/lib/validation';
 
 export async function saveSettings(_prev: FormState, formData: FormData): Promise<FormState> {
   const { practice } = await requireOrtho();
@@ -39,4 +40,41 @@ export async function saveSettings(_prev: FormState, formData: FormData): Promis
 
   revalidatePath('/ortho', 'layout');
   return { ok: true, message: 'Réglages enregistrés.' };
+}
+
+export async function saveBookingSettings(_prev: FormState, formData: FormData): Promise<FormState> {
+  const { practice } = await requireOrtho();
+  const raw = {
+    mode: String(formData.get('mode') ?? ''),
+    validation: String(formData.get('validation') ?? ''),
+    minNoticeHours: String(formData.get('minNoticeHours') ?? ''),
+  };
+  const parsed = bookingSettingsSchema.safeParse(raw);
+  if (!parsed.success) return { errors: fieldErrors(parsed.error), message: 'Certains champs sont à corriger.', values: raw };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('practices')
+    .update({ booking_mode: parsed.data.mode, booking_validation: parsed.data.validation, booking_min_notice_hours: parsed.data.minNoticeHours })
+    .eq('id', practice.id);
+  if (error) {
+    console.error('booking_settings', error.code);
+    return { message: 'Enregistrement impossible. Réessayez.', values: raw };
+  }
+  revalidatePath('/ortho', 'layout');
+  return { ok: true, message: 'Réglages de prise de rendez-vous enregistrés.', values: raw };
+}
+
+/** Case « patient autonome » (fiche patient ou liste des réglages). La RLS limite au cabinet, en aal2. */
+export async function setPatientAutonomous(patientId: string, autonomous: boolean): Promise<{ ok: boolean }> {
+  await requireOrtho();
+  const id = z.uuid().safeParse(patientId);
+  if (!id.success) return { ok: false };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from('patients').update({ autonomous }).eq('id', id.data).select('id');
+  if (error || !data?.length) {
+    console.error('patient_autonomous', error?.code ?? 'no_row');
+    return { ok: false };
+  }
+  revalidatePath('/ortho', 'layout');
+  return { ok: true };
 }

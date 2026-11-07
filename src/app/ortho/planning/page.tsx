@@ -4,7 +4,8 @@ import { buildWeek, visibleRange, type BlockInput } from '@/lib/agenda';
 import { requireOrtho } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { addDays, formatDay, isDate, parisParts, parisToInstant, startOfWeek } from '@/lib/time';
-import { Agenda, type PatientItem } from './agenda';
+import { REQUEST_TYPE_LABEL } from '@/lib/request-type';
+import { Agenda, type PatientDetail, type PatientItem } from './agenda';
 
 export const metadata: Metadata = { title: 'Planning' };
 
@@ -24,13 +25,31 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
   const weekEnd = parisToInstant(addDays(week, 7), '00:00').toISOString();
 
   const supabase = await createClient();
-  const [{ data: blocks, error: blocksError }, { data: appointments, error }, { data: upcoming }, { data: patients }] = await Promise.all([
+  const [{ data: blocks, error: blocksError }, { data: appointments, error }, { data: upcoming }, { data: patients }, { data: pathologies }] = await Promise.all([
     // Blocages qui peuvent avoir une occurrence cette semaine (la veille comprise, pour ceux qui débordent).
     supabase.from('schedule_blocks').select('*').lt('starts_at', weekEnd).or(`until.is.null,until.gte.${addDays(week, -1)}`),
     supabase.from('appointments').select('*').neq('status', 'annule').lt('starts_at', weekEnd).gt('ends_at', weekStart),
     supabase.from('appointments').select('patient_id, starts_at').neq('status', 'annule').gte('starts_at', now.toISOString()).order('starts_at'),
-    supabase.from('patients').select('id, first_name, last_name, active').order('last_name'),
+    supabase.from('patients').select('*').order('last_name'),
+    supabase.from('pathologies').select('code, label'),
   ]);
+  const pathologyLabel = new Map((pathologies ?? []).map((p) => [p.code, p.label]));
+  // Fiche patient affichée dans la pop-up d'un rendez-vous.
+  const details: Record<string, PatientDetail> = Object.fromEntries(
+    (patients ?? []).map((p) => [
+      p.id,
+      {
+        name: `${p.first_name} ${p.last_name}`,
+        age: p.patient_age,
+        caregiver: [p.caregiver_first_name, p.caregiver_last_name].filter(Boolean).join(' ') || null,
+        email: p.email,
+        phone: p.phone,
+        pathology: p.pathology_code ? (pathologyLabel.get(p.pathology_code) ?? p.pathology_code) : null,
+        requestType: p.request_type ? REQUEST_TYPE_LABEL[p.request_type] : null,
+        autonomous: p.autonomous,
+      },
+    ]),
+  );
 
   const nameOf = new Map((patients ?? []).map((p) => [p.id, `${p.first_name} ${p.last_name}`]));
   const days = buildWeek(
@@ -84,6 +103,8 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
         blocks={(blocks ?? []) as BlockInput[]}
         patients={items}
         sessionMinutes={practice.session_minutes}
+        details={details}
+        bookingMode={practice.booking_mode}
       />
     </>
   );

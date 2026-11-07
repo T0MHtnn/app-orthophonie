@@ -177,6 +177,12 @@ export const blockSchema = z
   .refine((v) => v.recurrence !== 'weekdays' || v.weekdays.length > 0, { path: ['weekdays'], message: 'Choisissez au moins un jour' })
   .refine((v) => !v.until || v.until >= v.date, { path: ['until'], message: 'La fin de la répétition doit être après la date' });
 
+export const bookingSettingsSchema = z.object({
+  mode: z.enum(['ortho', 'autonomes', 'tous'], { error: 'Choix invalide' }),
+  validation: z.enum(['manuelle', 'auto'], { error: 'Choix invalide' }),
+  minNoticeHours: z.coerce.number({ error: 'Délai invalide' }).int('Nombre entier').min(0, 'Délai invalide').max(720, '30 jours maximum'),
+});
+
 export const totpCodeSchema = z.string().trim().regex(/^[0-9]{6}$/, 'Code à 6 chiffres');
 
 /** Premier message d'erreur par champ, pour l'affichage dans le formulaire. */
