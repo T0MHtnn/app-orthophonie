@@ -7,7 +7,7 @@ import { matchesSearch } from '@/lib/search';
 import { saveBookingSettings, setPatientAutonomous } from './actions';
 
 const MODES = [
-  { code: 'ortho', label: 'Moi seul·e', hint: 'Les familles voient leurs rendez-vous mais ne réservent pas en ligne.' },
+  { code: 'ortho', label: 'Moi seul·e', hint: 'Les patients voient leurs rendez-vous mais ne réservent pas en ligne.' },
   { code: 'autonomes', label: 'Les patients autonomes', hint: 'Seuls les patients cochés ci-dessous réservent, confirmés tout de suite.' },
   { code: 'tous', label: 'Tous mes patients suivis', hint: 'Les non-autonomes envoient une demande que vous validez. Votre liste d’autonomes est gardée.' },
 ] as const;

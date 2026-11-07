@@ -191,7 +191,7 @@ export async function reviewAppointment(_prev: FormState, formData: FormData): P
       ].join('\n\n'),
     });
   }
-  return done(accept ? 'Demande acceptée : la famille est prévenue par email.' : 'Demande refusée : la famille est prévenue par email.');
+  return done(accept ? 'Demande acceptée : le patient est prévenu par email.' : 'Demande refusée : le patient est prévenu par email.');
 }
 
 /** Séance passée : « non honoré » (lapin) ou retour à « réalisé ». */

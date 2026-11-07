@@ -109,7 +109,7 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
         <div>
           <h1>{t('Liste d’attente')}</h1>
           <p className="sub">
-            {t(waiting > 1 ? '{n} personnes en attente' : '{n} personne en attente', { n: waiting })} · {t('lien à donner aux familles :')} <a href={publicUrl}>{publicUrl}</a>
+            {t(waiting > 1 ? '{n} personnes en attente' : '{n} personne en attente', { n: waiting })} · {t('lien à donner aux patients :')} <a href={publicUrl}>{publicUrl}</a>
           </p>
         </div>
       </div>
@@ -121,7 +121,7 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
       {params.erreur === 'statut' && <p className="alert error">{t('Le statut n’a pas pu être modifié. Rechargez la page puis réessayez.')}</p>}
       {params.erreur === 'envoye-statut' && <p className="alert error">{t('L’email est bien parti, mais le statut n’a pas pu passer à « Place proposée ». Réessayez avec « Marquer comme contacté sans envoyer ».')}</p>}
       {params.erreur === 'email' && <p className="alert error">{t('Cette personne n’a pas laissé d’adresse email : contactez-la par téléphone.')}</p>}
-      <p className="hint">{t('Confirmer la prise en charge déplace la demande dans « Patients pris en charge » et débloque l’espace patient de la famille.')}</p>
+      <p className="hint">{t('Confirmer la prise en charge déplace la demande dans « Patients pris en charge » et débloque l’espace du patient.')}</p>
       {params.ok === 'supprime' && <Notice kind="ok">{t('Inscription supprimée définitivement.')}</Notice>}
       {error && <p className="alert error">{t('Impossible de charger la liste. Rechargez la page.')}</p>}
 
@@ -213,7 +213,7 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
                 ? 'Aucun résultat pour cette recherche.'
                 : tab === 'suivis'
                   ? 'Aucun patient pris en charge pour l’instant.'
-                  : 'Personne pour l’instant. Partagez le lien de votre page publique aux familles.',
+                  : 'Personne pour l’instant. Partagez le lien de votre page publique à vos patients.',
             )}
           </p>
         )}
@@ -259,7 +259,7 @@ function EmailPreview({ t, entry, template, orthoName, practiceName }: { t: T; e
           <SubmitButton className="btn">Marquer comme contacté sans envoyer</SubmitButton>
         </form>
       </div>
-      <p className="hint">{t('Si la famille répond, sa réponse arrive directement dans votre boîte email. Le modèle se modifie dans les Réglages.')}</p>
+      <p className="hint">{t('Si le patient répond, sa réponse arrive directement dans votre boîte email. Le modèle se modifie dans les Réglages.')}</p>
     </section>
   );
 }
@@ -268,7 +268,7 @@ function DeleteConfirm({ t, entry }: { t: T; entry: WaitlistEntryRow }) {
   return (
     <section className="card stack" aria-label={t('Confirmer la suppression')}>
       <h2>{t('Supprimer {nom} ?', { nom: fullName(entry.patient_first_name, entry.patient_last_name) })}</h2>
-      <p className="sub">{t('La suppression est définitive (par exemple à la demande de la famille). Pour garder une trace, préférez le statut « Retiré ».')}</p>
+      <p className="sub">{t('La suppression est définitive (par exemple à la demande du patient). Pour garder une trace, préférez le statut « Retiré ».')}</p>
       <div className="row">
         <form action={deleteEntry}>
           <input type="hidden" name="id" value={entry.id} />

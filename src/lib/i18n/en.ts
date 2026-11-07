@@ -546,4 +546,17 @@ export const EN: Record<string, string> = {
   "Déplacer le rendez-vous ?": "Move the appointment?",
   "{nom} : {jour} à {heure} ({min} min).": "{nom}: {jour} at {heure} ({min} min).",
   "Déplacer": "Move",
+  // 15_patient_wording
+  "lien à donner aux patients :": "link to give to patients:",
+  "Confirmer la prise en charge déplace la demande dans « Patients pris en charge » et débloque l’espace du patient.": "Confirming care moves the request to “Patients in care” and unlocks the patient’s space.",
+  "Si le patient répond, sa réponse arrive directement dans votre boîte email. Le modèle se modifie dans les Réglages.": "If the patient replies, their answer goes straight to your inbox. The template can be edited in Settings.",
+  "La suppression est définitive (par exemple à la demande du patient). Pour garder une trace, préférez le statut « Retiré ».": "Deletion is permanent (for example at the patient’s request). To keep a record, use the “Withdrawn” status instead.",
+  "Les patients trouvent votre cabinet dans « Trouver un orthophoniste » (nom, ville, adresse). Décoché : seul votre lien direct permet de s’inscrire.": "Patients find your practice in “Find a speech therapist” (name, city, address). Unticked: only your direct link allows sign-ups.",
+  "Les patients voient leurs rendez-vous mais ne réservent pas en ligne.": "Patients see their appointments but do not book online.",
+  "Le patient sera prévenu par email.": "The patient will be notified by email.",
+  "Séance du {jour} à {heure} annulée par le patient.": "Session on {jour} at {heure} cancelled by the patient.",
+  "Annulations par les patients": "Cancellations by patients",
+  "Demande acceptée : le patient est prévenu par email.": "Request accepted: the patient has been notified by email.",
+  "Demande refusée : le patient est prévenu par email.": "Request declined: the patient has been notified by email.",
+  "Personne pour l’instant. Partagez le lien de votre page publique à vos patients.": "Nobody yet. Share your public page link with your patients.",
 };

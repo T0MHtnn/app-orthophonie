@@ -119,7 +119,7 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
       {(cancellations ?? []).length > 0 && (
         <details className="card foldable cancellations">
           <summary>
-            <h2>{t('Annulations par les familles')}</h2> <span className="count">{(cancellations ?? []).length}</span>
+            <h2>{t('Annulations par les patients')}</h2> <span className="count">{(cancellations ?? []).length}</span>
           </summary>
           {(cancellations ?? []).map((c) => (
             <div key={c.id} className="request">

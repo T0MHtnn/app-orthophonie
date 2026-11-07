@@ -479,7 +479,7 @@ function AppointmentDialog({
       {pendingReview && (
         <div className="stack review">
           <p>
-            <b>{t('Réservation en ligne en attente de votre validation.')}</b> {t('La famille sera prévenue par email.')}
+            <b>{t('Réservation en ligne en attente de votre validation.')}</b> {t('Le patient sera prévenu par email.')}
           </p>
           <FormAlert state={reviewState} />
           {/* Un formulaire par bouton : la décision part dans un champ caché, pas dans le bouton cliqué. */}
@@ -529,15 +529,10 @@ function AppointmentDialog({
           }}
           notifyDefault={false}
           onDone={onDone}
+          deleteAction={cancelAction}
         />
       )}
-      {!pendingReview && (
-        <form action={cancelAction} className="row">
-          <FormAlert state={cancelState} />
-          <input type="hidden" name="id" value={dialog.id} />
-          <SubmitButton className="btn danger small">Supprimer ce rendez-vous</SubmitButton>
-        </form>
-      )}
+      <FormAlert state={cancelState} />
     </div>
   );
 }
@@ -732,11 +727,14 @@ function AppointmentForm({
   values,
   notifyDefault,
   onDone,
+  deleteAction,
 }: {
   patients: PatientItem[];
   values: AppointmentValues;
   notifyDefault: boolean;
   onDone: (text: string) => void;
+  /** Action « Supprimer » affichée à côté d'« Enregistrer » (RDV existant). */
+  deleteAction?: (formData: FormData) => void;
 }) {
   const [state, action] = useActionState<FormState, FormData>(saveAppointment, {});
   useOnSuccess(state, onDone);
@@ -759,13 +757,15 @@ function AppointmentForm({
         <input type="checkbox" name="notify" defaultChecked={state.values ? v.notify === 'on' : notifyDefault} />
         <span>
           <b>{t(values.id ? 'Prévenir le patient du changement' : 'Prévenir le patient')}</b>
-          <span className="hint" style={{ display: 'block' }}>
-            {t('Email + pastille « Nouveau » dans son espace jusqu’à ce qu’il clique « Lu ».')}
-          </span>
         </span>
       </label>
-      <div>
+      <div className="row">
         <SubmitButton pendingText="Enregistrement…">{values.id ? 'Enregistrer' : 'Planifier le rendez-vous'}</SubmitButton>
+        {deleteAction && (
+          <button type="submit" formAction={deleteAction} formNoValidate className="btn danger">
+            {t('Supprimer ce rendez-vous')}
+          </button>
+        )}
       </div>
     </form>
   );
@@ -781,7 +781,7 @@ function CancelledDialog({ dialog, onDone }: { dialog: Extract<Dialog, { kind: '
       <div>
         <h2>{dialog.label}</h2>
         <p className="sub">
-          {t('Séance du {jour} à {heure} annulée par la famille.', { jour: formatDay(dialog.date, false, t.locale), heure: formatTime(minutesToTime(dialog.start), t.locale) })}
+          {t('Séance du {jour} à {heure} annulée par le patient.', { jour: formatDay(dialog.date, false, t.locale), heure: formatTime(minutesToTime(dialog.start), t.locale) })}
         </p>
       </div>
       <div className="patient-card">
@@ -831,9 +831,6 @@ function MoveDialog({
         <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
         <span>
           <b>{t('Prévenir le patient du changement')}</b>
-          <span className="hint" style={{ display: 'block' }}>
-            {t('Email + pastille « Nouveau » dans son espace jusqu’à ce qu’il clique « Lu ».')}
-          </span>
         </span>
       </label>
       <div className="row">

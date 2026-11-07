@@ -49,7 +49,7 @@ export function SettingsForm(initial: Props) {
           <span>
             <b>{t('Apparaître dans l’annuaire')}</b>
             <span className="hint" style={{ display: 'block' }}>
-              {t('Les familles trouvent votre cabinet dans « Trouver un orthophoniste » (nom, ville, adresse). Décoché : seul votre lien direct permet de s’inscrire.')}
+              {t('Les patients trouvent votre cabinet dans « Trouver un orthophoniste » (nom, ville, adresse). Décoché : seul votre lien direct permet de s’inscrire.')}
             </span>
           </span>
         </label>
