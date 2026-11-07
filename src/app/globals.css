@@ -166,7 +166,7 @@ a { color: var(--accent); }
 .table small { display: block; color: var(--muted); font-size: 12.5px; }
 .table .num { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .table select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
-.badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 99px; background: var(--surface-2); color: var(--muted); }
+.badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 99px; background: var(--surface-2); color: var(--muted); white-space: nowrap; line-height: 1.5; text-align: center; vertical-align: middle; }
 .badge.attente { background: var(--warn-soft); color: var(--warn); }
 .badge.contacte { background: var(--accent-soft); color: var(--accent); }
 .badge.rdv { background: var(--ok-soft); color: var(--ok); }
