@@ -175,6 +175,13 @@ describe('agenda semaine', () => {
     const b = block({ recurrence: 'weekly', starts_at: '2026-03-23T11:00:00Z', ends_at: '2026-03-23T12:00:00Z' }); // 12 h en hiver
     expect(buildWeek('2026-03-30', [b], [])[0]!.blocks[0]).toMatchObject({ start: 720, end: 780 });
   });
+  it('format renvoyé par la base (+00:00) et blocage posé depuis la pop-up', () => {
+    const starts = parisToInstant('2026-11-12', '14:00').toISOString().replace('.000Z', '+00:00');
+    const ends = parisToInstant('2026-11-12', '15:00').toISOString().replace('.000Z', '+00:00');
+    const w = buildWeek('2026-11-09', [block({ starts_at: starts, ends_at: ends })], []);
+    expect(w[3]!.blocks[0]).toMatchObject({ start: 840, end: 900, date: '2026-11-12' });
+    expect(isFree(w[3]!, { start: 870, end: 900 })).toBe(false);
+  });
   it('créneau libre ou non', () => {
     const day = buildWeek('2026-11-09', [block({})], [
       { id: 'a', patient_id: 'p', starts_at: '2026-11-09T08:00:00Z', ends_at: '2026-11-09T08:30:00Z', status: 'confirme', label: 'Léa' },
