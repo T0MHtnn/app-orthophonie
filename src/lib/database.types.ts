@@ -163,6 +163,7 @@ export type Database = {
         Args: { p_slug: string };
         Returns: { name: string; waitlist_info: string; waitlist_open: boolean; address_line: string | null; postal_code: string | null; city: string | null }[];
       };
+      known_practice: { Args: { p_slug: string }; Returns: boolean };
       search_practices: {
         Args: { p_query: string };
         Returns: { name: string; slug: string; ortho_name: string; address_line: string | null; postal_code: string; city: string }[];
@@ -229,7 +230,7 @@ export type Database = {
           can_book: boolean;
           session_minutes: number;
           min_notice_hours: number;
-          /** Une réservation en ligne (en attente ou confirmée) est déjà à venir : pas d'autre demande. */
+          /** Une séance est déjà à venir (réservée en ligne ou fixée par l'ortho) : pas d'autre réservation. */
           active_booking: boolean;
         }[];
       };

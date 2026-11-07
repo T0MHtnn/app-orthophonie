@@ -473,4 +473,8 @@ export const EN: Record<string, string> = {
   "Cette demande a déjà été traitée ou annulée. Rechargez la page.": "This request has already been handled or cancelled. Reload the page.",
   "Demande acceptée : la famille est prévenue par email.": "Request accepted: the family has been notified by email.",
   "Demande refusée : la famille est prévenue par email.": "Request declined: the family has been notified by email.",
+  // 09_divers
+  "Vous avez déjà une demande en cours ou un suivi dans ce cabinet : inutile de vous réinscrire.": "You already have a request in progress or ongoing care with this practice: no need to sign up again.",
+  "Inscrire un autre enfant ou proche": "Register another child or relative",
+  "{prenom} a déjà une séance prévue : vous pourrez en réserver une autre quand elle sera passée ou annulée.": "{prenom} already has a session planned: you can book another once it has passed or been cancelled.",
 };

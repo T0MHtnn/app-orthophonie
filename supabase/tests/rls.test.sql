@@ -349,6 +349,8 @@ declare v_patient uuid;
 begin
   select id into v_patient from public.patients where active limit 1;
   update public.patients set family_id = '00000000-0000-0000-0000-0000000000f1', autonomous = false where id = v_patient;
+  -- RDV posés par l'ortho dans les tests 14-15 : annulés, sinon la règle « une séance à venir » bloquerait tout.
+  update public.appointments set status = 'annule', cancelled_at = now() where patient_id = v_patient;
   update public.practices set booking_mode = 'ortho', booking_min_notice_hours = 0 where slug = 'cabinet-a';
 end $$;
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1', 'aal1');
@@ -422,6 +424,22 @@ do $$ begin
     raise exception 'ÉCHEC 16l : disponibilités d''un patient d''une autre famille';
   exception when insufficient_privilege then null;
   end;
+end $$;
+reset role;
+
+-- 17. Annuaire : une famille ne revoit pas un cabinet où elle a déjà une demande ou un suivi.
+update public.practices set listed = true where slug = 'cabinet-a';
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1', 'aal1');
+set role authenticated;
+do $$ begin
+  if not public.known_practice('cabinet-a') then raise exception 'ÉCHEC 17a : demande existante non détectée'; end if;
+  if exists (select 1 from public.search_practices('paris') where slug = 'cabinet-a') then raise exception 'ÉCHEC 17b : cabinet déjà connu affiché'; end if;
+end $$;
+reset role;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f2', 'aal1');
+set role authenticated;
+do $$ begin
+  if public.known_practice('cabinet-b') then raise exception 'ÉCHEC 17c : faux positif'; end if;
 end $$;
 reset role;
 

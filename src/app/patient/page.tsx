@@ -102,7 +102,7 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
               </p>
             ) : p.active_booking ? (
               <p key={p.id} className="hint">
-                {t('{prenom} a déjà une réservation en cours : vous pourrez en demander une autre quand elle sera passée ou annulée.', { prenom: p.first_name })}
+                {t('{prenom} a déjà une séance prévue : vous pourrez en réserver une autre quand elle sera passée ou annulée.', { prenom: p.first_name })}
               </p>
             ) : (
               <Link key={p.id} href={`/patient/reserver?patient=${p.id}`} className="btn primary" style={{ width: 'fit-content' }}>
