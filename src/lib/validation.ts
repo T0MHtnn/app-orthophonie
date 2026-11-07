@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isAdultAge } from './age';
+import { normalizePhone } from './phone';
 export { slugify } from './slug';
 export { ADULT_AGE, isAdultAge } from './age';
 
@@ -24,8 +25,13 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Mot de passe requis').max(128),
 });
 
-export const signupSchema = z.object({
-  fullName: required(120, 'Votre nom est requis'),
+/** Prénom + nom du titulaire du compte (inscription et « Mon compte »). */
+export const profileNameSchema = z.object({
+  firstName: required(80, 'Votre prénom est requis'),
+  lastName: required(80, 'Votre nom est requis'),
+});
+
+export const signupSchema = profileNameSchema.extend({
   email: emailSchema,
   password: passwordSchema,
   accountType: z.enum(['ortho', 'patient']),
@@ -64,11 +70,18 @@ export const practiceSchema = z.object({
 
 export const waitlistStatusSchema = z.enum(['attente', 'contacte', 'rdv', 'retire']);
 
+/** Facultatif : vide accepté, sinon normalisé (voir lib/phone.ts). */
 const phoneSchema = z
   .string()
   .trim()
-  .regex(/^[0-9 +().-]{6,20}$/, 'Numéro de téléphone invalide');
-
+  .max(30, 'Numéro de téléphone invalide')
+  .transform((v, ctx) => {
+    if (!v) return '';
+    const phone = normalizePhone(v);
+    if (phone) return phone;
+    ctx.addIssue({ code: 'custom', message: 'Numéro invalide : 10 chiffres (06 12 34 56 78) ou format international (+32…)' });
+    return z.NEVER;
+  });
 
 export const waitlistFormSchema = z
   .object({
@@ -83,7 +96,7 @@ export const waitlistFormSchema = z
     caregiverLastName: text(80).optional().default(''),
     caregiverFirstName: text(80).optional().default(''),
     email: z.union([z.literal(''), emailSchema]).optional().default(''),
-    phone: z.union([z.literal(''), phoneSchema]).optional().default(''),
+    phone: phoneSchema.optional().default(''),
     pathology: z.string({ error: 'Choisissez un motif' }).regex(/^[a-z0-9-]{2,40}$/, 'Choisissez un motif'),
     notes: text(2000).optional().default(''),
     acknowledged: z.literal('on', { error: 'Merci de confirmer avoir lu les informations' }),

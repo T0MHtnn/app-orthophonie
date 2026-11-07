@@ -69,6 +69,11 @@ Variables : voir `.env.example` (`NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_U
 - Côté ortho : liste filtrable par motif, statuts **En attente → Place proposée → Pris en charge → Retiré**, « Proposer une place » (email type rempli, bouton « Envoyer l'email » via Brevo avec reply-to = ortho, ou copier / ouvrir dans sa messagerie), suppression définitive (RGPD).
 - Réglages ortho : nom du cabinet, ouverture des inscriptions, texte d'information, modèle d'email « place libérée » (champs `{aidant}` `{patient}` `{lien}` `{orthophoniste}` `{cabinet}`).
 - Espace famille `/patient` : **verrouillé** (« Aucune place ne vous a encore été trouvée » / « Une place vous a été proposée ») tant qu'aucune demande n'est en « Pris en charge » ; liste des demandes, retrait d'une demande.
+- Comptes : prénom / nom séparés (`profiles.first_name`, `last_name`, `full_name` calculé), page **Mon compte** (`/compte`) ; même cadre (bandeau + menu, `components/app-shell.tsx`) pour l'espace ortho et l'espace famille.
+- Téléphone normalisé (`lib/phone.ts`) : `06 12 34 56 78` ou international `+32…`, revérifié par un trigger SQL.
+- Emails de l'app : nom d'expéditeur = nom du cabinet, adresse = `EMAIL_SENDER_EMAIL`, reply-to = l'ortho.
+- Liste d'attente en 2 onglets : « File d'attente » (en attente + place proposée, retirés en option) et « Patients pris en charge » ; recherche nom/prénom (patient ou aidant, sans accents) et filtre motif appliqués tout de suite (`?q=` `?motif=` `?onglet=suivis`). Futur module Patients : partira de cet onglet.
+- Statut de la liste d'attente affiché en badge, avec boutons selon l'étape (« Place proposée » passe automatiquement à l'envoi de l'email).
 - Changement de mot de passe : demande d'abord le code MFA si le compte en a un (Supabase exige aal2).
 - Sessions orphelines (compte supprimé en partie, profil absent) : déconnexion propre + message.
 
@@ -108,6 +113,10 @@ Ordre proposé : Planning → Patients → Espace patient → Matériel → Tram
 - Le lien de confirmation connecte sans mot de passe : un mot de passe mal saisi à l'inscription ne se voit qu'à la reconnexion.
 - Les modèles d'email Supabase utilisent `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=...` (le `RedirectTo` contient déjà `?next=`).
 
+- Une contrainte `check ... not valid` est quand même revérifiée à **chaque update** de la ligne : une ancienne ligne non conforme bloque tout changement (ex. statut). Pour une règle sur une colonne que le client ne modifie pas, utiliser un trigger `before insert or update of <colonne>`.
+- Brevo a deux clés : **SMTP** (`xsmtpsib-…`, pour Supabase Auth) et **API** (`xkeysib-…`, pour `BREVO_API_KEY` dans l'app). Les confondre = emails de l'app qui échouent alors que ceux d'auth passent.
+- Un `update` bloqué par la RLS ne renvoie **pas d'erreur** (0 ligne) : toujours ajouter `.select('id')` et vérifier le nombre de lignes.
+
 ## Retours en attente
 
-_(vide — tout a été corrigé dans le patch 06)_
+- `/c/<slug>` connecté en **ortho** : le formulaire s'affiche et l'ortho peut s'inscrire sur la liste d'attente (même la sienne). Afficher à la place « Vous êtes connecté en tant qu'orthophoniste : déconnectez-vous ou ouvrez une fenêtre privée pour vous inscrire » (et refuser aussi côté Server Action / SQL).

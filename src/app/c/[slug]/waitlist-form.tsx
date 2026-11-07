@@ -110,7 +110,7 @@ function FormFields({ state, action, practiceName, accountEmail, pathologies }: 
             error={adult ? undefined : err.caregiverFirstName}
           />
           <Field label="Email de contact" name="email" type="email" autoComplete="email" defaultValue={v.email ?? accountEmail} error={err.email} />
-          <Field label="Téléphone (facultatif)" name="phone" type="tel" autoComplete="tel" defaultValue={v.phone} error={err.phone} />
+          <Field label="Téléphone (facultatif)" name="phone" type="tel" autoComplete="tel" placeholder="06 12 34 56 78" maxLength={30} defaultValue={v.phone} error={err.phone} />
           <label className="field wide">
             <span>Informations complémentaires (facultatif)</span>
             <textarea name="notes" rows={3} maxLength={2000} defaultValue={v.notes} />

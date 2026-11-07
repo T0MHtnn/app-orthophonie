@@ -198,4 +198,45 @@ do $$ declare v uuid; begin
 end $$;
 reset role;
 
+-- 10. Prénom / nom séparés : repris des métadonnées, modifiables par soi seul, nom complet calculé.
+insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-00000000000d', 'd@example.com', now(), '{"first_name":" Léa ","last_name":"Martin","role":"ortho"}');
+do $$ begin
+  if (select full_name from public.profiles where id = '00000000-0000-0000-0000-00000000000d') <> 'Léa Martin' then
+    raise exception 'ÉCHEC 10a : prénom / nom non repris';
+  end if;
+  if (select role from public.profiles where id = '00000000-0000-0000-0000-00000000000d') <> 'patient' then
+    raise exception 'ÉCHEC 10b : rôle des métadonnées pris en compte';
+  end if;
+  if (select last_name from public.profiles where id = '00000000-0000-0000-0000-00000000000a') <> 'Ortho A' then
+    raise exception 'ÉCHEC 10c : ancien full_name non repris';
+  end if;
+end $$;
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000d', 'aal1');
+set role authenticated;
+update public.profiles set first_name = 'Zoé' where id = auth.uid();
+update public.profiles set last_name = 'Pirate' where id = '00000000-0000-0000-0000-00000000000a';
+do $$ begin
+  update public.profiles set full_name = 'X' where id = auth.uid();
+  raise exception 'ÉCHEC 10d : nom complet modifiable directement';
+exception when insufficient_privilege or generated_always then null;
+end $$;
+reset role;
+do $$ begin
+  if (select full_name from public.profiles where id = '00000000-0000-0000-0000-00000000000d') <> 'Zoé Martin' then
+    raise exception 'ÉCHEC 10e : prénom non modifié';
+  end if;
+  if (select last_name from public.profiles where id = '00000000-0000-0000-0000-00000000000a') <> 'Ortho A' then
+    raise exception 'ÉCHEC 10f : profil d''un autre modifié';
+  end if;
+end $$;
+
+-- 11. Téléphone : format normalisé obligatoire.
+do $$ begin
+  insert into public.waitlist_entries (practice_id, patient_last_name, patient_first_name, patient_age, phone, pathology_code, info_acknowledged_at, consent_at)
+  select id, 'Tel', 'Test', '7 ans', '1234567890', 'voix', now(), now() from public.practices limit 1;
+  raise exception 'ÉCHEC 11 : téléphone mal formé accepté';
+exception when check_violation then null;
+end $$;
+
 select 'TOUS LES TESTS DE SÉCURITÉ PASSENT' as resultat;

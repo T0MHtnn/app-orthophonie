@@ -1,6 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { logout } from '@/app/(auth)/actions';
 import { SubmitButton } from '@/components/form';
 import type { Database, WaitlistStatus } from '@/lib/database.types';
 import { requireUser } from '@/lib/auth';
@@ -35,17 +33,12 @@ export default async function PatientPage() {
   const unlocked = followed.length > 0;
 
   return (
-    <main className="wrap public-page">
-      <div className="row spread">
+    <>
+      <div className="page-head">
         <div>
-          <h1>Bonjour {ctx.profile.full_name || ctx.email}</h1>
-          <p className="sub">{ctx.email}</p>
+          <h1>Bonjour {ctx.profile.first_name || ctx.profile.full_name || ctx.email}</h1>
+          <p className="sub">Suivez ici vos demandes de liste d’attente et, ensuite, vos séances.</p>
         </div>
-        <form action={logout}>
-          <button className="btn" type="submit">
-            Se déconnecter
-          </button>
-        </form>
       </div>
 
       {unlocked ? (
@@ -80,18 +73,7 @@ export default async function PatientPage() {
           ))}
         </section>
       )}
-
-      <p className="hint">
-        <Link href="/compte/mot-de-passe">Changer mon mot de passe</Link> ·{' '}
-        {ctx.profile.role === 'ortho' ? (
-          <Link href="/ortho">Mon espace orthophoniste</Link>
-        ) : (
-          <>
-            Vous êtes orthophoniste ? <Link href="/cabinet/creer">Créer votre cabinet</Link>
-          </>
-        )}
-      </p>
-    </main>
+    </>
   );
 }
 

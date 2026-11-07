@@ -70,6 +70,7 @@ export async function submitWaitlist(slug: string, _prev: FormState, formData: F
   const practiceName = practices?.[0]?.name ?? 'le cabinet';
   await sendEmail({
     to: { email: d.email || ctx.email },
+    senderName: practices?.[0]?.name,
     subject: `Votre inscription sur la liste d’attente – ${practiceName}`,
     text: [
       'Bonjour,',

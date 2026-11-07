@@ -18,6 +18,9 @@ type Table<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
 export type ProfileRow = {
   id: string;
   role: UserRole;
+  first_name: string;
+  last_name: string;
+  /** Colonne calculée (prénom + nom), lecture seule. */
   full_name: string;
   created_at: string;
 };
@@ -67,7 +70,7 @@ export type Database = {
   public: {
     Tables: {
       // Insert est vide : aucune insertion directe n'est autorisée (fonctions RPC uniquement).
-      profiles: Table<ProfileRow, NoInsert, Partial<Pick<ProfileRow, 'full_name'>>>;
+      profiles: Table<ProfileRow, NoInsert, Partial<Pick<ProfileRow, 'first_name' | 'last_name'>>>;
       practices: Table<PracticeRow, NoInsert, Partial<Pick<PracticeRow, 'name' | 'waitlist_open' | 'waitlist_info' | 'email_template'>>>;
       waitlist_entries: Table<WaitlistEntryRow, NoInsert, Partial<Pick<WaitlistEntryRow, 'status'>>>;
       pathologies: Table<PathologyRow, NoInsert, NoInsert>;

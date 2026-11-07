@@ -23,7 +23,8 @@ export function SignupForm({ defaultType = 'ortho', next = '' }: { defaultType?:
           <input type="radio" name="accountType" value="patient" defaultChecked={type === 'patient'} /> Patient ou parent
         </label>
       </fieldset>
-      <Field label="Nom et prénom" name="fullName" autoComplete="name" required defaultValue={state.values?.fullName} error={state.errors?.fullName} />
+      <Field label="Prénom" name="firstName" autoComplete="given-name" required maxLength={80} defaultValue={state.values?.firstName} error={state.errors?.firstName} />
+      <Field label="Nom" name="lastName" autoComplete="family-name" required maxLength={80} defaultValue={state.values?.lastName} error={state.errors?.lastName} />
       <Field label="Email" name="email" type="email" autoComplete="email" required defaultValue={state.values?.email} error={state.errors?.email} />
       <PasswordField
         label="Mot de passe"

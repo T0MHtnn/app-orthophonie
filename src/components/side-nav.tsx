@@ -3,16 +3,16 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const LINKS = [
-  { href: '/ortho/liste-attente', label: 'Liste d’attente' },
-  { href: '/ortho/reglages', label: 'Réglages' },
-];
+export interface NavLink {
+  href: string;
+  label: string;
+}
 
-export function OrthoNav() {
+export function SideNav({ links }: { links: NavLink[] }) {
   const path = usePathname();
   return (
     <nav className="nav" aria-label="Sections">
-      {LINKS.map((l) => (
+      {links.map((l) => (
         <Link key={l.href} href={l.href} aria-current={path.startsWith(l.href) ? 'page' : undefined}>
           {l.label}
         </Link>

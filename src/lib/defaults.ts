@@ -26,7 +26,8 @@ export const DEFAULT_EMAIL_TEMPLATE = `Objet : Une place s'est libérée au cabi
 
 Bonjour {aidant},
 
-Une place s'est libérée pour {patient}. Vous pouvez choisir le créneau qui vous convient parmi ceux disponibles : {lien}
+Une place s'est libérée pour {patient}. Pour convenir du premier rendez-vous, répondez simplement à cet email.
+Vous pouvez aussi suivre votre demande depuis votre espace : {lien}
 
 Pour le premier rendez-vous, pensez à apporter :
 * l'ordonnance (mention « Bilan orthophonique et rééducation si nécessaire ») ;

@@ -73,19 +73,19 @@ export async function loginWithGoogle(): Promise<void> {
 }
 
 export async function signup(_prev: FormState, formData: FormData): Promise<FormState> {
-  const raw = values(formData, ['fullName', 'email', 'password', 'accountType', 'suivant']);
+  const raw = values(formData, ['firstName', 'lastName', 'email', 'password', 'accountType', 'suivant']);
   const parsed = signupSchema.safeParse(raw);
   if (!parsed.success) return { errors: fieldErrors(parsed.error), values: { ...raw, password: '' } };
 
-  const { fullName, email, password, accountType } = parsed.data;
+  const { firstName, lastName, email, password, accountType } = parsed.data;
   const next = accountType === 'ortho' ? '/cabinet/creer' : safeRedirectPath(formData.get('suivant'), '/patient');
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      // Seul le nom est transmis : le rôle n'est jamais pris dans ces métadonnées côté base.
-      data: { full_name: fullName },
+      // Seuls prénom et nom sont transmis : le rôle n'est jamais pris dans ces métadonnées côté base.
+      data: { first_name: firstName, last_name: lastName },
       emailRedirectTo: `${siteUrl}/auth/confirm?next=${encodeURIComponent(next)}`,
     },
   });
@@ -103,9 +103,11 @@ export async function requestPasswordReset(_prev: FormState, formData: FormData)
   const parsed = emailSchema.safeParse(formData.get('email'));
   if (!parsed.success) return { errors: { email: 'Adresse email invalide' } };
   const supabase = await createClient();
-  await supabase.auth.resetPasswordForEmail(parsed.data, {
+  const { error } = await supabase.auth.resetPasswordForEmail(parsed.data, {
     redirectTo: `${siteUrl}/auth/confirm?next=${encodeURIComponent('/compte/mot-de-passe')}`,
   });
+  // Code seulement (ex. SMTP en panne) ; la réponse reste identique pour ne pas révéler si le compte existe.
+  if (error) console.error('password_reset', error.code, error.status);
   return { ok: true, message: 'Si un compte existe pour cette adresse, un email de réinitialisation vient d’être envoyé.' };
 }
 

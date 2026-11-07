@@ -7,12 +7,25 @@ import { DEFAULT_EMAIL_TEMPLATE } from '@/lib/defaults';
 import { siteUrl } from '@/lib/env';
 import { createClient } from '@/lib/supabase/server';
 import { buildOfferEmail } from '@/lib/offer-email';
+import { matchesSearch } from '@/lib/search';
 import { deleteEntry, markContacted, sendOfferEmail, updateStatus } from './actions';
-import { AutoSubmitSelect, CopyButton } from './client';
+import { CopyButton, FilterBar } from './client';
 
 export const metadata: Metadata = { title: 'Liste d’attente' };
 
 const STATUS_LABEL: Record<WaitlistStatus, string> = { attente: 'En attente', contacte: 'Place proposée', rdv: 'Pris en charge', retire: 'Retiré' };
+
+/** Changements de statut manuels proposés selon l'étape (« Place proposée » se fait via l'email). */
+const NEXT_STATUS: Record<WaitlistStatus, { status: WaitlistStatus; label: string }[]> = {
+  attente: [{ status: 'retire', label: 'Retirer' }],
+  contacte: [
+    { status: 'rdv', label: 'Prise en charge confirmée' },
+    { status: 'attente', label: 'Remettre en attente' },
+    { status: 'retire', label: 'Retirer' },
+  ],
+  rdv: [{ status: 'attente', label: 'Remettre en liste d’attente' }],
+  retire: [{ status: 'attente', label: 'Remettre en attente' }],
+};
 
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Paris' });
 const fullName = (first: string | null, last: string | null) => [first, last].filter(Boolean).join(' ');
@@ -30,11 +43,31 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
   ]);
   const labels = new Map((pathologies ?? []).map((p) => [p.code, p.label]));
   const filter = params.motif && labels.has(params.motif) ? params.motif : '';
+  const tab: 'attente' | 'suivis' = params.onglet === 'suivis' ? 'suivis' : 'attente';
   const showRemoved = params.retires === '1';
-  const rows = (entries ?? []).filter((e) => (!filter || e.pathology_code === filter) && (showRemoved || e.status !== 'retire'));
-  const waiting = (entries ?? []).filter((e) => e.status === 'attente').length;
-  const emailFor = rows.find((e) => e.id === params.email);
-  const deleteFor = rows.find((e) => e.id === params.supprimer);
+  const query = (params.q ?? '').slice(0, 80);
+  const all = entries ?? [];
+  // « Pris en charge » quitte la file d'attente pour l'onglet des patients suivis.
+  const inTab = (e: WaitlistEntryRow) => (tab === 'suivis' ? e.status === 'rdv' : e.status === 'attente' || e.status === 'contacte' || (showRemoved && e.status === 'retire'));
+  const rows = all.filter(
+    (e) =>
+      inTab(e) &&
+      (!filter || e.pathology_code === filter) &&
+      matchesSearch(query, [e.patient_first_name, e.patient_last_name, e.caregiver_first_name, e.caregiver_last_name]),
+  );
+  const waiting = all.filter((e) => e.status === 'attente').length;
+  const followed = all.filter((e) => e.status === 'rdv').length;
+  const queued = all.filter((e) => e.status === 'attente' || e.status === 'contacte').length;
+  const tabHref = (t: 'attente' | 'suivis') => {
+    const keep = new URLSearchParams();
+    if (t === 'suivis') keep.set('onglet', 'suivis');
+    if (query) keep.set('q', query);
+    if (filter) keep.set('motif', filter);
+    const qs = keep.toString();
+    return qs ? `?${qs}` : '/ortho/liste-attente';
+  };
+  const emailFor = all.find((e) => e.id === params.email);
+  const deleteFor = all.find((e) => e.id === params.supprimer);
   const publicUrl = `${siteUrl}/c/${practice.slug}`;
 
   return (
@@ -52,30 +85,23 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
       {params.ok === 'envoye' && <p className="alert ok">Email envoyé. Statut passé à « Place proposée ».</p>}
       {params.erreur === 'envoi' && <p className="alert error">L’email n’a pas pu être envoyé. Réessayez, ou copiez le texte dans votre messagerie.</p>}
       {params.erreur === 'email-config' && <p className="alert error">L’envoi d’emails n’est pas encore configuré (clé Brevo manquante). Copiez le texte dans votre messagerie en attendant.</p>}
+      {params.erreur === 'statut' && <p className="alert error">Le statut n’a pas pu être modifié. Rechargez la page puis réessayez.</p>}
+      {params.erreur === 'envoye-statut' && <p className="alert error">L’email est bien parti, mais le statut n’a pas pu passer à « Place proposée ». Réessayez avec « Marquer comme contacté sans envoyer ».</p>}
       {params.erreur === 'email' && <p className="alert error">Cette personne n’a pas laissé d’adresse email : contactez-la par téléphone.</p>}
-      <p className="hint">Passer une demande en « Pris en charge » débloque l’espace patient de la famille.</p>
+      <p className="hint">Confirmer la prise en charge déplace la demande dans « Patients pris en charge » et débloque l’espace patient de la famille.</p>
       {params.ok === 'supprime' && <p className="alert ok">Inscription supprimée définitivement.</p>}
       {error && <p className="alert error">Impossible de charger la liste. Rechargez la page.</p>}
 
-      <form className="row" method="get">
-        <label className="row sub">
-          Motif
-          <select name="motif" defaultValue={filter} className="field-inline">
-            <option value="">Tous</option>
-            {(pathologies ?? []).map((p) => (
-              <option key={p.code} value={p.code}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="check">
-          <input type="checkbox" name="retires" value="1" defaultChecked={showRemoved} /> Afficher les retirés
-        </label>
-        <button className="btn small" type="submit">
-          Filtrer
-        </button>
-      </form>
+      <nav className="tabs" aria-label="Listes">
+        <Link href={tabHref('attente')} aria-current={tab === 'attente' ? 'page' : undefined}>
+          File d’attente <span className="count">{queued}</span>
+        </Link>
+        <Link href={tabHref('suivis')} aria-current={tab === 'suivis' ? 'page' : undefined}>
+          Patients pris en charge <span className="count">{followed}</span>
+        </Link>
+      </nav>
+
+      <FilterBar key={tab} pathologies={pathologies ?? []} showRemovedToggle={tab === 'attente'} />
 
       {emailFor && <EmailPreview entry={emailFor} template={practice.email_template || DEFAULT_EMAIL_TEMPLATE} orthoName={profile.full_name} practiceName={practice.name} />}
       {deleteFor && <DeleteConfirm entry={deleteFor} />}
@@ -112,27 +138,24 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
                   {e.phone && <small>{e.phone}</small>}
                 </td>
                 <td>
-                  <form action={updateStatus} className="row">
-                    <input type="hidden" name="id" value={e.id} />
-                    <AutoSubmitSelect name="status" defaultValue={e.status} aria-label={`Statut de ${e.patient_first_name}`}>
-                      {Object.entries(STATUS_LABEL).map(([v, l]) => (
-                        <option key={v} value={v}>
-                          {l}
-                        </option>
-                      ))}
-                    </AutoSubmitSelect>
-                    <noscript>
-                      <button className="btn small">OK</button>
-                    </noscript>
-                  </form>
+                  <span className={`badge ${e.status}`}>{STATUS_LABEL[e.status]}</span>
                   {e.contacted_at && <small>contacté le {formatDate(e.contacted_at)}</small>}
                 </td>
                 <td>
                   <div className="row">
-                    <Link className="btn small" href={`?email=${e.id}${filter ? `&motif=${filter}` : ''}`}>
-                      Proposer une place
-                    </Link>
-                    <Link className="linkbtn" href={`?supprimer=${e.id}`}>
+                    {(e.status === 'attente' || e.status === 'contacte') && (
+                      <Link className="btn small" href={`?email=${e.id}${filter ? `&motif=${filter}` : ''}`}>
+                        {e.status === 'contacte' ? 'Renvoyer l’email' : 'Proposer une place'}
+                      </Link>
+                    )}
+                    {NEXT_STATUS[e.status].map((next) => (
+                      <form key={next.status} action={updateStatus}>
+                        <input type="hidden" name="id" value={e.id} />
+                        <input type="hidden" name="status" value={next.status} />
+                        <SubmitButton className="btn small">{next.label}</SubmitButton>
+                      </form>
+                    ))}
+                    <Link className="linkbtn" href={`?supprimer=${e.id}${tab === 'suivis' ? '&onglet=suivis' : ''}`}>
                       Supprimer
                     </Link>
                   </div>
@@ -141,7 +164,15 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
             ))}
           </tbody>
         </table>
-        {rows.length === 0 && <p className="hint" style={{ padding: 16 }}>Personne pour l’instant. Partagez le lien de votre page publique aux familles.</p>}
+        {rows.length === 0 && (
+          <p className="hint" style={{ padding: 16 }}>
+            {query || filter
+              ? 'Aucun résultat pour cette recherche.'
+              : tab === 'suivis'
+                ? 'Aucun patient pris en charge pour l’instant.'
+                : 'Personne pour l’instant. Partagez le lien de votre page publique aux familles.'}
+          </p>
+        )}
       </div>
     </>
   );

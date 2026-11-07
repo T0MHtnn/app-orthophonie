@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { fillTemplate, parseInfoText } from './text';
 import { safeRedirectPath } from './security';
-import { isValidRpps, passwordSchema, slugify, waitlistFormSchema } from './validation';
+import { fieldErrors, isValidRpps, passwordSchema, signupSchema, slugify, waitlistFormSchema } from './validation';
+import { normalizePhone } from './phone';
+import { matchesSearch } from './search';
 
 describe('safeRedirectPath', () => {
   it('garde un chemin interne', () => expect(safeRedirectPath('/ortho/reglages')).toBe('/ortho/reglages'));
@@ -71,4 +73,43 @@ describe('emails', () => {
     expect(html).toContain('<a href="https://exemple.fr/patient"');
     expect(html).toContain('<li>deux</li>');
   });
+});
+
+describe('normalizePhone', () => {
+  it('formate un numéro français', () => expect(normalizePhone('06.12.34.56.78')).toBe('06 12 34 56 78'));
+  it('accepte +33 et 0033', () => {
+    expect(normalizePhone('+33 6 12 34 56 78')).toBe('06 12 34 56 78');
+    expect(normalizePhone('0033 (0)6 12 34 56 78')).toBe('06 12 34 56 78');
+  });
+  it('accepte un numéro étranger', () => expect(normalizePhone('+32 470 12 34 56')).toBe('+32470123456'));
+  it('refuse un numéro trop court ou fantaisiste', () => {
+    for (const v of ['0612', '00 00 00 00 00', '06 12 34 56 789', 'abc', '+33 6 12']) expect(normalizePhone(v)).toBeNull();
+  });
+});
+
+describe('téléphone et nom dans les formulaires', () => {
+  const base = { patientLastName: 'Dupont', patientFirstName: 'Léa', ageValue: '34', ageUnit: 'ans', pathology: 'voix', acknowledged: 'on', consent: 'on' };
+  it('normalise le téléphone de la liste d’attente', () => expect(waitlistFormSchema.parse({ ...base, phone: '0612345678' }).phone).toBe('06 12 34 56 78'));
+  it('téléphone vide accepté', () => expect(waitlistFormSchema.parse({ ...base, phone: '' }).phone).toBe(''));
+  it('message clair si téléphone invalide', () => {
+    const r = waitlistFormSchema.safeParse({ ...base, phone: '12345' });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(fieldErrors(r.error).phone).toMatch(/10 chiffres/);
+  });
+  it('prénom et nom séparés obligatoires', () => {
+    const r = signupSchema.safeParse({ firstName: 'Tom', lastName: '', email: 'a@b.fr', password: 'Abcdefghijk1', accountType: 'patient' });
+    expect(r.success).toBe(false);
+  });
+});
+
+describe('matchesSearch', () => {
+  const fields = ['Léa', 'Dupont', 'Marie', null];
+  it('ignore accents et majuscules', () => expect(matchesSearch('LEA', fields)).toBe(true));
+  it('nom + prénom dans les deux sens', () => {
+    expect(matchesSearch('dupont léa', fields)).toBe(true);
+    expect(matchesSearch('léa dupont', fields)).toBe(true);
+  });
+  it('trouve par le parent', () => expect(matchesSearch('marie', fields)).toBe(true));
+  it('recherche vide = tout', () => expect(matchesSearch('  ', fields)).toBe(true));
+  it('refuse un autre nom', () => expect(matchesSearch('martin', fields)).toBe(false));
 });

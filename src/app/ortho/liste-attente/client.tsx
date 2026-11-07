@@ -1,11 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-
-/** Envoie le formulaire dès qu'on change le statut (le bouton reste là si JavaScript est coupé). */
-export function AutoSubmitSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} onChange={(e) => e.currentTarget.form?.requestSubmit()} />;
-}
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 
 export function CopyButton({ text }: { text: string }) {
   const [done, setDone] = useState(false);
@@ -25,5 +21,75 @@ export function CopyButton({ text }: { text: string }) {
     >
       {done ? 'Copié' : 'Copier le texte'}
     </button>
+  );
+}
+
+/**
+ * Recherche et filtres appliqués tout de suite (URL mise à jour, la page
+ * serveur refiltre). La recherche attend une courte pause dans la frappe.
+ */
+export function FilterBar({ pathologies, showRemovedToggle }: { pathologies: { code: string; label: string }[]; showRemovedToggle: boolean }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const [query, setQuery] = useState(params.get('q') ?? '');
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const apply = (changes: Record<string, string>) => {
+    const next = new URLSearchParams(params.toString());
+    // Les messages et panneaux ouverts (email, suppression) ne survivent pas à un nouveau filtrage.
+    for (const k of ['email', 'supprimer', 'ok', 'erreur']) next.delete(k);
+    for (const [k, v] of Object.entries(changes)) {
+      if (v) next.set(k, v);
+      else next.delete(k);
+    }
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
+
+  return (
+    <form className="row filters" method="get" role="search" onSubmit={(e) => e.preventDefault()}>
+      {params.get('onglet') && <input type="hidden" name="onglet" value={params.get('onglet') ?? ''} />}
+      <input
+        type="search"
+        name="q"
+        className="field-inline search"
+        placeholder="Rechercher un nom ou un prénom"
+        aria-label="Rechercher un nom ou un prénom"
+        value={query}
+        maxLength={80}
+        onChange={(e) => {
+          const value = e.target.value;
+          setQuery(value);
+          if (timer.current) clearTimeout(timer.current);
+          timer.current = setTimeout(() => apply({ q: value.trim() }), 300);
+        }}
+      />
+      <label className="row sub">
+        Motif
+        <select name="motif" className="field-inline" value={params.get('motif') ?? ''} onChange={(e) => apply({ motif: e.target.value })}>
+          <option value="">Tous</option>
+          {pathologies.map((p) => (
+            <option key={p.code} value={p.code}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {showRemovedToggle && (
+        <label className="check">
+          <input type="checkbox" name="retires" value="1" checked={params.get('retires') === '1'} onChange={(e) => apply({ retires: e.target.checked ? '1' : '' })} /> Afficher les demandes retirées
+        </label>
+      )}
+      <noscript>
+        <button className="btn small" type="submit">
+          Filtrer
+        </button>
+      </noscript>
+    </form>
   );
 }

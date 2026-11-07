@@ -9,6 +9,8 @@ export interface OutgoingEmail {
   text: string;
   /** Adresse à laquelle la famille répond (l'ortho). */
   replyTo?: { email: string; name?: string };
+  /** Nom affiché comme expéditeur (ex. le cabinet). L'adresse reste celle de l'app (seule vérifiée chez Brevo). */
+  senderName?: string;
 }
 
 export type SendResult = { ok: true } | { ok: false; reason: 'not_configured' | 'failed' };
@@ -26,19 +28,20 @@ export async function sendEmail(email: OutgoingEmail): Promise<SendResult> {
       method: 'POST',
       headers: { 'api-key': config.apiKey, 'content-type': 'application/json', accept: 'application/json' },
       body: JSON.stringify({
-        sender: { email: config.senderEmail, name: config.senderName },
+        sender: { email: config.senderEmail, name: email.senderName?.trim().slice(0, 70) || config.senderName },
         to: [email.to],
         replyTo: email.replyTo,
         subject: email.subject.slice(0, 200),
         textContent: email.text,
-        htmlContent: textToEmailHtml(email.text, config.senderName),
+        htmlContent: textToEmailHtml(email.text, email.senderName?.trim() || config.senderName),
       }),
       signal: AbortSignal.timeout(10_000),
       cache: 'no-store',
     });
     if (!res.ok) {
-      // Statut seulement : on ne journalise ni le destinataire ni le contenu.
-      console.error('brevo_send_failed', res.status);
+      // Statut et code Brevo seulement (ex. « unauthorized ») : jamais le destinataire ni le contenu.
+      const body = (await res.json().catch(() => null)) as { code?: unknown } | null;
+      console.error('brevo_send_failed', res.status, typeof body?.code === 'string' ? body.code : '');
       return { ok: false, reason: 'failed' };
     }
     return { ok: true };
