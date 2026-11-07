@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { logout } from '@/app/(auth)/actions';
+import { BackButton } from '@/components/back-button';
 import { InfoText } from '@/components/info-text';
 import { getAuthContext } from '@/lib/auth';
 import { waitlistInfoFor } from '@/lib/defaults';
@@ -38,6 +39,9 @@ export default async function PublicWaitlistPage({ params }: { params: Promise<{
 
   return (
     <main className="wrap public-page">
+      <div>
+        <BackButton fallback={ctx ? '/patient' : '/trouver'} />
+      </div>
       <div>
         <p className="sub">
           <b>{practice.name}</b>

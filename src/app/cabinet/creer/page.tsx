@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { requireUser } from '@/lib/auth';
 import { siteUrl } from '@/lib/env';
+import { BackButton } from '@/components/back-button';
 import { getT } from '@/lib/i18n';
 import { PracticeForm } from './practice-form';
 
@@ -17,6 +18,7 @@ export default async function CreerCabinetPage() {
   return (
     <main className="wrap auth-page">
       <div className="card auth-card">
+        <BackButton fallback={'/'} />
         <h1>{t('Créer mon cabinet')}</h1>
         <p className="sub">{t('Dernière étape avant d’accéder à votre espace orthophoniste.')}</p>
         <PracticeForm siteUrl={siteUrl} suggestedName={ctx.profile.full_name ? t('Cabinet de {nom}', { nom: ctx.profile.full_name }) : ''} />

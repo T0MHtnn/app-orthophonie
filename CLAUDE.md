@@ -129,6 +129,8 @@ Ordre proposé : Planning → Patients → Espace patient → Matériel → Tram
 
 ## Pièges déjà rencontrés
 
+- **Règle de Tom : on n'est jamais bloqué sur une page.** Toute page sans menu a un bouton « ← Retour » (`components/back-button.tsx` : page précédente du site si elle existe — compteur `NavTracker` —, sinon une page de secours) ou une sortie (déconnexion).
+
 - **Vocabulaire (Tom)** : côté ortho, on parle **du patient**, pas de « la famille » (le compte famille reste un détail technique). Limite anti-abus des réservations : 30 réussies / compte / jour (`booking-user`), atteinte vite en test → `select * from private.rate_limits` pour vérifier.
 
 - **Tout nouveau texte affiché** passe par `t('…')` (ou un composant qui traduit) **et** sa version anglaise est ajoutée dans `lib/i18n/en.ts` : `src/lib/i18n.test.ts` échoue sinon. Texte avec variable : `t('Bonjour {nom}', { nom })`, jamais de concaténation.

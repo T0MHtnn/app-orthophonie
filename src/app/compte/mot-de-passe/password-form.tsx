@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useActionState } from 'react';
 import { FormAlert, PasswordField, SubmitButton, type FormState } from '@/components/form';
+import { BackButton } from '@/components/back-button';
 import { useT } from '@/components/i18n-provider';
 import { updatePassword } from '../../(auth)/actions';
 
@@ -12,6 +13,7 @@ export function PasswordForm() {
   return (
     <main className="wrap auth-page">
       <div className="card auth-card">
+        <BackButton fallback="/compte" />
         <h1>{t('Nouveau mot de passe')}</h1>
         <FormAlert state={state} persistent />
         {state.ok ? (

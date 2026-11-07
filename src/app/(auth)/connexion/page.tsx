@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getAuthContext, getSessionStatus, homeFor } from '@/lib/auth';
+import { BackButton } from '@/components/back-button';
 import { getT } from '@/lib/i18n';
 import { safeRedirectPath } from '@/lib/security';
 import { LoginForm } from './login-form';
@@ -28,6 +29,7 @@ export default async function ConnexionPage({ searchParams }: { searchParams: Pr
   return (
     <main className="wrap auth-page">
       <div className="card auth-card">
+        <BackButton fallback={'/trouver'} />
         <h1>{t('Connexion')}</h1>
         {notice && <p className={`alert ${notice.kind}`}>{t(notice.text)}</p>}
         <LoginForm next={safeRedirectPath(params.suivant, '/')} />

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { BackButton } from '@/components/back-button';
 import { getT } from '@/lib/i18n';
 import { safeRedirectPath } from '@/lib/security';
 import { SignupForm } from './signup-form';
@@ -16,6 +17,7 @@ export default async function InscriptionPage({ searchParams }: { searchParams: 
   return (
     <main className="wrap auth-page">
       <div className="card auth-card">
+        <BackButton fallback={'/trouver'} />
         <h1>{t('Créer un compte')}</h1>
         <p className="sub">
           {t(

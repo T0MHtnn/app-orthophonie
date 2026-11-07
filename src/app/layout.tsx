@@ -8,6 +8,7 @@ import '@fontsource/bricolage-grotesque/500.css';
 import '@fontsource/bricolage-grotesque/700.css';
 import './globals.css';
 import { I18nProvider } from '@/components/i18n-provider';
+import { NavTracker } from '@/components/nav-tracker';
 import { APP_NAME } from '@/lib/app';
 import { getT } from '@/lib/i18n';
 import { LANG_COOKIE, THEME_COOKIE, isLang, isTheme } from '@/lib/preferences';
@@ -34,7 +35,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={isLang(lang) ? lang : 'fr'} data-theme={isTheme(theme) ? theme : 'system'}>
       <body>
-        <I18nProvider lang={isLang(lang) ? lang : 'fr'}>{children}</I18nProvider>
+        <I18nProvider lang={isLang(lang) ? lang : 'fr'}>
+          <NavTracker />
+          {children}
+        </I18nProvider>
       </body>
     </html>
   );

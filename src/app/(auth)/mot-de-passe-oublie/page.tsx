@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useActionState } from 'react';
 import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
+import { BackButton } from '@/components/back-button';
 import { useT } from '@/components/i18n-provider';
 import { requestPasswordReset } from '../actions';
 
@@ -12,6 +13,7 @@ export default function MotDePasseOubliePage() {
   return (
     <main className="wrap auth-page">
       <div className="card auth-card">
+        <BackButton fallback="/connexion" />
         <h1>{t('Mot de passe oublié')}</h1>
         <FormAlert state={state} persistent />
         {!state.ok && (
