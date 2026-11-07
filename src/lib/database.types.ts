@@ -367,6 +367,10 @@ export type Database = {
           created_at: string;
         }[];
       };
+      my_patient_infos: {
+        Args: Record<string, never>;
+        Returns: { id: string; first_name: string; last_name: string; birth_date: string | null; patient_age: string | null; practice_name: string }[];
+      };
       my_document_path: { Args: { p_id: string }; Returns: string | null };
       set_homework_done: { Args: { p_id: string; p_done: boolean }; Returns: boolean };
       family_add_document: { Args: { p_patient_id: string; p_name: string; p_mime_type: string; p_size_bytes: number; p_storage_path: string }; Returns: string };

@@ -667,4 +667,15 @@ begin
   end if;
 end $$;
 
+-- 28. Une famille ne modifie pas son nom ni son prénom (seule l'ortho gère les infos personnelles).
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1', 'aal1');
+set role authenticated;
+do $$
+begin
+  update public.profiles set first_name = 'Autre' where id = auth.uid();
+  raise exception 'ÉCHEC 28 : nom modifié par une famille';
+exception when insufficient_privilege then null;
+end $$;
+reset role;
+
 select 'TOUS LES TESTS DE SÉCURITÉ PASSENT' as resultat;

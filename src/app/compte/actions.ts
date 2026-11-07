@@ -13,6 +13,8 @@ export async function saveProfile(_prev: FormState, formData: FormData): Promise
   const raw = { firstName: String(formData.get('firstName') ?? ''), lastName: String(formData.get('lastName') ?? '') };
   // Même exigence que l'espace ortho : un compte avec double authentification doit l'avoir validée.
   if (ctx.hasMfa && ctx.aal !== 'aal2') return { message: 'Votre session a expiré. Reconnectez-vous puis réessayez.', values: raw };
+  // Règle de Tom : une famille ne modifie pas ses informations personnelles (la base le refuse aussi).
+  if (ctx.profile.role !== 'ortho') return { message: 'Pour modifier une information personnelle, contactez votre orthophoniste.', values: raw };
   const parsed = profileNameSchema.safeParse(raw);
   if (!parsed.success) return { errors: fieldErrors(parsed.error), values: raw };
 

@@ -809,4 +809,6 @@ export const EN: Record<string, string> = {
   "Envoyer à l’orthophoniste": "Send to the speech therapist",
   "Lui envoyer les emails": "Send them the emails",
   "Ne plus envoyer les emails": "Stop sending emails",
+  // 33_locked_infos
+  "Pour modifier une information personnelle, contactez votre orthophoniste.": "To change any personal information, contact your speech therapist.",
 };

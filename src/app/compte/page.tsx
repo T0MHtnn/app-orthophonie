@@ -7,6 +7,10 @@ import { requireUser } from '@/lib/auth';
 import { getT } from '@/lib/i18n';
 import { THEME_COOKIE, isTheme } from '@/lib/preferences';
 import { AccountForm } from './account-form';
+import { LockedInfos } from './locked-infos';
+import { createClient } from '@/lib/supabase/server';
+import { formatDay } from '@/lib/time';
+import { formatAge } from '@/lib/age';
 import { EmailForm } from './email-form';
 import { LanguageSwitch, ThemeSelect } from './preferences';
 
@@ -20,6 +24,8 @@ export default async function ComptePage() {
   if (ctx.hasMfa && ctx.aal !== 'aal2') redirect('/mfa/verifier?suivant=%2Fcompte');
   const t = await getT();
   const theme = (await cookies()).get(THEME_COOKIE)?.value;
+  // Famille : infos des patients suivis, en lecture seule (seule l'ortho les modifie).
+  const { data: infos } = ctx.profile.role === 'ortho' ? { data: [] } : await (await createClient()).rpc('my_patient_infos');
 
   return (
     <AppShell ctx={ctx}>
@@ -42,10 +48,25 @@ export default async function ComptePage() {
           </Link>
         </section>
       )}
-      <section className="card stack">
-        <h2>{t('Mes informations')}</h2>
-        <AccountForm firstName={ctx.profile.first_name} lastName={ctx.profile.last_name} />
-      </section>
+      {ctx.profile.role === 'ortho' ? (
+        <section className="card stack">
+          <h2>{t('Mes informations')}</h2>
+          <AccountForm firstName={ctx.profile.first_name} lastName={ctx.profile.last_name} />
+        </section>
+      ) : (
+        <LockedInfos
+          t={t}
+          firstName={ctx.profile.first_name}
+          lastName={ctx.profile.last_name}
+          patients={(infos ?? []).map((p) => ({
+            id: p.id,
+            firstName: p.first_name,
+            lastName: p.last_name,
+            birthDate: p.birth_date ? formatDay(p.birth_date, false, t.locale) : formatAge(p.patient_age, t.lang),
+            practiceName: p.practice_name,
+          }))}
+        />
+      )}
       <section className="card stack">
         <h2>{t('Adresse email')}</h2>
         <EmailForm current={ctx.email} />
