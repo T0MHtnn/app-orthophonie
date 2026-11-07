@@ -267,7 +267,7 @@ export const sessionNoteSchema = z.object({
   appointmentId: z.union([z.literal(''), z.uuid()]).optional().default(''),
 });
 
-export const totpCodeSchema =z.string().trim().regex(/^[0-9]{6}$/, 'Code à 6 chiffres');
+export const totpCodeSchema = z.string().trim().regex(/^[0-9]{6}$/, 'Code à 6 chiffres');
 
 /** Premier message d'erreur par champ, pour l'affichage dans le formulaire. */
 export function fieldErrors(error: z.ZodError): Record<string, string> {
