@@ -8,6 +8,8 @@ const ORTHO_LINKS: NavLink[] = [
   { href: '/ortho/liste-attente', label: 'Liste d’attente' },
   { href: '/ortho/reglages', label: 'Réglages' },
   { href: '/compte', label: 'Mon compte' },
+  // Un ortho peut aussi inscrire ses enfants ou un proche dans un autre cabinet.
+  { href: '/patient', label: 'Mes demandes (famille)' },
 ];
 
 const FAMILY_LINKS: NavLink[] = [

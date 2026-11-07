@@ -46,9 +46,9 @@ export default async function PublicWaitlistPage({ params }: { params: Promise<{
       ) : (
         <div className="card stack">
           <InfoText source={practice.waitlist_info || DEFAULT_WAITLIST_INFO} />
-          {ctx?.profile.role === 'ortho' ? (
+          {ctx?.practice?.slug === slug ? (
             <div className="alert warn stack">
-              <p>Vous êtes connecté avec un compte orthophoniste : un compte professionnel ne peut pas s’inscrire sur une liste d’attente.</p>
+              <p>C’est votre propre cabinet : vous ne pouvez pas vous inscrire sur votre liste d’attente. Pour tester, utilisez un compte famille.</p>
               <div className="row">
                 <form action={logout}>
                   <input type="hidden" name="suivant" value={`/c/${slug}`} />

@@ -41,6 +41,11 @@ export default async function PatientPage() {
           <h1>Bonjour {ctx.profile.first_name || ctx.profile.full_name || ctx.email}</h1>
           <p className="sub">Suivez ici vos demandes de liste d’attente et, ensuite, vos séances.</p>
         </div>
+        {requests.length > 0 && (
+          <Link href="/trouver" className="btn">
+            Nouvelle demande
+          </Link>
+        )}
       </div>
 
       {unlocked ? (

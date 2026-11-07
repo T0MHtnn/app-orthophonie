@@ -239,13 +239,24 @@ do $$ begin
 exception when check_violation then null;
 end $$;
 
--- 12. Un compte orthophoniste ne peut pas s'inscrire sur une liste d'attente.
+-- 12. Un ortho peut inscrire un proche dans un autre cabinet, pas dans le sien ; son cabinet est absent de son annuaire.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'aal2');
+set role authenticated;
+do $$ begin
+  perform public.submit_waitlist_entry('cabinet-a', 'Ortho', 'Test', '30 ans', null, null, 'a@example.com', null, 'voix', 'reeducation', null);
+  raise exception 'ÉCHEC 12a : un ortho peut s''inscrire dans son propre cabinet';
+exception when sqlstate 'P0403' then null;
+end $$;
+do $$ begin
+  if exists (select 1 from public.search_practices('cabinet a')) then raise exception 'ÉCHEC 12b : propre cabinet visible dans l''annuaire'; end if;
+end $$;
+reset role;
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000b', 'aal2');
 set role authenticated;
 do $$ begin
-  perform public.submit_waitlist_entry('cabinet-a', 'Ortho', 'Test', '30 ans', null, null, 'b@example.com', null, 'voix', 'reeducation', null);
-  raise exception 'ÉCHEC 12 : un ortho peut s''inscrire';
-exception when sqlstate 'P0403' then null;
+  if not public.submit_waitlist_entry('cabinet-a', 'Enfant', 'DeB', '6 ans', 'B', 'Parent', 'b@example.com', null, 'voix', 'bilan', null) then
+    raise exception 'ÉCHEC 12c : un ortho ne peut pas inscrire son enfant ailleurs';
+  end if;
 end $$;
 reset role;
 
