@@ -66,7 +66,7 @@ function BookingFields({ state, action, values: v }: { state: FormState; action:
         <span>
           <b>{t('Appliquer aussi ce délai aux liens envoyés par email')}</b>
           <span className="hint" style={{ display: 'block' }}>
-            {t('Créneaux proposés par email (place libérée, séance libérée). Décoché : le patient peut réserver un créneau même s’il commence dans moins de ce délai.')}
+            {t('Séances libérées proposées par email à vos patients suivis. Décoché : le patient peut prendre la séance même si elle commence dans moins de ce délai.')}
           </span>
         </span>
       </label>

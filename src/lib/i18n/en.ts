@@ -601,19 +601,9 @@ export const EN: Record<string, string> = {
   "Décoché : plus personne ne peut s’inscrire, même avec votre lien (et le cabinet disparaît de l’annuaire).": "Unticked: nobody can sign up, even with your link (and the practice disappears from the directory).",
   // 24_offers
   "Appliquer aussi ce délai aux liens envoyés par email": "Also apply this notice to links sent by email",
-  "Choisir mon premier rendez-vous": "Choose my first appointment",
-  "Rendez-vous confirmé": "Appointment confirmed",
-  "Votre premier rendez-vous est enregistré. Vous le retrouvez dans votre espace, avec vos prochaines séances.": "Your first appointment is saved. You will find it in your space, with your upcoming sessions.",
-  "Lien déjà utilisé": "Link already used",
-  "Ce lien a déjà servi à choisir un rendez-vous. Retrouvez vos séances dans votre espace.": "This link has already been used to choose an appointment. Find your sessions in your space.",
-  "Lien expiré": "Link expired",
-  "Ce lien n’est plus valable (72 h). Contactez le cabinet pour une nouvelle proposition.": "This link is no longer valid (72 h). Contact the practice for a new offer.",
   "Lien invalide": "Invalid link",
   "Ce lien n’existe pas ou n’est plus valable.": "This link does not exist or is no longer valid.",
   "Voir mon espace": "Go to my space",
-  "Ce créneau n’est pas réservable. Choisissez-en un autre.": "This slot cannot be booked. Choose another one.",
-  "Pour {prenom} · {cabinet} · séance de {min} min": "For {prenom} · {cabinet} · {min}-min session",
-  "Confirmer ce rendez-vous": "Confirm this appointment",
   "Une séance s’est libérée": "A session has become available",
   "Séance réservée": "Session booked",
   "C’est noté : la séance est à vous. Vous la retrouvez dans votre espace.": "Done: the session is yours. You will find it in your space.",
@@ -647,7 +637,7 @@ export const EN: Record<string, string> = {
   "Envoi programmé (nuit ou aucun patient disponible pour l’instant).": "Sending scheduled (night time, or no patient available for now).",
   "Créneau introuvable.": "Slot not found.",
   // 25_notice_hint
-  "Créneaux proposés par email (place libérée, séance libérée). Décoché : le patient peut réserver un créneau même s’il commence dans moins de ce délai.": "Slots offered by email (place available, session freed). Unticked: the patient can book a slot even if it starts sooner than this notice.",
+  "Séances libérées proposées par email à vos patients suivis. Décoché : le patient peut prendre la séance même si elle commence dans moins de ce délai.": "Freed sessions offered by email to your patients in care. Unticked: the patient can take the session even if it starts sooner than this notice.",
   // 26_sessions_filter
   "Prévues": "Upcoming",
   "Passées": "Past",

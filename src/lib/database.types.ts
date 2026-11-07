@@ -240,13 +240,6 @@ export type Database = {
       family_cancel_appointment: { Args: { p_id: string; p_reason?: string }; Returns: boolean };
       ack_appointment: { Args: { p_id: string }; Returns: boolean };
       cancel_by_ortho: { Args: { p_id: string; p_reason?: string }; Returns: boolean };
-      create_place_link: { Args: { p_entry_id: string }; Returns: string };
-      place_link_info: {
-        Args: { p_token: string };
-        Returns: { state: 'ok' | 'utilise' | 'expire' | 'invalide'; practice_name: string | null; patient_first_name: string | null; session_minutes: number | null; min_notice_hours: number | null }[];
-      };
-      place_busy: { Args: { p_token: string; p_from: string; p_to: string }; Returns: { starts_at: string; ends_at: string }[] };
-      place_book: { Args: { p_token: string; p_starts_at: string }; Returns: 'ok' | 'utilise' | 'expire' | 'invalide' | 'horaire' | 'pris' };
       start_slot_offer: { Args: { p_freed_slot: string }; Returns: { email: string; first_name: string; practice_name: string; starts_at: string; token: string }[] };
       dismiss_freed_slots: { Args: { p_ids: string[] }; Returns: number };
       advance_my_offers: { Args: Record<string, never>; Returns: { email: string; first_name: string; practice_name: string; starts_at: string; token: string }[] };

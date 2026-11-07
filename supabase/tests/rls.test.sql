@@ -520,37 +520,11 @@ do $$ begin
   end if;
 end $$;
 
--- 22. Lien « place libérée » : usage unique, la demande passe « Pris en charge » et le RDV est créé.
-select pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'aal2');
-set role authenticated;
-do $$
-declare v_entry uuid := (select id from public.waitlist_entries where status = 'attente' and practice_id = (select id from public.practices where slug = 'cabinet-a') limit 1);
-begin
-  perform set_config('test.entry', v_entry::text, false);
-  perform set_config('test.token', public.create_place_link(v_entry), false);
-end $$;
-reset role;
-set role anon;
-do $$
-declare v_token text := current_setting('test.token');
-begin
-  if (select state from public.place_link_info(v_token)) <> 'ok' then raise exception 'ÉCHEC 22a : lien non valide'; end if;
-  if public.place_book(v_token, '2030-03-04 10:00+01') <> 'ok' then raise exception 'ÉCHEC 22b : réservation par lien refusée'; end if;
-  if public.place_book(v_token, '2030-03-04 11:00+01') <> 'utilise' then raise exception 'ÉCHEC 22c : lien réutilisable'; end if;
-  if (select state from public.place_link_info('mauvais-jeton')) <> 'invalide' then raise exception 'ÉCHEC 22d : faux jeton accepté'; end if;
-end $$;
-reset role;
-do $$ begin
-  if (select status from public.waitlist_entries where id = current_setting('test.entry')::uuid) <> 'rdv' then
-    raise exception 'ÉCHEC 22e : demande non passée en « Pris en charge »';
-  end if;
-end $$;
-
 -- 23. Annulation par l'ortho : raison gardée, créneau libéré pour le récapitulatif.
 select pg_temp.as_user('00000000-0000-0000-0000-00000000000a', 'aal2');
 set role authenticated;
 do $$
-declare v_appt uuid := (select id from public.appointments where starts_at = '2030-03-04 10:00+01');
+declare v_appt uuid := public.save_appointment(null, (select id from public.patients where active limit 1), '2030-03-04 10:00+01', '2030-03-04 10:30+01');
 begin
   if not public.cancel_by_ortho(v_appt, 'Formation') then raise exception 'ÉCHEC 23a : annulation refusée'; end if;
   if not exists (select 1 from public.freed_slots where starts_at = '2030-03-04 10:00+01' and source = 'cabinet' and reason = 'Formation') then

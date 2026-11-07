@@ -8,7 +8,6 @@ import { emailTemplateFor } from '@/lib/defaults';
 import { sendEmail } from '@/lib/email';
 import { splitSubject } from '@/lib/email-format';
 import { buildOfferEmail } from '@/lib/offer-email';
-import { siteUrl } from '@/lib/env';
 import { createClient } from '@/lib/supabase/server';
 import type { WaitlistStatus } from '@/lib/database.types';
 import { waitlistStatusSchema } from '@/lib/validation';
@@ -72,11 +71,8 @@ export async function sendOfferEmail(formData: FormData): Promise<void> {
   const { data: entry } = await supabase.from('waitlist_entries').select('*').eq('id', id.data).maybeSingle();
   if (!entry?.email) redirect('/ortho/liste-attente?erreur=email');
 
-  // Lien personnel (usage unique, 72 h) : la famille choisit elle-même son 1er RDV.
-  const { data: token, error: linkError } = await supabase.rpc('create_place_link', { p_entry_id: entry.id });
-  if (linkError) console.error('create_place_link', linkError.code);
-  const link = token ? `${siteUrl}/place/${token}` : undefined;
-  const text = buildOfferEmail(emailTemplateFor(practice.email_template, 'fr'), entry, profile.full_name, practice.name, link);
+  // Pas de lien pour réserver soi-même (règle de Tom) : l'ortho fixe le 1er RDV ; {lien} mène à l'espace.
+  const text = buildOfferEmail(emailTemplateFor(practice.email_template, 'fr'), entry, profile.full_name, practice.name);
   const { subject, body } = splitSubject(text, `Une place s’est libérée – ${practice.name}`);
   const result = await sendEmail({
     to: { email: entry.email },
