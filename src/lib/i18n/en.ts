@@ -479,4 +479,13 @@ export const EN: Record<string, string> = {
   "{prenom} a déjà une séance prévue : vous pourrez en réserver une autre quand elle sera passée ou annulée.": "{prenom} already has a session planned: you can book another once it has passed or been cancelled.",
   "Vous avez déjà une demande dans ce cabinet. Vous pouvez en faire une pour un autre patient, mais pas inscrire deux fois le même.": "You already have a request with this practice. You can make one for another patient, but not register the same patient twice.",
   "Ce patient a déjà une demande en cours ou est déjà suivi dans ce cabinet.": "This patient already has a request in progress or is already in care with this practice.",
+  // 10_termine
+  "Prise en charge terminée": "Care completed",
+  "Terminer la prise en charge": "End care",
+  "Reprendre le suivi": "Resume care",
+  "Afficher les prises en charge terminées": "Show completed care",
+  "Les séances sont terminées. Si besoin, vous pouvez refaire une demande auprès de ce cabinet.": "Sessions are over. If needed, you can make a new request to this practice.",
+  "Séances réalisées": "Sessions completed",
+  "{fait} séance(s) sur {total}": "{fait} of {total} session(s)",
+  "{fait} séance(s) réalisée(s) · nombre total à définir avec l’acte AMO": "{fait} session(s) completed · total to be set with the AMO procedure",
 };

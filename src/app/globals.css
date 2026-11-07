@@ -233,6 +233,12 @@ a { color: var(--accent); }
 .notice { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .notice-x { flex: none; border: 0; background: none; color: inherit; opacity: 0.7; font-size: 20px; line-height: 1; padding: 0 2px; }
 .notice-x:hover { opacity: 1; }
+.badge.termine { background: var(--surface-2); color: var(--ok); }
+/* Avancement des séances : couleur d'accent du thème */
+.progress-block { display: flex; flex-direction: column; gap: 4px; }
+.progress { height: 10px; border-radius: 99px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+.progress span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width 0.4s ease; }
+.progress.unknown { background: repeating-linear-gradient(-45deg, var(--surface), var(--surface) 6px, var(--surface-2) 6px, var(--surface-2) 12px); }
 .autonomous-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 16px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border: 1px solid var(--line); border-radius: 99px; font-size: 13.5px; background: var(--surface); }
 .chip-x { border: 0; background: none; width: 22px; height: 22px; border-radius: 99px; color: var(--muted); font-size: 16px; line-height: 1; }

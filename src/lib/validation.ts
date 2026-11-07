@@ -77,7 +77,7 @@ export const practiceSchema = z.object({
     .refine(isValidRpps, 'Numéro RPPS invalide (11 chiffres)'),
 });
 
-export const waitlistStatusSchema = z.enum(['attente', 'contacte', 'rdv', 'retire']);
+export const waitlistStatusSchema = z.enum(['attente', 'contacte', 'rdv', 'termine', 'retire']);
 
 /** Facultatif : vide accepté, sinon normalisé (voir lib/phone.ts). */
 const phoneSchema = z

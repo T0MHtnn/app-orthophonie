@@ -20,6 +20,7 @@ const STATUS: Record<WaitlistStatus, { label: string; help: string }> = {
   attente: { label: 'En attente', help: 'Aucune place ne vous a encore été trouvée. Le cabinet vous contactera dès qu’une place se libère.' },
   contacte: { label: 'Place proposée', help: 'Une place vous a été proposée : consultez vos emails et répondez au cabinet.' },
   rdv: { label: 'Pris en charge', help: 'Votre prise en charge est organisée.' },
+  termine: { label: 'Prise en charge terminée', help: 'Les séances sont terminées. Si besoin, vous pouvez refaire une demande auprès de ce cabinet.' },
   retire: { label: 'Demande retirée', help: 'Cette demande n’est plus active.' },
 };
 

@@ -5,7 +5,7 @@ import type { RequestType } from './request-type';
  *   npx supabase gen types typescript --project-id <id> > src/lib/database.types.ts
  */
 export type UserRole = 'patient' | 'ortho' | 'admin';
-export type WaitlistStatus = 'attente' | 'contacte' | 'rdv' | 'retire';
+export type WaitlistStatus = 'attente' | 'contacte' | 'rdv' | 'termine' | 'retire';
 
 type NoInsert = { [_ in never]: never };
 

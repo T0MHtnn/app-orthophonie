@@ -20,7 +20,13 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getT())('Liste d’attente') };
 }
 
-const STATUS_LABEL: Record<WaitlistStatus, string> = { attente: 'En attente', contacte: 'Place proposée', rdv: 'Pris en charge', retire: 'Retiré' };
+const STATUS_LABEL: Record<WaitlistStatus, string> = {
+  attente: 'En attente',
+  contacte: 'Place proposée',
+  rdv: 'Pris en charge',
+  termine: 'Prise en charge terminée',
+  retire: 'Retiré',
+};
 
 /** Changements de statut manuels proposés selon l'étape (« Place proposée » se fait via l'email). */
 const NEXT_STATUS: Record<WaitlistStatus, { status: WaitlistStatus; label: string }[]> = {
@@ -30,7 +36,12 @@ const NEXT_STATUS: Record<WaitlistStatus, { status: WaitlistStatus; label: strin
     { status: 'attente', label: 'Remettre en attente' },
     { status: 'retire', label: 'Retirer' },
   ],
-  rdv: [{ status: 'attente', label: 'Remettre en liste d’attente' }],
+  rdv: [
+    { status: 'termine', label: 'Terminer la prise en charge' },
+    { status: 'attente', label: 'Remettre en liste d’attente' },
+  ],
+  // Terminée : le patient peut refaire une demande ; l'ortho peut reprendre le suivi.
+  termine: [{ status: 'rdv', label: 'Reprendre le suivi' }],
   retire: [{ status: 'attente', label: 'Remettre en attente' }],
 };
 
@@ -57,7 +68,9 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
   const query = (params.q ?? '').slice(0, 80);
   const all = entries ?? [];
   // « Pris en charge » quitte la file d'attente pour l'onglet des patients suivis.
-  const inTab = (e: WaitlistEntryRow) => (tab === 'suivis' ? e.status === 'rdv' : e.status === 'attente' || e.status === 'contacte' || (showRemoved && e.status === 'retire'));
+  // Case « afficher » : demandes retirées (file d'attente) ou prises en charge terminées (suivis).
+  const inTab = (e: WaitlistEntryRow) =>
+    tab === 'suivis' ? e.status === 'rdv' || (showRemoved && e.status === 'termine') : e.status === 'attente' || e.status === 'contacte' || (showRemoved && e.status === 'retire');
   const rows = all.filter(
     (e) =>
       inTab(e) &&
@@ -112,7 +125,7 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
         </Link>
       </nav>
 
-      <FilterBar key={tab} pathologies={(pathologies ?? []).map((p) => ({ code: p.code, label: t(p.label) }))} requestTypes={REQUEST_TYPES.map(({ code, label }) => ({ code, label: t(label) }))} showRemovedToggle={tab === 'attente'} />
+      <FilterBar key={tab} pathologies={(pathologies ?? []).map((p) => ({ code: p.code, label: t(p.label) }))} requestTypes={REQUEST_TYPES.map(({ code, label }) => ({ code, label: t(label) }))} showRemovedLabel={tab === 'suivis' ? 'Afficher les prises en charge terminées' : 'Afficher les demandes retirées'} />
 
       {/* L'email part en français (langue des familles), sauf modèle personnalisé par l'ortho. */}
       {emailFor && <EmailPreview t={t} entry={emailFor} template={emailTemplateFor(practice.email_template, 'fr')} orthoName={profile.full_name} practiceName={practice.name} />}

@@ -30,14 +30,17 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
   const weekEnd = parisToInstant(addDays(week, 7), '00:00').toISOString();
 
   const supabase = await createClient();
-  const [{ data: blocks, error: blocksError }, { data: appointments, error }, { data: upcoming }, { data: patients }, { data: pathologies }] = await Promise.all([
+  const [{ data: blocks, error: blocksError }, { data: appointments, error }, { data: upcoming }, { data: patients }, { data: pathologies }, { data: done }] = await Promise.all([
     // Blocages qui peuvent avoir une occurrence cette semaine (la veille comprise, pour ceux qui débordent).
     supabase.from('schedule_blocks').select('*').lt('starts_at', weekEnd).or(`until.is.null,until.gte.${addDays(week, -1)}`),
     supabase.from('appointments').select('*').neq('status', 'annule').lt('starts_at', weekEnd).gt('ends_at', weekStart),
     supabase.from('appointments').select('patient_id, starts_at').neq('status', 'annule').gte('starts_at', now.toISOString()).order('starts_at'),
     supabase.from('patients').select('*').order('last_name'),
     supabase.from('pathologies').select('code, label'),
+    supabase.from('appointments').select('patient_id').eq('status', 'confirme').lt('ends_at', now.toISOString()),
   ]);
+  const doneCount = new Map<string, number>();
+  for (const a of done ?? []) doneCount.set(a.patient_id, (doneCount.get(a.patient_id) ?? 0) + 1);
   const pathologyLabel = new Map((pathologies ?? []).map((p) => [p.code, p.label]));
   // Fiche patient affichée dans la pop-up d'un rendez-vous.
   const details: Record<string, PatientDetail> = Object.fromEntries(
@@ -52,6 +55,9 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
         pathology: p.pathology_code ? t(pathologyLabel.get(p.pathology_code) ?? p.pathology_code) : null,
         requestType: p.request_type ? t(REQUEST_TYPE_LABEL[p.request_type]) : null,
         autonomous: p.autonomous,
+        sessionsDone: doneCount.get(p.id) ?? 0,
+        // Nombre de séances prévu par l'acte AMO : à brancher quand la liste des actes sera fournie.
+        sessionsTotal: null,
       },
     ]),
   );

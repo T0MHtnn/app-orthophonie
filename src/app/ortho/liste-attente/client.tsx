@@ -32,7 +32,7 @@ export function CopyButton({ text }: { text: string }) {
  */
 type Option = { code: string; label: string };
 
-export function FilterBar({ pathologies, requestTypes, showRemovedToggle }: { pathologies: Option[]; requestTypes: Option[]; showRemovedToggle: boolean }) {
+export function FilterBar({ pathologies, requestTypes, showRemovedLabel }: { pathologies: Option[]; requestTypes: Option[]; showRemovedLabel: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -96,9 +96,9 @@ export function FilterBar({ pathologies, requestTypes, showRemovedToggle }: { pa
           ))}
         </select>
       </label>
-      {showRemovedToggle && (
+      {showRemovedLabel && (
         <label className="check">
-          <input type="checkbox" name="retires" value="1" checked={params.get('retires') === '1'} onChange={(e) => apply({ retires: e.target.checked ? '1' : '' })} /> {t('Afficher les demandes retirées')}
+          <input type="checkbox" name="retires" value="1" checked={params.get('retires') === '1'} onChange={(e) => apply({ retires: e.target.checked ? '1' : '' })} /> {t(showRemovedLabel)}
         </label>
       )}
       <noscript>

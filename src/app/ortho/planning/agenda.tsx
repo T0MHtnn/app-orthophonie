@@ -33,6 +33,10 @@ export interface PatientDetail {
   pathology: string | null;
   requestType: string | null;
   autonomous: boolean;
+  /** Séances réalisées (RDV confirmés passés). */
+  sessionsDone: number;
+  /** Séances prévues par l'acte AMO (null tant que l'acte n'est pas renseigné). */
+  sessionsTotal: number | null;
 }
 
 type BookingMode = 'ortho' | 'autonomes' | 'tous';
@@ -482,6 +486,7 @@ function PatientCard({ patientId, detail, bookingMode }: { patientId: string; de
   ];
   return (
     <section className="patient-card stack" aria-label={t('Fiche patient')}>
+      <SessionsProgress done={detail.sessionsDone} total={detail.sessionsTotal} />
       <dl className="facts">
         {rows
           .filter(([, value]) => value)
@@ -519,5 +524,30 @@ function PatientCard({ patientId, detail, bookingMode }: { patientId: string; de
       </label>
       {error && <p className="alert error">{t('La modification n’a pas pu être enregistrée.')}</p>}
     </section>
+  );
+}
+
+/** Avancement de la série de séances (couleur du thème). */
+function SessionsProgress({ done, total }: { done: number; total: number | null }) {
+  const t = useT();
+  const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  return (
+    <div className="progress-block">
+      <div
+        className={`progress ${total ? '' : 'unknown'}`}
+        role="progressbar"
+        aria-label={t('Séances réalisées')}
+        aria-valuemin={0}
+        aria-valuemax={total ?? undefined}
+        aria-valuenow={total ? done : undefined}
+      >
+        <span style={{ width: `${pct}%` }} />
+      </div>
+      <p className="hint">
+        {total
+          ? t('{fait} séance(s) sur {total}', { fait: done, total })
+          : t('{fait} séance(s) réalisée(s) · nombre total à définir avec l’acte AMO', { fait: done })}
+      </p>
+    </div>
   );
 }

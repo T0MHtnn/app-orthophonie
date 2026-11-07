@@ -459,4 +459,21 @@ do $$ begin
 end $$;
 reset role;
 
+-- 18. Prise en charge terminée : fiche désactivée, le patient peut refaire une demande.
+do $$
+declare v_entry uuid := (select id from public.waitlist_entries where patient_first_name = 'Léa' and patient_last_name = 'Marry' limit 1);
+begin
+  update public.waitlist_entries set status = 'rdv' where id = v_entry;
+  update public.waitlist_entries set status = 'termine' where id = v_entry;
+  if (select active from public.patients where waitlist_entry_id = v_entry) then raise exception 'ÉCHEC 18a : fiche toujours active'; end if;
+end $$;
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f2', 'aal1');
+set role authenticated;
+do $$ begin
+  if not public.submit_waitlist_entry('cabinet-a', 'Marry', 'Léa', '7 ans', 'X', 'Y', 'f2@example.com', null, 'voix', 'reeducation', null) then
+    raise exception 'ÉCHEC 18b : réinscription refusée après la fin de prise en charge';
+  end if;
+end $$;
+reset role;
+
 select 'TOUS LES TESTS DE SÉCURITÉ PASSENT' as resultat;
