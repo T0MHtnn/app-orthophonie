@@ -477,4 +477,6 @@ export const EN: Record<string, string> = {
   "Vous avez déjà une demande en cours ou un suivi dans ce cabinet : inutile de vous réinscrire.": "You already have a request in progress or ongoing care with this practice: no need to sign up again.",
   "Inscrire un autre enfant ou proche": "Register another child or relative",
   "{prenom} a déjà une séance prévue : vous pourrez en réserver une autre quand elle sera passée ou annulée.": "{prenom} already has a session planned: you can book another once it has passed or been cancelled.",
+  "Vous avez déjà une demande dans ce cabinet. Vous pouvez en faire une pour un autre patient, mais pas inscrire deux fois le même.": "You already have a request with this practice. You can make one for another patient, but not register the same patient twice.",
+  "Ce patient a déjà une demande en cours ou est déjà suivi dans ce cabinet.": "This patient already has a request in progress or is already in care with this practice.",
 };

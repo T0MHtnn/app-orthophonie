@@ -32,7 +32,7 @@ export default async function PublicWaitlistPage({ params }: { params: Promise<{
   if (!practice) notFound();
 
   const back = encodeURIComponent(`/c/${slug}`);
-  // Un compte = une seule demande par cabinet : déjà une demande en cours ou un suivi ici → pas de formulaire.
+  // Déjà une demande ou un suivi ici : simple rappel (un autre patient reste possible, pas le même deux fois).
   const known = ctx ? ((await supabase.rpc('known_practice', { p_slug: slug })).data ?? false) : false;
   const t = await getT();
 
@@ -67,17 +67,9 @@ export default async function PublicWaitlistPage({ params }: { params: Promise<{
                 </Link>
               </div>
             </div>
-          ) : ctx && known ? (
-            <div className="alert warn stack">
-              <p>{t('Vous avez déjà une demande en cours ou un suivi dans ce cabinet : inutile de vous réinscrire.')}</p>
-              <div className="row">
-                <Link className="btn small primary" href="/patient">
-                  {t('Voir mes demandes')}
-                </Link>
-              </div>
-            </div>
           ) : ctx ? (
             <>
+              {known && <p className="alert warn">{t('Vous avez déjà une demande dans ce cabinet. Vous pouvez en faire une pour un autre patient, mais pas inscrire deux fois le même.')}</p>}
               <p className="hint">
                 {t('Connecté en tant que')} <b>{ctx.email}</b>. {t('Vous pourrez suivre votre demande depuis')} <Link href="/patient">{t('votre espace')}</Link>.
               </p>

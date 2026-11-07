@@ -427,35 +427,35 @@ do $$ begin
 end $$;
 reset role;
 
--- 17. Annuaire : une famille ne revoit pas un cabinet où elle a déjà une demande ou un suivi.
 update public.practices set listed = true where slug = 'cabinet-a';
-select pg_temp.as_user('00000000-0000-0000-0000-0000000000f1', 'aal1');
-set role authenticated;
-do $$ begin
-  if not public.known_practice('cabinet-a') then raise exception 'ÉCHEC 17a : demande existante non détectée'; end if;
-  if exists (select 1 from public.search_practices('paris') where slug = 'cabinet-a') then raise exception 'ÉCHEC 17b : cabinet déjà connu affiché'; end if;
-end $$;
-reset role;
+-- 17. Un même compte peut inscrire plusieurs patients dans un cabinet, mais pas deux fois le même.
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000f2', 'aal1');
 set role authenticated;
 do $$ begin
-  if public.known_practice('cabinet-b') then raise exception 'ÉCHEC 17c : faux positif'; end if;
+  if not public.submit_waitlist_entry('cabinet-a', 'Marry', 'Léa', '6 ans', 'X', 'Y', 'f2@example.com', null, 'voix', 'bilan', null) then
+    raise exception 'ÉCHEC 17a : demande pour un nouveau patient refusée';
+  end if;
+  if not public.submit_waitlist_entry('cabinet-a', 'Eude', 'Jean', '8 ans', 'X', 'Y', 'f2@example.com', null, 'voix', 'bilan', null) then
+    raise exception 'ÉCHEC 17b : deuxième patient refusé';
+  end if;
+  begin
+    perform public.submit_waitlist_entry('cabinet-a', 'EUDE', ' jean ', '8 ans', 'X', 'Y', 'f2@example.com', null, 'voix', 'bilan', null);
+    raise exception 'ÉCHEC 17c : même patient inscrit deux fois';
+  exception when unique_violation then null;
+  end;
+  if not exists (select 1 from public.search_practices('paris') where slug = 'cabinet-a') then
+    raise exception 'ÉCHEC 17d : cabinet connu masqué de l''annuaire';
+  end if;
 end $$;
 reset role;
 
--- 18. Un compte = une seule demande par cabinet, même avec un autre nom de patient.
-select pg_temp.as_user('00000000-0000-0000-0000-0000000000f2', 'aal1');
+-- Un autre compte peut inscrire un homonyme « Jean Eude » dans le même cabinet.
+select pg_temp.as_user('00000000-0000-0000-0000-00000000000d', 'aal1');
 set role authenticated;
 do $$ begin
-  -- Première demande de f2 dans cabinet-a (déjà faite plus haut, ou faite ici)…
-  begin
-    perform public.submit_waitlist_entry('cabinet-a', 'Premier', 'Enfant', '6 ans', 'X', 'Y', 'f2@example.com', null, 'voix', 'bilan', null);
-  exception when sqlstate 'P0413' then null;
-  end;
-  -- … puis une deuxième, pour un autre patient : refusée.
-  perform public.submit_waitlist_entry('cabinet-a', 'Autre', 'Enfant', '4 ans', 'X', 'Y', 'f2@example.com', null, 'voix', 'bilan', null);
-  raise exception 'ÉCHEC 18 : deuxième demande acceptée dans le même cabinet';
-exception when sqlstate 'P0413' then null;
+  if not public.submit_waitlist_entry('cabinet-a', 'Eude', 'Jean', '8 ans', 'Z', 'W', 'd@example.com', null, 'voix', 'bilan', null) then
+    raise exception 'ÉCHEC 17e : homonyme d''un autre compte refusé';
+  end if;
 end $$;
 reset role;
 
