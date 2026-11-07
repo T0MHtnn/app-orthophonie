@@ -60,7 +60,7 @@ Variables : voir `.env.example` (`NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_U
 ## Fait (V1)
 
 - Comptes : inscription (ortho ou patient/parent), confirmation email, connexion, mot de passe oublié, œil sur les mots de passe. Connexion uniquement par compte de l'app (pas de Google).
-- Ortho : création du cabinet (nom, adresse publique `/c/<slug>`, RPPS avec clé de Luhn ; cabinet `verified = false` jusqu'à validation manuelle en SQL), **MFA TOTP obligatoire**, déconnexion après 30 min d'inactivité (activité comptée sur toute l'app).
+- Ortho : création du cabinet (nom, adresse publique `/c/<slug>`, RPPS avec clé de Luhn ; cabinet `verified = false` jusqu'à validation manuelle en SQL), **MFA TOTP obligatoire**, déconnexion après 30 min d'inactivité **pour tous les comptes** (ortho et patient, pages protégées ; activité comptée sur toute l'app).
 - Liste d'attente :
   - page publique `/c/<slug>` : texte d'information modifiable + case de lecture obligatoire, **compte requis** (créer / se connecter, retour automatique au formulaire) ;
   - formulaire : patient, âge (nombre + ans/mois ; ≥ 18 ans → champs parent/aidant grisés, obligatoires sinon), motif (pathologies), contact, notes, consentement, champ piège anti-robot, valeurs conservées et erreurs encadrées en rouge ;

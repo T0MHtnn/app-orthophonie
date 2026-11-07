@@ -8,7 +8,7 @@ import { sessionCookieOptions } from '@/lib/supabase/cookies';
  *   1. pose une Content-Security-Policy avec un nonce unique par requête ;
  *   2. rafraîchit la session Supabase (cookies httpOnly) ;
  *   3. renvoie vers la connexion les pages protégées sans session ;
- *   4. déconnecte après 30 min d'inactivité dans l'espace orthophoniste.
+ *   4. déconnecte après 30 min d'inactivité (ortho comme patient).
  * Les contrôles de rôle et de double authentification sont refaits côté
  * serveur dans chaque page (src/lib/auth.ts) et dans la base (RLS).
  */
@@ -77,11 +77,11 @@ export async function middleware(request: NextRequest) {
     return redirectTo('/connexion', { suivant: path });
   }
 
-  // Déconnexion automatique après 30 min d'inactivité dans l'espace ortho (données de santé).
+  // Déconnexion automatique après 30 min d'inactivité, pour tous les comptes (données de santé).
   // L'activité est comptée sur toutes les pages : naviguer ailleurs dans l'app n'est pas de l'inactivité.
   if (claims) {
     const last = Number(request.cookies.get(IDLE_COOKIE)?.value ?? Date.now());
-    if (path.startsWith('/ortho') && Date.now() - last > SESSION_IDLE_MINUTES * 60_000) {
+    if (isProtected && Date.now() - last > SESSION_IDLE_MINUTES * 60_000) {
       await supabase.auth.signOut({ scope: 'local' });
       const redirect = redirectTo('/connexion', { raison: 'inactivite' });
       redirect.cookies.delete(IDLE_COOKIE);
