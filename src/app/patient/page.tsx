@@ -71,8 +71,10 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
       {params.erreur === 'annulation' && <p className="alert error">{t('Cette séance ne peut plus être annulée en ligne : contactez le cabinet.')}</p>}
 
       {unlocked ? (
-        <section className="card stack">
-          <h2>{t('Mes séances')}</h2>
+        <details className="card foldable" open>
+          <summary>
+            <h2>{t('Mes séances')}</h2> <span className="count">{upcoming.length}</span>
+          </summary>
           {upcoming.length === 0 ? (
             <p className="hint">{t('Aucune séance à venir.')}</p>
           ) : (
@@ -98,7 +100,7 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
               ))}
             </div>
           )}
-        </section>
+        </details>
       ) : (
         <section className="card stack locked">
           <h2>{t(active.some((r) => r.status === 'contacte') ? 'Une place vous a été proposée' : 'Aucune place ne vous a encore été trouvée')}</h2>
@@ -118,17 +120,19 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
       )}
 
       {current.length > 0 && (
-        <section className="card">
-          <h2>{t('Mes demandes de liste d’attente')}</h2>
+        <details className="card foldable" open>
+          <summary>
+            <h2>{t('Mes demandes de liste d’attente')}</h2> <span className="count">{current.length}</span>
+          </summary>
           {current.map((r) => (
             <RequestRow key={r.id} r={r} t={t} patient={patientOfEntry.get(r.id)} />
           ))}
-        </section>
+        </details>
       )}
       {withdrawn.length > 0 && (
-        <details className="card withdrawn">
+        <details className="card foldable">
           <summary>
-            <b>{t('Demandes retirées')}</b> <span className="count">{withdrawn.length}</span>
+            <h2>{t('Demandes retirées')}</h2> <span className="count">{withdrawn.length}</span>
           </summary>
           {withdrawn.map((r) => (
             <RequestRow key={r.id} r={r} t={t} />

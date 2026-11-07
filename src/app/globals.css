@@ -248,9 +248,14 @@ a { color: var(--accent); }
 .attendance.done { background: var(--ok-soft); }
 .attendance.absent { background: var(--danger-soft); }
 .absences { color: var(--danger); font-weight: 700; font-size: 13.5px; }
-.withdrawn summary { cursor: pointer; list-style-position: inside; padding: 2px 0; }
-.withdrawn summary .count { display: inline-block; min-width: 22px; padding: 0 7px; border-radius: 99px; background: var(--surface-2); font-size: 12px; text-align: center; }
-.withdrawn[open] summary { margin-bottom: 8px; }
+/* Rubriques repliables (espace famille) */
+.foldable summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; }
+.foldable summary::-webkit-details-marker { display: none; }
+.foldable summary::before { content: ''; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); transition: transform 0.15s ease; flex: none; }
+.foldable[open] summary::before { transform: rotate(45deg); }
+.foldable summary h2 { font-size: 20px; }
+.foldable summary .count { display: inline-block; min-width: 22px; padding: 0 7px; border-radius: 99px; background: var(--surface-2); color: var(--muted); font-size: 12px; font-weight: 700; text-align: center; }
+.foldable[open] summary { margin-bottom: 10px; }
 .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); }
 .icon-btn:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
 .autonomous-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 16px; }
