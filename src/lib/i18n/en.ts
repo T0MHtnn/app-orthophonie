@@ -593,4 +593,9 @@ export const EN: Record<string, string> = {
   // 20_single_email
   "Les emails du cabinet seront envoyés à {email}, l’adresse de votre compte (modifiable dans vos réglages).": "Emails from the practice will be sent to {email}, your account address (can be changed in your settings).",
   "Vous recevrez un lien de confirmation. Une fois le changement confirmé, vous serez déconnecté de tous vos appareils, et les emails des cabinets arriveront à la nouvelle adresse.": "You will receive a confirmation link. Once the change is confirmed, you will be logged out of all your devices, and emails from practices will go to the new address.",
+  // 21_email_confirm
+  "Changer d’adresse email ?": "Change email address?",
+  "Un lien de confirmation va être envoyé à {email}.": "A confirmation link will be sent to {email}.",
+  "Votre adresse ne changera qu’au clic sur ce lien. À ce moment-là, vous serez déconnecté de tous vos appareils et devrez vous reconnecter avec la nouvelle adresse email.": "Your address will only change when you click this link. At that point, you will be logged out of all your devices and will need to log in again with the new email address.",
+  "Envoyer le lien": "Send the link",
 };
