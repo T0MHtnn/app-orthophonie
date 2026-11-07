@@ -10,6 +10,7 @@ import { REQUEST_TYPE_LABEL } from '@/lib/request-type';
 import { SubmitButton } from '@/components/form';
 import { dismissCancellation } from './actions';
 import { Agenda, type PatientDetail, type PatientItem } from './agenda';
+import { FreedRecap } from './freed-recap';
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getT())('Planning') };
@@ -32,7 +33,7 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
   const weekEnd = parisToInstant(addDays(week, 7), '00:00').toISOString();
 
   const supabase = await createClient();
-  const [{ data: blocks, error: blocksError }, { data: appointments, error }, { data: upcoming }, { data: patients }, { data: pathologies }, { data: done }, { data: cancellations }] = await Promise.all([
+  const [{ data: blocks, error: blocksError }, { data: appointments, error }, { data: upcoming }, { data: patients }, { data: pathologies }, { data: done }, { data: cancellations }, { data: freed }] = await Promise.all([
     // Blocages qui peuvent avoir une occurrence cette semaine (la veille comprise, pour ceux qui débordent).
     supabase.from('schedule_blocks').select('*').lt('starts_at', weekEnd).or(`until.is.null,until.gte.${addDays(week, -1)}`),
     // RDV de la semaine + séances annulées par la famille (fantômes, non bloquants).
@@ -43,6 +44,8 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
     supabase.from('appointments').select('patient_id, attendance').eq('status', 'confirme').lt('starts_at', now.toISOString()),
     // Annulations à venir faites par les familles (liste au-dessus de l'agenda).
     supabase.from('appointments').select('id, patient_id, starts_at, cancel_reason').eq('status', 'annule').eq('cancelled_by', 'famille').gte('starts_at', now.toISOString()).order('starts_at').limit(30),
+    // Séances libérées à proposer (récapitulatif à l'ouverture du planning).
+    supabase.from('freed_slots').select('*').is('handled_at', null).gt('starts_at', now.toISOString()).order('starts_at').limit(30),
   ]);
   // Avancement : séances passées « réalisées » ; un RDV « non honoré » (lapin) ne compte pas.
   const doneCount = new Map<string, number>();
@@ -136,6 +139,15 @@ export default async function PlanningPage({ searchParams }: { searchParams: Pro
         </details>
       )}
 
+      <FreedRecap
+        items={(freed ?? []).map((f) => ({
+          id: f.id,
+          label: (f.patient_id && nameOf.get(f.patient_id)) || t('Patient'),
+          startsAt: f.starts_at,
+          source: f.source,
+          reason: f.reason,
+        }))}
+      />
       <Agenda
         days={shown}
         range={range}

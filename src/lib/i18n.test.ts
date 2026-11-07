@@ -33,7 +33,8 @@ function translatableTexts(source: string): string[] {
   const add = (s: string | undefined) => s && looksLikeText(s) && !s.includes('${') && found.add(s);
   for (const line of source.split('\n')) {
     const tIndex = line.search(/\bt\(/);
-    if (tIndex >= 0) for (const m of line.slice(tIndex).matchAll(/'([^']+)'/g)) add(m[1]);
+    // [^']* (et non +) : une chaîne vide '' ne doit pas décaler l'appariement des guillemets.
+    if (tIndex >= 0) for (const m of line.slice(tIndex).matchAll(/'([^']*)'/g)) add(m[1]);
     for (const m of line.matchAll(/\b(?:label|placeholder|pendingText)="([^"]+)"/g)) add(m[1]);
     for (const m of line.matchAll(/\b(?:message|error|label|help|hint):\s*'([^']+)'/g)) add(m[1]);
     for (const m of line.matchAll(/\b(?:errors: \{ \w+): '([^']+)'/g)) add(m[1]);

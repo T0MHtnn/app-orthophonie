@@ -47,6 +47,8 @@ export type PracticeRow = {
   booking_mode: 'ortho' | 'autonomes' | 'tous';
   /** Délai minimum (heures) entre la réservation en ligne et le rendez-vous. */
   booking_min_notice_hours: number;
+  /** Les liens envoyés par email respectent aussi le délai minimum. */
+  links_respect_notice: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -135,6 +137,19 @@ export type AppointmentRow = {
   updated_at: string;
 };
 
+export type FreedSlotRow = {
+  id: string;
+  practice_id: string;
+  patient_id: string | null;
+  starts_at: string;
+  ends_at: string;
+  /** patient = annulé par le patient ; cabinet = annulé par l'ortho ; avance = séance avancée sur un autre créneau. */
+  source: 'patient' | 'cabinet' | 'avance';
+  reason: string | null;
+  handled_at: string | null;
+  created_at: string;
+};
+
 export type PathologyRow = {
   code: string;
   label: string;
@@ -146,7 +161,7 @@ export type Database = {
     Tables: {
       // Insert est vide : aucune insertion directe n'est autorisée (fonctions RPC uniquement).
       profiles: Table<ProfileRow, NoInsert, Partial<Pick<ProfileRow, 'first_name' | 'last_name'>>>;
-      practices: Table<PracticeRow, NoInsert, Partial<Pick<PracticeRow, 'name' | 'waitlist_open' | 'waitlist_info' | 'email_template' | 'address_line' | 'postal_code' | 'city' | 'listed' | 'session_minutes' | 'booking_mode' | 'booking_min_notice_hours'>>>;
+      practices: Table<PracticeRow, NoInsert, Partial<Pick<PracticeRow, 'name' | 'waitlist_open' | 'waitlist_info' | 'email_template' | 'address_line' | 'postal_code' | 'city' | 'listed' | 'session_minutes' | 'booking_mode' | 'booking_min_notice_hours' | 'links_respect_notice'>>>;
       waitlist_entries: Table<WaitlistEntryRow, NoInsert, Partial<Pick<WaitlistEntryRow, 'status'>>>;
       pathologies: Table<PathologyRow, NoInsert, NoInsert>;
       patients: Table<PatientRow, NoInsert, Partial<Pick<PatientRow, 'autonomous'>>>;
@@ -155,6 +170,7 @@ export type Database = {
         Pick<ScheduleBlockRow, 'practice_id' | 'title' | 'starts_at' | 'ends_at' | 'recurrence' | 'weekdays' | 'until' | 'skip_dates'>,
         Partial<Pick<ScheduleBlockRow, 'title' | 'starts_at' | 'ends_at' | 'recurrence' | 'weekdays' | 'until' | 'skip_dates'>>
       >;
+      freed_slots: Table<FreedSlotRow, NoInsert, NoInsert>;
       // Écritures via save_appointment / cancel_appointment uniquement.
       appointments: Table<AppointmentRow, NoInsert, NoInsert>;
       audit_log: Table<
@@ -223,6 +239,23 @@ export type Database = {
       book_appointment: { Args: { p_patient_id: string; p_starts_at: string }; Returns: 'confirme' | 'a_valider' };
       family_cancel_appointment: { Args: { p_id: string; p_reason?: string }; Returns: boolean };
       ack_appointment: { Args: { p_id: string }; Returns: boolean };
+      cancel_by_ortho: { Args: { p_id: string; p_reason?: string }; Returns: boolean };
+      create_place_link: { Args: { p_entry_id: string }; Returns: string };
+      place_link_info: {
+        Args: { p_token: string };
+        Returns: { state: 'ok' | 'utilise' | 'expire' | 'invalide'; practice_name: string | null; patient_first_name: string | null; session_minutes: number | null; min_notice_hours: number | null }[];
+      };
+      place_busy: { Args: { p_token: string; p_from: string; p_to: string }; Returns: { starts_at: string; ends_at: string }[] };
+      place_book: { Args: { p_token: string; p_starts_at: string }; Returns: 'ok' | 'utilise' | 'expire' | 'invalide' | 'horaire' | 'pris' };
+      start_slot_offer: { Args: { p_freed_slot: string }; Returns: { email: string; first_name: string; practice_name: string; starts_at: string; token: string }[] };
+      dismiss_freed_slots: { Args: { p_ids: string[] }; Returns: number };
+      advance_my_offers: { Args: Record<string, never>; Returns: { email: string; first_name: string; practice_name: string; starts_at: string; token: string }[] };
+      cron_advance_offers: { Args: { p_secret: string }; Returns: { email: string; first_name: string; practice_name: string; starts_at: string; token: string }[] };
+      slot_offer_info: {
+        Args: { p_token: string };
+        Returns: { state: 'ok' | 'pris' | 'expire' | 'invalide'; practice_name: string | null; patient_first_name: string | null; starts_at: string | null; ends_at: string | null; moves_from: string | null }[];
+      };
+      accept_slot_offer: { Args: { p_token: string }; Returns: 'ok' | 'pris' | 'expire' | 'invalide' };
       my_appointments: {
         Args: Record<string, never>;
         Returns: {
@@ -237,6 +270,8 @@ export type Database = {
           can_cancel: boolean;
           /** Séance posée par l'ortho et signalée à la famille, pas encore « Lu ». */
           is_new: boolean;
+          cancelled_by: 'famille' | 'ortho' | null;
+          cancel_reason: string | null;
         }[];
       };
       my_patients: {

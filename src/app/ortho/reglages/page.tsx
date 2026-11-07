@@ -51,7 +51,7 @@ export default async function ReglagesPage() {
 
       <section className="card stack" id="rendez-vous">
         <h2>{t('Prise de rendez-vous en ligne')}</h2>
-        <BookingForm mode={practice.booking_mode} minNoticeHours={practice.booking_min_notice_hours} />
+        <BookingForm mode={practice.booking_mode} minNoticeHours={practice.booking_min_notice_hours} linksRespectNotice={practice.links_respect_notice} />
       </section>
 
       <section className="card stack" id="autonomes">

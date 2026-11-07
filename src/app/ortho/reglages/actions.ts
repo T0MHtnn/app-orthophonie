@@ -47,13 +47,14 @@ export async function saveBookingSettings(_prev: FormState, formData: FormData):
   const raw = {
     mode: String(formData.get('mode') ?? ''),
     minNoticeHours: String(formData.get('minNoticeHours') ?? ''),
+    linksRespectNotice: String(formData.get('linksRespectNotice') ?? ''),
   };
   const parsed = bookingSettingsSchema.safeParse(raw);
   if (!parsed.success) return { errors: fieldErrors(parsed.error), message: 'Certains champs sont à corriger.', values: raw };
   const supabase = await createClient();
   const { error } = await supabase
     .from('practices')
-    .update({ booking_mode: parsed.data.mode, booking_min_notice_hours: parsed.data.minNoticeHours })
+    .update({ booking_mode: parsed.data.mode, booking_min_notice_hours: parsed.data.minNoticeHours, links_respect_notice: raw.linksRespectNotice === 'on' })
     .eq('id', practice.id);
   if (error) {
     console.error('booking_settings', error.code);

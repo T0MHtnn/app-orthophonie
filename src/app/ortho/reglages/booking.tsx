@@ -12,9 +12,9 @@ const MODES = [
   { code: 'tous', label: 'Tous mes patients suivis', hint: 'Les non-autonomes envoient une demande que vous validez. Votre liste d’autonomes est gardée.' },
 ] as const;
 
-export function BookingForm({ mode, minNoticeHours }: { mode: string; minNoticeHours: number }) {
+export function BookingForm({ mode, minNoticeHours, linksRespectNotice }: { mode: string; minNoticeHours: number; linksRespectNotice: boolean }) {
   const [state, action] = useActionState<FormState, FormData>(saveBookingSettings, {});
-  const v = state.values ?? { mode, minNoticeHours: String(minNoticeHours) };
+  const v = state.values ?? { mode, minNoticeHours: String(minNoticeHours), linksRespectNotice: linksRespectNotice ? 'on' : '' };
   // React vide le formulaire après l'action : on le recrée avec les valeurs enregistrées (sinon l'ancien choix réapparaît).
   return <BookingFields key={JSON.stringify(v)} state={state} action={action} values={v} />;
 }
@@ -44,29 +44,32 @@ function BookingFields({ state, action, values: v }: { state: FormState; action:
         </div>
       </fieldset>
       {m !== 'ortho' && (
-        <>
-          <p className="hint">
-            {t(
-              'Un patient autonome qui réserve est confirmé tout de suite. En mode « tous », un patient non autonome envoie une demande : elle apparaît en orange dans votre planning, à accepter ou refuser.',
-            )}
-          </p>
-          <Field
-            label="Délai minimum avant un rendez-vous réservé en ligne (heures)"
-            name="minNoticeHours"
-            type="number"
-            min={0}
-            max={720}
-            required
-            defaultValue={v.minNoticeHours}
-            error={state.errors?.minNoticeHours}
-          />
-        </>
+        <p className="hint">
+          {t(
+            'Un patient autonome qui réserve est confirmé tout de suite. En mode « tous », un patient non autonome envoie une demande : elle apparaît en orange dans votre planning, à accepter ou refuser.',
+          )}
+        </p>
       )}
-      {m === 'ortho' && (
-        <>
-          <input type="hidden" name="minNoticeHours" value={v.minNoticeHours} />
-        </>
-      )}
+      {/* Le délai sert aussi aux liens envoyés par email (place libérée), même en mode « moi seul·e ». */}
+      <Field
+        label="Délai minimum avant un rendez-vous réservé en ligne (heures)"
+        name="minNoticeHours"
+        type="number"
+        min={0}
+        max={720}
+        required
+        defaultValue={v.minNoticeHours}
+        error={state.errors?.minNoticeHours}
+      />
+      <label className="check">
+        <input type="checkbox" name="linksRespectNotice" defaultChecked={v.linksRespectNotice === 'on'} />
+        <span>
+          <b>{t('Appliquer aussi ce délai aux liens envoyés par email')}</b>
+          <span className="hint" style={{ display: 'block' }}>
+            {t('Liens « place libérée » (liste d’attente) : décoché, la famille peut choisir un créneau dès maintenant.')}
+          </span>
+        </span>
+      </label>
       <div>
         <SubmitButton pendingText="Enregistrement…">Enregistrer</SubmitButton>
       </div>

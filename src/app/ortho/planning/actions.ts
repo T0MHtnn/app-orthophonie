@@ -6,6 +6,7 @@ import type { FormState } from '@/components/form';
 import { requireOrtho } from '@/lib/auth';
 import type { ScheduleBlockRow } from '@/lib/database.types';
 import { sendEmail } from '@/lib/email';
+import { sendSlotOffers } from '@/lib/slot-offers';
 import { getT } from '@/lib/i18n';
 import { siteUrl } from '@/lib/env';
 import { createClient } from '@/lib/supabase/server';
@@ -59,22 +60,22 @@ export async function saveAppointment(_prev: FormState, formData: FormData): Pro
   return done(notify ? 'Rendez-vous enregistré. Le patient est prévenu par email.' : d.id ? 'Rendez-vous modifié.' : 'Rendez-vous ajouté.');
 }
 
-/** RDV annulé par l'ortho : supprimé de l'agenda. */
+/** RDV annulé par l'ortho : il quitte l'agenda, la raison reste visible côté patient. */
 export async function deleteAppointment(_prev: FormState, formData: FormData): Promise<FormState> {
   const { practice } = await requireOrtho();
   const id = idSchema.safeParse(formData.get('id'));
   if (!id.success) return { message: 'Rendez-vous introuvable.' };
   const notify = formData.get('notify') === 'on';
+  const reason = String(formData.get('reason') ?? '').trim().slice(0, 500);
   const supabase = await createClient();
-  // Lu avant la suppression, pour pouvoir prévenir le patient.
-  const { data: appt } = notify ? await supabase.from('appointments').select('patient_id, starts_at').eq('id', id.data).maybeSingle() : { data: null };
-  const { data, error } = await supabase.rpc('delete_appointment', { p_id: id.data });
+  const { data: appt } = await supabase.from('appointments').select('patient_id, starts_at').eq('id', id.data).maybeSingle();
+  const { data, error } = await supabase.rpc('cancel_by_ortho', { p_id: id.data, p_reason: reason });
   if (error || !data) {
-    if (error) console.error('delete_appointment', error.code);
+    if (error) console.error('cancel_by_ortho', error.code);
     return { message: 'Le rendez-vous n’a pas pu être supprimé. Rechargez la page puis réessayez.' };
   }
-  if (appt && new Date(appt.starts_at) > new Date()) {
-    await notifyFamily(appt.patient_id, new Date(appt.starts_at), practice.name, 'annule');
+  if (notify && appt && new Date(appt.starts_at) > new Date()) {
+    await notifyFamily(appt.patient_id, new Date(appt.starts_at), practice.name, 'annule', undefined, reason);
     return done('Rendez-vous supprimé. Le patient est prévenu par email.');
   }
   return done('Rendez-vous supprimé.');
@@ -225,6 +226,7 @@ async function notifyFamily(
   practiceName: string,
   kind: 'nouveau' | 'deplace' | 'annule',
   previous?: Date,
+  reason?: string,
 ): Promise<void> {
   const supabase = await createClient();
   const { data: patient } = await supabase.from('patients').select('first_name, email').eq('id', patientId).maybeSingle();
@@ -240,7 +242,7 @@ async function notifyFamily(
     text: [
       'Bonjour,',
       kind === 'annule'
-        ? `${practiceName} a annulé la séance de ${patient.first_name} prévue le ${when}.`
+        ? `${practiceName} a annulé la séance de ${patient.first_name} prévue le ${when}.${reason ? ` Raison : ${reason}` : ''}`
         : kind === 'deplace'
           ? was
             ? `${practiceName} a déplacé la séance de ${patient.first_name} du ${was} au ${when}.`
@@ -261,4 +263,41 @@ export async function dismissCancellation(formData: FormData): Promise<void> {
   const { error } = await supabase.rpc('delete_appointment', { p_id: id.data });
   if (error) console.error('delete_appointment', error.code);
   revalidatePath('/ortho/planning');
+}
+
+/** Récapitulatif : « Envoyer » propose le créneau libéré (1re vague de 3 patients). */
+export async function sendFreedSlot(freedSlotId: string): Promise<{ ok: boolean; sent: number; message: string }> {
+  await requireOrtho();
+  const id = idSchema.safeParse(freedSlotId);
+  if (!id.success) return { ok: false, sent: 0, message: 'Créneau introuvable.' };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('start_slot_offer', { p_freed_slot: id.data });
+  if (error) {
+    console.error('start_slot_offer', error.code);
+    return { ok: false, sent: 0, message: 'L’envoi n’a pas pu être fait. Rechargez la page puis réessayez.' };
+  }
+  const sent = await sendSlotOffers(data ?? []);
+  revalidatePath('/ortho/planning');
+  if ((data ?? []).length === 0) return { ok: true, sent: 0, message: 'Envoi programmé (nuit ou aucun patient disponible pour l’instant).' };
+  return { ok: true, sent, message: `Proposé à ${sent} patient(s).` };
+}
+
+/** Récapitulatif fermé sans tout envoyer : les créneaux restants sont ignorés. */
+export async function dismissFreedSlots(ids: string[]): Promise<void> {
+  await requireOrtho();
+  const valid = ids.filter((i) => idSchema.safeParse(i).success);
+  if (valid.length === 0) return;
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('dismiss_freed_slots', { p_ids: valid });
+  if (error) console.error('dismiss_freed_slots', error.code);
+  revalidatePath('/ortho/planning');
+}
+
+/** Vagues suivantes (12 h écoulées, ou fin de nuit) : lancées à l'ouverture du planning. */
+export async function advanceOffers(): Promise<void> {
+  await requireOrtho();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('advance_my_offers');
+  if (error) console.error('advance_my_offers', error.code);
+  if (data?.length) await sendSlotOffers(data);
 }

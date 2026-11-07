@@ -40,7 +40,8 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
     supabase.rpc('my_patients'),
   ]);
   const now = Date.now();
-  const upcoming = (appointments ?? []).filter((a) => new Date(a.ends_at).getTime() > now);
+  // Séances à venir, et annulations récentes (trace écrite de la raison).
+  const upcoming = (appointments ?? []).filter((a) => new Date(a.ends_at).getTime() > now || a.status === 'annule');
   const requests = data ?? [];
   const followed = requests.filter((r) => r.status === 'rdv');
   const active = requests.filter((r) => r.status === 'attente' || r.status === 'contacte');
@@ -89,9 +90,19 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
                     <div className="hint">
                       {a.patient_first_name} {a.patient_last_name} · {a.practice_name}
                     </div>
+                    {a.status === 'annule' && (
+                      <div className="cancel-note">
+                        {t(a.cancelled_by === 'ortho' ? 'Annulée par le cabinet' : 'Annulée par vous')}
+                        {a.cancel_reason ? ` : « ${a.cancel_reason} »` : ''}
+                      </div>
+                    )}
                   </div>
                   <div className="row">
-                    <span className={`badge ${a.status === 'confirme' ? 'rdv' : 'attente'}`}>{t(a.status === 'confirme' ? 'Confirmée' : 'En attente de validation')}</span>
+                    {a.status === 'annule' ? (
+                      <span className="badge retire">{t('Annulée')}</span>
+                    ) : (
+                      <span className={`badge ${a.status === 'confirme' ? 'rdv' : 'attente'}`}>{t(a.status === 'confirme' ? 'Confirmée' : 'En attente de validation')}</span>
+                    )}
                     {/* Nouvelle séance signalée par l'ortho : la pastille part quand la famille clique « Lu ». */}
                     {a.is_new && (
                       <form action={ackAppointment}>

@@ -867,8 +867,12 @@ function AppointmentForm({
         <Modal onClose={() => setConfirmDelete(false)}>
           <form action={deleteAction} className="stack">
             <h2>{t('Supprimer ce rendez-vous ?')}</h2>
-            <p className="sub">{t('Il disparaîtra de l’agenda.')}</p>
+            <p className="sub">{t('Il disparaîtra de l’agenda. La raison reste visible par le patient dans son espace.')}</p>
             <input type="hidden" name="id" value={values.id} />
+            <label className="field">
+              <span>{t('Raison (visible par le patient)')}</span>
+              <textarea name="reason" rows={2} maxLength={500} placeholder={t('Ex. : orthophoniste malade, formation…')} />
+            </label>
             <input type="hidden" name="notify" value={notify ? 'on' : ''} />
             <NotifyCheck checked={notify} onChange={setNotify} label="Prévenir le patient de l’annulation" />
             <div className="row">
