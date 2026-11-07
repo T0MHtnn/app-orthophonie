@@ -566,4 +566,17 @@ export const EN: Record<string, string> = {
   "Réglages du cabinet": "Practice settings",
   "Supprimer ce rendez-vous ?": "Delete this appointment?",
   "Il disparaîtra de l’agenda. Le patient n’est pas prévenu automatiquement.": "It will disappear from the schedule. The patient is not notified automatically.",
+  // 17_refused
+  "Cabinet, liste d’attente, email type, prise de rendez-vous en ligne.": "Practice, waiting list, email template, online booking.",
+  "Modifier les réglages du cabinet": "Edit practice settings",
+  "Impossible de placer le rendez-vous ici": "Cannot place the appointment here",
+  "Cette plage horaire est déjà occupée par un autre rendez-vous ou par un blocage. Choisissez une zone libre.": "This time slot is already taken by another appointment or a block. Choose a free slot.",
+  "Compris": "Got it",
+  // 18_confirm_notify
+  "Enregistrer les modifications ?": "Save the changes?",
+  "Il disparaîtra de l’agenda.": "It will disappear from the schedule.",
+  "Prévenir le patient de l’annulation": "Notify the patient of the cancellation",
+  "Il reçoit un email.": "They receive an email.",
+  "Rendez-vous supprimé. Le patient est prévenu par email.": "Appointment deleted. The patient has been notified by email.",
+  "Planifier ce rendez-vous ?": "Schedule this appointment?",
 };

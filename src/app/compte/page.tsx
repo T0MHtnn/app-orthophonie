@@ -24,17 +24,23 @@ export default async function ComptePage() {
     <AppShell ctx={ctx}>
       <div className="page-head">
         <div>
-          {ctx.profile.role === 'ortho' && (
-            <p className="hint">
-              <Link href="/ortho/reglages">← {t('Réglages du cabinet')}</Link>
-            </p>
-          )}
           <h1>{t('Mon compte')}</h1>
           <p className="sub">
             {t('Connecté avec')} <b>{ctx.email}</b>
           </p>
         </div>
       </div>
+      {ctx.profile.role === 'ortho' && (
+        <section className="card row spread">
+          <div>
+            <h2>{t('Réglages du cabinet')}</h2>
+            <p className="sub">{t('Cabinet, liste d’attente, email type, prise de rendez-vous en ligne.')}</p>
+          </div>
+          <Link href="/ortho/reglages" className="btn">
+            {t('Modifier les réglages du cabinet')}
+          </Link>
+        </section>
+      )}
       <section className="card stack">
         <h2>{t('Mes informations')}</h2>
         <AccountForm firstName={ctx.profile.first_name} lastName={ctx.profile.last_name} />

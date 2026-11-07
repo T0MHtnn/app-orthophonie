@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { useActionState, useEffect, useId, useMemo, useRef, useState, useTransition } from 'react';
 import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
 import { useT } from '@/components/i18n-provider';
 import { Modal } from '@/components/modal';
@@ -74,7 +74,9 @@ type Dialog =
     }
   | { kind: 'cancelled'; id: string; label: string; date: string; start: number; reason: string | null }
   /** RDV glissé ailleurs : confirmation + choix de prévenir le patient. */
-  | { kind: 'move'; id: string; patientId: string; label: string; date: string; start: number; duration: number; title: string };
+  | { kind: 'move'; id: string; patientId: string; label: string; date: string; start: number; duration: number; title: string }
+  /** Dépôt sur une zone déjà occupée : refusé, avec explication. */
+  | { kind: 'refused' };
 
 export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessionMinutes, details, bookingMode }: Props) {
   const [dialog, setDialog] = useState<Dialog | null>(null);
@@ -136,13 +138,14 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
     if (data.appointmentId) {
       const duration = data.duration ?? sessionMinutes;
       if (!isFree(day, { start, end: start + duration }, data.appointmentId)) {
-        setNotice({ kind: 'error', text: 'Ce créneau est déjà pris ou bloqué.' });
+        setDialog({ kind: 'refused' });
         return;
       }
       const label = day.appointments.find((a) => a.id === data.appointmentId)?.label ?? days.flatMap((d) => d.appointments).find((a) => a.id === data.appointmentId)?.label ?? '';
       setDialog({ kind: 'move', id: data.appointmentId, patientId: data.patientId, label, date: day.date, start, duration, title: data.title ?? '' });
     }
-    // Nouveau RDV : la pop-up s'ouvre pré-remplie (pour choisir de prévenir le patient).
+    // Nouveau RDV : refusé sur une zone occupée, sinon la pop-up s'ouvre pré-remplie (pour choisir de prévenir le patient).
+    else if (!isFree(day, { start, end: start + sessionMinutes })) setDialog({ kind: 'refused' });
     else setDialog({ kind: 'slot', date: day.date, start, end: Math.min(range.end, start + sessionMinutes), patientId: data.patientId, tab: 'rdv' });
   };
 
@@ -362,6 +365,16 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
             <SlotDialog key={`${dialog.date}-${dialog.start}-${dialog.patientId ?? ''}`} dialog={dialog} patients={patients} onDone={done} />
           ) : dialog.kind === 'block' ? (
             <BlockDialog key={`${dialog.block?.id ?? 'new'}-${dialog.date}-${dialog.start}`} dialog={dialog} onDone={done} />
+          ) : dialog.kind === 'refused' ? (
+            <div className="stack">
+              <h2>{t('Impossible de placer le rendez-vous ici')}</h2>
+              <p>{t('Cette plage horaire est déjà occupée par un autre rendez-vous ou par un blocage. Choisissez une zone libre.')}</p>
+              <div>
+                <button type="button" className="btn primary" onClick={() => setDialog(null)}>
+                  {t('Compris')}
+                </button>
+              </div>
+            </div>
           ) : dialog.kind === 'move' ? (
             <MoveDialog dialog={dialog} pending={pending} onConfirm={(notify) => move(dialog, notify)} onCancel={() => setDialog(null)} />
           ) : dialog.kind === 'cancelled' ? (
@@ -801,12 +814,18 @@ function AppointmentForm({
   const v = { ...values, ...state.values } as AppointmentValues & { notify?: string };
   const [patientId, setPatientId] = useState(v.patientId);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // RDV existant : « prévenir le patient » se choisit dans la pop-up de confirmation.
+  const [confirmSave, setConfirmSave] = useState(false);
+  const [notify, setNotify] = useState(state.values ? v.notify === 'on' : notifyDefault || !!values.id);
+  const formId = useId();
+  const editing = !!values.id;
   const err = state.errors ?? {};
   return (
     <>
-      <form action={action} className="stack" noValidate>
+      <form id={formId} action={action} className="stack" noValidate onSubmit={() => setConfirmSave(false)}>
         <FormAlert state={state} />
         <input type="hidden" name="id" value={values.id} />
+        <input type="hidden" name="notify" value={notify ? 'on' : ''} />
         <PatientPicker patients={patients} value={patientId} onChange={setPatientId} error={err.patientId} />
         <div className="form-grid">
           <Field label="Date" name="date" type="date" required defaultValue={v.date} error={err.date} />
@@ -814,14 +833,11 @@ function AppointmentForm({
           <Field label="Fin" name="end" type="time" step={300} required defaultValue={v.end} error={err.end} />
         </div>
         <Field label="Titre (facultatif, visible par vous seul)" name="title" maxLength={120} defaultValue={v.title} error={err.title} />
-        <label className="check">
-          <input type="checkbox" name="notify" defaultChecked={state.values ? v.notify === 'on' : notifyDefault} />
-          <span>
-            <b>{t(values.id ? 'Prévenir le patient du changement' : 'Prévenir le patient')}</b>
-          </span>
-        </label>
         <div className="row">
-          <SubmitButton pendingText="Enregistrement…">{values.id ? 'Enregistrer' : 'Planifier le rendez-vous'}</SubmitButton>
+          {/* « Prévenir le patient » se choisit dans la pop-up de confirmation. */}
+          <button type="button" className="btn primary" onClick={() => setConfirmSave(true)}>
+            {t(editing ? 'Enregistrer' : 'Planifier le rendez-vous')}
+          </button>
           {deleteAction && (
             <button type="button" className="btn danger" onClick={() => setConfirmDelete(true)}>
               {t('Supprimer ce rendez-vous')}
@@ -829,13 +845,32 @@ function AppointmentForm({
           )}
         </div>
       </form>
-      {/* Petite pop-up de confirmation avant la suppression (hors du formulaire : pas de formulaire imbriqué). */}
+      {/* Pop-ups de confirmation (hors du formulaire : pas de formulaire imbriqué). */}
+      {confirmSave && (
+        <Modal onClose={() => setConfirmSave(false)}>
+          <div className="stack">
+            <h2>{t(editing ? 'Enregistrer les modifications ?' : 'Planifier ce rendez-vous ?')}</h2>
+            <NotifyCheck checked={notify} onChange={setNotify} label={editing ? 'Prévenir le patient du changement' : 'Prévenir le patient'} />
+            <div className="row">
+              {/* Envoie le formulaire de la fiche (attribut form). */}
+              <button type="submit" form={formId} className="btn primary">
+                {t(editing ? 'Enregistrer' : 'Planifier le rendez-vous')}
+              </button>
+              <button type="button" className="btn" onClick={() => setConfirmSave(false)}>
+                {t('Annuler')}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
       {confirmDelete && deleteAction && (
         <Modal onClose={() => setConfirmDelete(false)}>
           <form action={deleteAction} className="stack">
             <h2>{t('Supprimer ce rendez-vous ?')}</h2>
-            <p className="sub">{t('Il disparaîtra de l’agenda. Le patient n’est pas prévenu automatiquement.')}</p>
+            <p className="sub">{t('Il disparaîtra de l’agenda.')}</p>
             <input type="hidden" name="id" value={values.id} />
+            <input type="hidden" name="notify" value={notify ? 'on' : ''} />
+            <NotifyCheck checked={notify} onChange={setNotify} label="Prévenir le patient de l’annulation" />
             <div className="row">
               <SubmitButton className="btn danger">Supprimer</SubmitButton>
               <button type="button" className="btn" onClick={() => setConfirmDelete(false)}>
@@ -920,5 +955,20 @@ function MoveDialog({
         </button>
       </div>
     </div>
+  );
+}
+
+function NotifyCheck({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  const t = useT();
+  return (
+    <label className="check">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <span>
+        <b>{t(label)}</b>
+        <span className="hint" style={{ display: 'block' }}>
+          {t('Il reçoit un email.')}
+        </span>
+      </span>
+    </label>
   );
 }

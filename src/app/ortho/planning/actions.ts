@@ -53,20 +53,27 @@ export async function saveAppointment(_prev: FormState, formData: FormData): Pro
     console.error('save_appointment', error.code);
     return { message: 'Le rendez-vous n’a pas pu être enregistré. Rechargez la page puis réessayez.', values: raw };
   }
-  if (notify) await notifyFamily(d.patientId, start, practice.name, !!d.id);
+  if (notify) await notifyFamily(d.patientId, start, practice.name, d.id ? 'deplace' : 'nouveau');
   return done(notify ? 'Rendez-vous enregistré. Le patient est prévenu par email.' : d.id ? 'Rendez-vous modifié.' : 'Rendez-vous ajouté.');
 }
 
 /** RDV annulé par l'ortho : supprimé de l'agenda. */
 export async function deleteAppointment(_prev: FormState, formData: FormData): Promise<FormState> {
-  await requireOrtho();
+  const { practice } = await requireOrtho();
   const id = idSchema.safeParse(formData.get('id'));
   if (!id.success) return { message: 'Rendez-vous introuvable.' };
+  const notify = formData.get('notify') === 'on';
   const supabase = await createClient();
+  // Lu avant la suppression, pour pouvoir prévenir le patient.
+  const { data: appt } = notify ? await supabase.from('appointments').select('patient_id, starts_at').eq('id', id.data).maybeSingle() : { data: null };
   const { data, error } = await supabase.rpc('delete_appointment', { p_id: id.data });
   if (error || !data) {
     if (error) console.error('delete_appointment', error.code);
     return { message: 'Le rendez-vous n’a pas pu être supprimé. Rechargez la page puis réessayez.' };
+  }
+  if (appt && new Date(appt.starts_at) > new Date()) {
+    await notifyFamily(appt.patient_id, new Date(appt.starts_at), practice.name, 'annule');
+    return done('Rendez-vous supprimé. Le patient est prévenu par email.');
   }
   return done('Rendez-vous supprimé.');
 }
@@ -210,7 +217,7 @@ export async function markAttendance(_prev: FormState, formData: FormData): Prom
 }
 
 /** Email « nouvelle séance » à la famille : date et heure seulement, aucune donnée médicale. */
-async function notifyFamily(patientId: string, start: Date, practiceName: string, changed: boolean): Promise<void> {
+async function notifyFamily(patientId: string, start: Date, practiceName: string, kind: 'nouveau' | 'deplace' | 'annule'): Promise<void> {
   const supabase = await createClient();
   const { data: patient } = await supabase.from('patients').select('first_name, email').eq('id', patientId).maybeSingle();
   if (!patient?.email) return;
@@ -219,12 +226,14 @@ async function notifyFamily(patientId: string, start: Date, practiceName: string
   await sendEmail({
     to: { email: patient.email },
     senderName: practiceName,
-    subject: changed ? `Séance déplacée au ${when}` : `Nouvelle séance le ${when}`,
+    subject: kind === 'annule' ? `Séance du ${when} annulée` : kind === 'deplace' ? `Séance déplacée au ${when}` : `Nouvelle séance le ${when}`,
     text: [
       'Bonjour,',
-      changed
-        ? `${practiceName} a déplacé la séance de ${patient.first_name} : elle a maintenant lieu le ${when}.`
-        : `${practiceName} a prévu une séance pour ${patient.first_name} le ${when}.`,
+      kind === 'annule'
+        ? `${practiceName} a annulé la séance de ${patient.first_name} prévue le ${when}.`
+        : kind === 'deplace'
+          ? `${practiceName} a déplacé la séance de ${patient.first_name} : elle a maintenant lieu le ${when}.`
+          : `${practiceName} a prévu une séance pour ${patient.first_name} le ${when}.`,
       'Vous la retrouvez dans votre espace :',
       `${siteUrl}/patient`,
     ].join('\n\n'),
