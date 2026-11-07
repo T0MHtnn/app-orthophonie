@@ -18,15 +18,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * - connecté : formulaire d'inscription ;
  * - non connecté : créer un compte ou se connecter (pour pouvoir suivre sa demande ensuite).
  */
-export default async function PublicWaitlistPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<Record<string, string | undefined>>;
-}) {
+export default async function PublicWaitlistPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const another = (await searchParams).autre === '1';
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) notFound();
 
   const supabase = await createClient();
@@ -39,7 +32,7 @@ export default async function PublicWaitlistPage({
   if (!practice) notFound();
 
   const back = encodeURIComponent(`/c/${slug}`);
-  // Déjà une demande en cours ou un suivi ici : on ne repropose pas le formulaire (sauf pour un autre enfant / proche).
+  // Un compte = une seule demande par cabinet : déjà une demande en cours ou un suivi ici → pas de formulaire.
   const known = ctx ? ((await supabase.rpc('known_practice', { p_slug: slug })).data ?? false) : false;
   const t = await getT();
 
@@ -74,15 +67,12 @@ export default async function PublicWaitlistPage({
                 </Link>
               </div>
             </div>
-          ) : ctx && known && !another ? (
+          ) : ctx && known ? (
             <div className="alert warn stack">
               <p>{t('Vous avez déjà une demande en cours ou un suivi dans ce cabinet : inutile de vous réinscrire.')}</p>
               <div className="row">
                 <Link className="btn small primary" href="/patient">
                   {t('Voir mes demandes')}
-                </Link>
-                <Link className="btn small" href={`/c/${slug}?autre=1`}>
-                  {t('Inscrire un autre enfant ou proche')}
                 </Link>
               </div>
             </div>

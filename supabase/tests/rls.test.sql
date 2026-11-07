@@ -443,4 +443,20 @@ do $$ begin
 end $$;
 reset role;
 
+-- 18. Un compte = une seule demande par cabinet, même avec un autre nom de patient.
+select pg_temp.as_user('00000000-0000-0000-0000-0000000000f2', 'aal1');
+set role authenticated;
+do $$ begin
+  -- Première demande de f2 dans cabinet-a (déjà faite plus haut, ou faite ici)…
+  begin
+    perform public.submit_waitlist_entry('cabinet-a', 'Premier', 'Enfant', '6 ans', 'X', 'Y', 'f2@example.com', null, 'voix', 'bilan', null);
+  exception when sqlstate 'P0413' then null;
+  end;
+  -- … puis une deuxième, pour un autre patient : refusée.
+  perform public.submit_waitlist_entry('cabinet-a', 'Autre', 'Enfant', '4 ans', 'X', 'Y', 'f2@example.com', null, 'voix', 'bilan', null);
+  raise exception 'ÉCHEC 18 : deuxième demande acceptée dans le même cabinet';
+exception when sqlstate 'P0413' then null;
+end $$;
+reset role;
+
 select 'TOUS LES TESTS DE SÉCURITÉ PASSENT' as resultat;
