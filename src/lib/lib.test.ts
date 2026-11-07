@@ -276,3 +276,16 @@ describe('fiche patient', () => {
   });
   it('prix AMO = coefficient × 2,60 €', () => expect(amoPrice(11.6)).toBe(30.16));
 });
+
+describe('autres aidants à l’inscription', () => {
+  const base = { patientLastName: 'Dupont', patientFirstName: 'Léa', birthDate: '2019-03-01', caregiverLastName: 'Dupont', caregiverFirstName: 'Marie', pathology: 'voix', requestType: 'bilan', acknowledged: 'on', consent: 'on' };
+  const cg = { firstName: 'Paul', lastName: 'Martin', relation: 'père', phone: '0612345678', email: 'P@Ex.fr', receivesEmails: true };
+  it('accepte et normalise un aidant', () => {
+    const r = waitlistFormSchema.parse({ ...base, extraCaregivers: JSON.stringify([cg]) });
+    expect(r.extraCaregivers[0]).toMatchObject({ phone: '06 12 34 56 78', email: 'p@ex.fr', receivesEmails: true });
+  });
+  it('liste vide par défaut', () => expect(waitlistFormSchema.parse(base).extraCaregivers).toEqual([]));
+  it('refuse un aidant sans nom', () => expect(waitlistFormSchema.safeParse({ ...base, extraCaregivers: JSON.stringify([{ ...cg, lastName: '' }]) }).success).toBe(false));
+  it('5 aidants maximum refusés', () => expect(waitlistFormSchema.safeParse({ ...base, extraCaregivers: JSON.stringify(Array(5).fill(cg)) }).success).toBe(false));
+  it('JSON invalide refusé', () => expect(waitlistFormSchema.safeParse({ ...base, extraCaregivers: '{oops' }).success).toBe(false));
+});

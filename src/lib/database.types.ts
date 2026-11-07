@@ -60,6 +60,7 @@ export type WaitlistEntryRow = {
   patient_first_name: string;
   patient_age: string | null;
   birth_date: string | null;
+  extra_caregivers: { first_name: string; last_name: string; relation: string | null; phone: string | null; email: string | null; receives_emails: boolean }[];
   caregiver_last_name: string | null;
   caregiver_first_name: string | null;
   email: string | null;
@@ -138,6 +139,7 @@ export type CaregiverRow = {
   relation: string | null;
   phone: string | null;
   email: string | null;
+  receives_emails: boolean;
   created_at: string;
 };
 
@@ -249,8 +251,8 @@ export type Database = {
       amo_acts: Table<AmoActRow, NoInsert, NoInsert>;
       patient_caregivers: Table<
         CaregiverRow,
-        Pick<CaregiverRow, 'practice_id' | 'patient_id' | 'first_name' | 'last_name'> & Partial<Pick<CaregiverRow, 'relation' | 'phone' | 'email'>>,
-        Partial<Pick<CaregiverRow, 'first_name' | 'last_name' | 'relation' | 'phone' | 'email'>>
+        Pick<CaregiverRow, 'practice_id' | 'patient_id' | 'first_name' | 'last_name'> & Partial<Pick<CaregiverRow, 'relation' | 'phone' | 'email' | 'receives_emails'>>,
+        Partial<Pick<CaregiverRow, 'first_name' | 'last_name' | 'relation' | 'phone' | 'email' | 'receives_emails'>>
       >;
       patient_documents: Table<
         PatientDocumentRow,
@@ -309,6 +311,7 @@ export type Database = {
           p_pathology_code: string;
           p_request_type: RequestType;
           p_notes: string;
+          p_extra_caregivers?: { first_name: string; last_name: string; relation: string; phone: string; email: string; receives_emails: boolean }[];
         };
         Returns: boolean;
       };

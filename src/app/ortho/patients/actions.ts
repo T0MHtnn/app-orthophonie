@@ -127,7 +127,7 @@ export async function addCaregiver(_prev: FormState, formData: FormData): Promis
   const patientId = idSchema.safeParse(formData.get('patientId'));
   const raw = Object.fromEntries(['firstName', 'lastName', 'relation', 'phone', 'email'].map((k) => [k, String(formData.get(k) ?? '')]));
   if (!patientId.success) return { message: 'Patient introuvable.' };
-  const parsed = caregiverSchema.safeParse(raw);
+  const parsed = caregiverSchema.safeParse({ ...raw, receivesEmails: formData.get('receivesEmails') ?? undefined });
   if (!parsed.success) return { errors: fieldErrors(parsed.error), values: raw };
   const d = parsed.data;
   const supabase = await createClient();
@@ -139,6 +139,7 @@ export async function addCaregiver(_prev: FormState, formData: FormData): Promis
     relation: d.relation || null,
     phone: d.phone || null,
     email: d.email || null,
+    receives_emails: d.receivesEmails === 'on' && !!d.email,
   });
   if (error) {
     console.error('add_caregiver', error.code);
@@ -146,6 +147,22 @@ export async function addCaregiver(_prev: FormState, formData: FormData): Promis
   }
   revalidatePath(`/ortho/patients/${patientId.data}`);
   return { ok: true, message: 'Aidant ajouté.' };
+}
+
+/** Case « reçoit les emails » d'un aidant (il faut un email). */
+export async function setCaregiverEmails(formData: FormData): Promise<void> {
+  await requireOrtho();
+  const id = idSchema.safeParse(formData.get('id'));
+  if (!id.success) return;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('patient_caregivers')
+    .update({ receives_emails: formData.get('receives') === 'oui' })
+    .eq('id', id.data)
+    .not('email', 'is', null)
+    .select('patient_id');
+  if (error || !data?.length) console.error('caregiver_emails', error?.code ?? 'no_row');
+  if (data?.[0]) revalidatePath(`/ortho/patients/${data[0].patient_id}`);
 }
 
 export async function deleteCaregiver(formData: FormData): Promise<void> {

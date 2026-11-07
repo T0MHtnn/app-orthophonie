@@ -13,6 +13,7 @@ const FIELDS = [
   'birthDate',
   'caregiverLastName',
   'caregiverFirstName',
+  'extraCaregivers',
   'email',
   'phone',
   'requestType',
@@ -56,6 +57,14 @@ export async function submitWaitlist(slug: string, _prev: FormState, formData: F
     p_pathology_code: d.pathology,
     p_request_type: d.requestType,
     p_notes: d.notes,
+    p_extra_caregivers: d.extraCaregivers.map((c) => ({
+      first_name: c.firstName,
+      last_name: c.lastName,
+      relation: c.relation,
+      phone: c.phone,
+      email: c.email,
+      receives_emails: c.receivesEmails && !!c.email,
+    })),
   });
 
   if (error?.code === 'P0429') return { message: 'Trop de demandes envoyées. Réessayez dans une heure.', values: echo };

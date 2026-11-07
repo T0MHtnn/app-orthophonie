@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useActionState, useState } from 'react';
 import { Field, FormAlert, SubmitButton, type FormState } from '@/components/form';
 import { useT } from '@/components/i18n-provider';
+import { ExtraCaregivers } from '@/components/extra-caregivers';
 import { ageFromBirthDate, formatAge, isAdultBirthDate } from '@/lib/age';
 import { REQUEST_TYPES } from '@/lib/request-type';
 import { submitWaitlist } from './actions';
@@ -145,6 +146,8 @@ function FormFields({ state, action, practiceName, accountEmail, pathologies }: 
             <textarea name="notes" rows={3} maxLength={2000} defaultValue={v.notes} />
           </label>
         </div>
+
+        <ExtraCaregivers initial={v.extraCaregivers} error={err.extraCaregivers} />
 
         {/* Champ piège : invisible pour un humain, rempli par les robots. */}
         <div className="honeypot" aria-hidden="true">

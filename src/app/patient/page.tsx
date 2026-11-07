@@ -124,13 +124,11 @@ export default async function PatientPage({ searchParams }: { searchParams: Prom
       )}
 
       {tab === 'documents' && (
-        <section className="card stack">
-          <MyDocuments
-            items={documents ?? []}
-            accept={DOCUMENT_ACCEPT}
-            patients={(patients ?? []).map((p) => ({ id: p.id, label: `${p.first_name} ${p.last_name} · ${p.practice_name}` }))}
-          />
-        </section>
+        <MyDocuments
+          items={documents ?? []}
+          accept={DOCUMENT_ACCEPT}
+          patients={(patients ?? []).map((p) => ({ id: p.id, label: `${p.first_name} ${p.last_name} · ${p.practice_name}` }))}
+        />
       )}
 
       {!unlocked && (

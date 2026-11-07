@@ -184,12 +184,11 @@ export async function reviewAppointment(_prev: FormState, formData: FormData): P
 
   // Email à la famille : date et heure seulement, aucune donnée médicale.
   const { data: appt } = await supabase.from('appointments').select('starts_at, patient_id').eq('id', id.data).maybeSingle();
-  const { data: patient } = appt ? await supabase.from('patients').select('first_name, email').eq('id', appt.patient_id).maybeSingle() : { data: null };
-  if (appt && patient?.email) {
+  const patient = appt ? await recipientsOf(appt.patient_id) : null;
+  if (appt && patient) {
     const p = parisParts(new Date(appt.starts_at));
     const when = `${formatDay(p.date)} à ${formatTime(p.time)}`;
-    await sendEmail({
-      to: { email: patient.email },
+    await sendToAll(patient.emails, {
       senderName: practice.name,
       subject: accept ? `Séance confirmée le ${when}` : `Séance non confirmée – ${practice.name}`,
       text: [
@@ -220,6 +219,26 @@ export async function markAttendance(_prev: FormState, formData: FormData): Prom
 }
 
 /** Email « nouvelle séance » à la famille : date et heure seulement, aucune donnée médicale. */
+/**
+ * Destinataires des emails d'un patient : l'adresse de son compte + les aidants
+ * qui reçoivent les emails (case sur la fiche). Null s'il n'y a personne à prévenir.
+ */
+async function recipientsOf(patientId: string): Promise<{ first_name: string; emails: string[] } | null> {
+  const supabase = await createClient();
+  const [{ data: patient }, { data: caregivers }] = await Promise.all([
+    supabase.from('patients').select('first_name, email').eq('id', patientId).maybeSingle(),
+    supabase.from('patient_caregivers').select('email').eq('patient_id', patientId).eq('receives_emails', true),
+  ]);
+  if (!patient) return null;
+  const emails = [...new Set([patient.email, ...(caregivers ?? []).map((c) => c.email)].filter((e): e is string => !!e).map((e) => e.toLowerCase()))];
+  return emails.length ? { first_name: patient.first_name, emails } : null;
+}
+
+/** Un email par destinataire (les adresses des parents ne sont pas montrées les unes aux autres). */
+async function sendToAll(emails: string[], email: Omit<Parameters<typeof sendEmail>[0], 'to'>): Promise<void> {
+  await Promise.all(emails.map((address) => sendEmail({ ...email, to: { email: address } })));
+}
+
 async function notifyFamily(
   patientId: string,
   start: Date,
@@ -228,15 +247,13 @@ async function notifyFamily(
   previous?: Date,
   reason?: string,
 ): Promise<void> {
-  const supabase = await createClient();
-  const { data: patient } = await supabase.from('patients').select('first_name, email').eq('id', patientId).maybeSingle();
-  if (!patient?.email) return;
+  const patient = await recipientsOf(patientId);
+  if (!patient) return;
   const p = parisParts(start);
   const when = `${formatDay(p.date)} à ${formatTime(p.time)}`;
   const q = previous ? parisParts(previous) : null;
   const was = q ? `${formatDay(q.date)} à ${formatTime(q.time)}` : null;
-  await sendEmail({
-    to: { email: patient.email },
+  await sendToAll(patient.emails, {
     senderName: practiceName,
     subject: kind === 'annule' ? `Séance du ${when} annulée` : kind === 'deplace' ? (was ? `Séance du ${was} déplacée au ${when}` : `Séance déplacée au ${when}`) : `Nouvelle séance le ${when}`,
     text: [

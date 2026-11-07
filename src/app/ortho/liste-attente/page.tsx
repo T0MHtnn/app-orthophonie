@@ -165,6 +165,11 @@ export default async function ListeAttentePage({ searchParams }: { searchParams:
                     {displayAge(e.birth_date, e.patient_age, today, t.lang)}
                     {e.caregiver_last_name || e.caregiver_first_name ? ` · ${fullName(e.caregiver_first_name, e.caregiver_last_name)}` : ''}
                   </small>
+                  {(e.extra_caregivers ?? []).length > 0 && (
+                    <small>
+                      {t('Autres aidants :')} {(e.extra_caregivers ?? []).map((c) => [c.first_name, c.last_name].join(' ') + (c.relation ? ` (${c.relation})` : '')).join(', ')}
+                    </small>
+                  )}
                   {e.notes && <small>{e.notes}</small>}
                 </td>
                 <td>

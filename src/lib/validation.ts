@@ -94,6 +94,38 @@ const phoneSchema = z
     return z.NEVER;
   });
 
+/** Aidant supplémentaire (inscription, fiche patient). */
+const extraCaregiverSchema = z.object({
+  firstName: required(80, 'Prénom requis'),
+  lastName: required(80, 'Nom requis'),
+  relation: text(60).optional().default(''),
+  phone: phoneSchema.optional().default(''),
+  email: z.union([z.literal(''), emailSchema]).optional().default(''),
+  receivesEmails: z.boolean().optional().default(false),
+});
+export const MAX_EXTRA_CAREGIVERS = 4;
+
+/** Liste envoyée par le formulaire d'inscription (champ caché, JSON). */
+const extraCaregiversField = z
+  .string()
+  .max(5000)
+  .optional()
+  .default('[]')
+  .transform((v, ctx) => {
+    let list: unknown;
+    try {
+      list = JSON.parse(v || '[]');
+    } catch {
+      list = null;
+    }
+    const parsed = z.array(extraCaregiverSchema).max(MAX_EXTRA_CAREGIVERS).safeParse(list);
+    if (!parsed.success) {
+      ctx.addIssue({ code: 'custom', message: 'Vérifiez les autres aidants : prénom et nom requis, téléphone et email valides.' });
+      return z.NEVER;
+    }
+    return parsed.data;
+  });
+
 export const waitlistFormSchema = z
   .object({
     patientLastName: required(80, 'Nom du patient requis'),
@@ -106,6 +138,7 @@ export const waitlistFormSchema = z
       .refine((v) => v <= today(), 'La date ne peut pas être dans le futur'),
     caregiverLastName: text(80).optional().default(''),
     caregiverFirstName: text(80).optional().default(''),
+    extraCaregivers: extraCaregiversField,
     email: z.union([z.literal(''), emailSchema]).optional().default(''),
     phone: phoneSchema.optional().default(''),
     requestType: z.enum(REQUEST_TYPES.map((t) => t.code), { error: 'Choisissez le type de demande' }),
@@ -217,13 +250,10 @@ export const patientFileSchema = z.object({
     .default(''),
 });
 
-export const caregiverSchema = z.object({
-  firstName: required(80, 'Prénom requis'),
-  lastName: required(80, 'Nom requis'),
-  relation: text(60).optional().default(''),
-  phone: phoneSchema.optional().default(''),
-  email: z.union([z.literal(''), emailSchema]).optional().default(''),
-});
+export const caregiverSchema = extraCaregiverSchema
+  .omit({ receivesEmails: true })
+  .extend({ receivesEmails: z.enum(['on']).optional() })
+  .refine((v) => !v.receivesEmails || v.email, { path: ['email'], message: 'Indiquez un email pour qu’il reçoive les emails' });
 
 export const homeworkSchema = z.object({
   title: required(120, 'Titre requis'),

@@ -790,4 +790,23 @@ export const EN: Record<string, string> = {
   // 31_family_tabs
   "Mes demandes": "My requests",
   "Exercices": "Exercises",
+  // 32_caregivers_docs
+  "Aidant {n}": "Carer {n}",
+  "Ajouter un autre aidant": "Add another carer",
+  "Aucun document pour l’instant. Ceux que le cabinet partage avec vous apparaîtront ici.": "No documents yet. Those the practice shares with you will appear here.",
+  "Autres aidants (facultatif)": "Other carers (optional)",
+  "Autres aidants :": "Other carers:",
+  "Choisir un fichier": "Choose a file",
+  "Envoyer un document": "Send a document",
+  "Indiquez un email pour qu’il reçoive les emails": "Enter an email so they can receive emails",
+  "Mes documents": "My documents",
+  "Par exemple l’autre parent, un grand-parent ou la personne qui accompagne aux séances.": "For example the other parent, a grandparent or the person who comes to sessions.",
+  "PDF, image, Word, texte ou audio · 4 Mo maximum": "PDF, image, Word, text or audio · 4 MB maximum",
+  "Reçoit aussi les emails du cabinet (rappels, séances, créneaux libérés)": "Also receives the practice's emails (reminders, sessions, freed slots)",
+  "Reçoit les emails": "Receives emails",
+  "Télécharger": "Download",
+  "Vérifiez les autres aidants : prénom et nom requis, téléphone et email valides.": "Check the other carers: first and last name required, valid phone and email.",
+  "Envoyer à l’orthophoniste": "Send to the speech therapist",
+  "Lui envoyer les emails": "Send them the emails",
+  "Ne plus envoyer les emails": "Stop sending emails",
 };

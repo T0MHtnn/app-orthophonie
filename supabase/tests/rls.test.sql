@@ -650,4 +650,21 @@ begin
 end $$;
 reset role;
 
+-- 27. Aidants : liste de l'inscription nettoyée, emails envoyés seulement aux aidants cochés.
+do $$
+declare v_patient uuid := current_setting('test.patient_a')::uuid;
+begin
+  if jsonb_array_length(private.clean_caregivers('[{"first_name":"A","last_name":"B"},{"first_name":""},"x",{"first_name":"C","last_name":"D"},{"first_name":"E","last_name":"F"},{"first_name":"G","last_name":"H"},{"first_name":"I","last_name":"J"}]')) <> 4 then
+    raise exception 'ÉCHEC 27a : nettoyage des aidants';
+  end if;
+  insert into public.patient_caregivers (practice_id, patient_id, first_name, last_name, email, receives_emails)
+  select practice_id, id, 'Paul', 'Oui', 'paul@example.com', true from public.patients where id = v_patient;
+  insert into public.patient_caregivers (practice_id, patient_id, first_name, last_name, email, receives_emails)
+  select practice_id, id, 'Jeanne', 'Non', 'jeanne@example.com', false from public.patients where id = v_patient;
+  if not exists (select 1 from private.patient_emails(v_patient) e where e = 'paul@example.com')
+     or exists (select 1 from private.patient_emails(v_patient) e where e = 'jeanne@example.com') then
+    raise exception 'ÉCHEC 27b : destinataires des emails';
+  end if;
+end $$;
+
 select 'TOUS LES TESTS DE SÉCURITÉ PASSENT' as resultat;
