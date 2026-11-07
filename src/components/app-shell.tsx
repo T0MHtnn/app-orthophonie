@@ -3,21 +3,22 @@ import { logout } from '@/app/(auth)/actions';
 import { APP_NAME } from '@/lib/app';
 import type { AuthContext } from '@/lib/auth';
 import { getT, type T } from '@/lib/i18n';
+import { ClearFlash } from './clear-flash';
 import { SideNav, type NavLink } from './side-nav';
 
 const orthoLinks = (t: T): NavLink[] => [
   { href: '/ortho/planning', label: t('Planning') },
   { href: '/ortho/liste-attente', label: t('Liste d’attente') },
-  { href: '/ortho/reglages', label: t('Réglages') },
-  { href: '/compte', label: t('Mon compte') },
   // Un ortho peut aussi inscrire ses enfants ou un proche dans un autre cabinet.
   { href: '/patient', label: t('Mes demandes (famille)') },
+  // Toujours en dernier ; « Mon compte » est une partie des réglages.
+  { href: '/ortho/reglages', label: t('Réglages'), also: ['/compte'] },
 ];
 
 const familyLinks = (t: T): NavLink[] => [
   { href: '/patient', label: t('Mon espace') },
   { href: '/trouver', label: t('Trouver un orthophoniste') },
-  { href: '/compte', label: t('Mon compte') },
+  { href: '/compte', label: t('Réglages') },
 ];
 
 /**
@@ -59,10 +60,11 @@ export async function AppShell({ ctx, children }: { ctx: AuthContext; children: 
       <div className="wrap shell">
         <SideNav links={ortho ? orthoLinks(t) : familyLinks(t)} label={t('Sections')} />
         <main className="stack">
+          <ClearFlash />
           {ortho && !ortho.city && (
             <p className="alert warn">
               {t('Renseignez le code postal et la ville de votre cabinet dans les')} <Link href="/ortho/reglages">{t('Réglages')}</Link>{' '}
-              {t('pour que les familles vous trouvent dans l’annuaire.')}
+              {t('pour que les patients vous trouvent dans l’annuaire.')}
             </p>
           )}
           {ortho && !ortho.verified && (

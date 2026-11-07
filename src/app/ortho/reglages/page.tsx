@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { requireOrtho } from '@/lib/auth';
 import { emailTemplateFor, waitlistInfoFor } from '@/lib/defaults';
 import { getT } from '@/lib/i18n';
@@ -27,6 +28,15 @@ export default async function ReglagesPage() {
           </p>
         </div>
       </div>
+      <section className="card row spread">
+        <div>
+          <h2>{t('Mon compte')}</h2>
+          <p className="sub">{t('Nom, mot de passe, langue et thème.')}</p>
+        </div>
+        <Link href="/compte" className="btn">
+          {t('Modifier mon compte')}
+        </Link>
+      </section>
       <SettingsForm
         name={practice.name}
         addressLine={practice.address_line ?? ''}

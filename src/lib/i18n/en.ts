@@ -559,4 +559,11 @@ export const EN: Record<string, string> = {
   "Demande acceptée : le patient est prévenu par email.": "Request accepted: the patient has been notified by email.",
   "Demande refusée : le patient est prévenu par email.": "Request declined: the patient has been notified by email.",
   "Personne pour l’instant. Partagez le lien de votre page publique à vos patients.": "Nobody yet. Share your public page link with your patients.",
+  // 16_reglages_nav
+  "pour que les patients vous trouvent dans l’annuaire.": "so that patients can find you in the directory.",
+  "Nom, mot de passe, langue et thème.": "Name, password, language and theme.",
+  "Modifier mon compte": "Edit my account",
+  "Réglages du cabinet": "Practice settings",
+  "Supprimer ce rendez-vous ?": "Delete this appointment?",
+  "Il disparaîtra de l’agenda. Le patient n’est pas prévenu automatiquement.": "It will disappear from the schedule. The patient is not notified automatically.",
 };

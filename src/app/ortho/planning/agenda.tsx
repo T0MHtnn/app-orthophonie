@@ -128,6 +128,7 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
 
   const onDrop = (day: AgendaDay, e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    endDrag();
     const raw = e.dataTransfer.getData('application/x-agenda');
     if (!raw) return;
     const data = JSON.parse(raw) as { patientId: string; appointmentId?: string; duration?: number; title?: string };
@@ -143,6 +144,24 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
     }
     // Nouveau RDV : la pop-up s'ouvre pré-remplie (pour choisir de prévenir le patient).
     else setDialog({ kind: 'slot', date: day.date, start, end: Math.min(range.end, start + sessionMinutes), patientId: data.patientId, tab: 'rdv' });
+  };
+
+  // Glisser-déposer : on garde ce qu'on tient (le navigateur ne lit pas les données pendant le survol)
+  // et la zone survolée, affichée en aperçu pour viser juste.
+  const dragging = useRef<{ duration: number; appointmentId?: string } | null>(null);
+  const [preview, setPreview] = useState<{ date: string; start: number; end: number; free: boolean } | null>(null);
+  const onDragOver = (day: AgendaDay, e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const held = dragging.current;
+    if (!held) return;
+    const start = minuteAt(e);
+    if (preview?.date === day.date && preview.start === start) return;
+    const end = start + held.duration;
+    setPreview({ date: day.date, start, end, free: isFree(day, { start, end }, held.appointmentId) });
+  };
+  const endDrag = () => {
+    dragging.current = null;
+    setPreview(null);
   };
 
   const [query, setQuery] = useState('');
@@ -189,9 +208,18 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
                 className={`agenda-col ${d.date < today ? 'past' : ''}`}
                 style={{ height, backgroundSize: `100% ${60 * PX}px` }}
                 onClick={(e) => onColumnClick(d, e)}
-                onDragOver={(e) => e.preventDefault()}
+                onDragOver={(e) => onDragOver(d, e)}
+                onDragLeave={(e) => {
+                  // Sortie de la colonne (pas d'un élément à l'intérieur).
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null) && preview?.date === d.date) setPreview(null);
+                }}
                 onDrop={(e) => onDrop(d, e)}
               >
+                {preview?.date === d.date && (
+                  <div className={`agenda-drop ${preview.free ? '' : 'busy'}`} style={pos(preview, range.start)} aria-hidden="true">
+                    {minutesToTime(preview.start)} – {minutesToTime(preview.end)}
+                  </div>
+                )}
                 {d.date === today && nowMinutes >= range.start && nowMinutes <= range.end && (
                   <div className="agenda-now" style={{ top: (nowMinutes - range.start) * PX }} />
                 )}
@@ -261,9 +289,11 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
                             className={`agenda-appt ${a.status} ${a.attendance ?? ''} ${realised ? 'done' : ''} ${pieceClass(piece)}`}
                             style={piecePos(piece, range.start)}
                             draggable
-                            onDragStart={(e) =>
-                              e.dataTransfer.setData('application/x-agenda', JSON.stringify({ patientId: a.patientId, appointmentId: a.id, duration, title: a.title }))
-                            }
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData('application/x-agenda', JSON.stringify({ patientId: a.patientId, appointmentId: a.id, duration, title: a.title }));
+                              dragging.current = { duration, appointmentId: a.id };
+                            }}
+                            onDragEnd={endDrag}
                             onClick={open}
                             aria-label={piece.first ? undefined : a.label}
                           >
@@ -309,7 +339,11 @@ export function Agenda({ days, range, today, nowMinutes, blocks, patients, sessi
             <li
               key={p.id}
               draggable
-              onDragStart={(e) => e.dataTransfer.setData('application/x-agenda', JSON.stringify({ patientId: p.id }))}
+              onDragStart={(e) => {
+                e.dataTransfer.setData('application/x-agenda', JSON.stringify({ patientId: p.id }));
+                dragging.current = { duration: sessionMinutes };
+              }}
+              onDragEnd={endDrag}
               className={focus?.id === p.id ? 'picked' : ''}
             >
               <button type="button" onClick={() => setFocus(focus?.id === p.id ? null : p)} aria-pressed={focus?.id === p.id}>
@@ -766,33 +800,52 @@ function AppointmentForm({
   const t = useT();
   const v = { ...values, ...state.values } as AppointmentValues & { notify?: string };
   const [patientId, setPatientId] = useState(v.patientId);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const err = state.errors ?? {};
   return (
-    <form action={action} className="stack" noValidate>
-      <FormAlert state={state} />
-      <input type="hidden" name="id" value={values.id} />
-      <PatientPicker patients={patients} value={patientId} onChange={setPatientId} error={err.patientId} />
-      <div className="form-grid">
-        <Field label="Date" name="date" type="date" required defaultValue={v.date} error={err.date} />
-        <Field label="Début" name="time" type="time" step={300} required defaultValue={v.time} error={err.time} />
-        <Field label="Fin" name="end" type="time" step={300} required defaultValue={v.end} error={err.end} />
-      </div>
-      <Field label="Titre (facultatif, visible par vous seul)" name="title" maxLength={120} defaultValue={v.title} error={err.title} />
-      <label className="check">
-        <input type="checkbox" name="notify" defaultChecked={state.values ? v.notify === 'on' : notifyDefault} />
-        <span>
-          <b>{t(values.id ? 'Prévenir le patient du changement' : 'Prévenir le patient')}</b>
-        </span>
-      </label>
-      <div className="row">
-        <SubmitButton pendingText="Enregistrement…">{values.id ? 'Enregistrer' : 'Planifier le rendez-vous'}</SubmitButton>
-        {deleteAction && (
-          <button type="submit" formAction={deleteAction} formNoValidate className="btn danger">
-            {t('Supprimer ce rendez-vous')}
-          </button>
-        )}
-      </div>
-    </form>
+    <>
+      <form action={action} className="stack" noValidate>
+        <FormAlert state={state} />
+        <input type="hidden" name="id" value={values.id} />
+        <PatientPicker patients={patients} value={patientId} onChange={setPatientId} error={err.patientId} />
+        <div className="form-grid">
+          <Field label="Date" name="date" type="date" required defaultValue={v.date} error={err.date} />
+          <Field label="Début" name="time" type="time" step={300} required defaultValue={v.time} error={err.time} />
+          <Field label="Fin" name="end" type="time" step={300} required defaultValue={v.end} error={err.end} />
+        </div>
+        <Field label="Titre (facultatif, visible par vous seul)" name="title" maxLength={120} defaultValue={v.title} error={err.title} />
+        <label className="check">
+          <input type="checkbox" name="notify" defaultChecked={state.values ? v.notify === 'on' : notifyDefault} />
+          <span>
+            <b>{t(values.id ? 'Prévenir le patient du changement' : 'Prévenir le patient')}</b>
+          </span>
+        </label>
+        <div className="row">
+          <SubmitButton pendingText="Enregistrement…">{values.id ? 'Enregistrer' : 'Planifier le rendez-vous'}</SubmitButton>
+          {deleteAction && (
+            <button type="button" className="btn danger" onClick={() => setConfirmDelete(true)}>
+              {t('Supprimer ce rendez-vous')}
+            </button>
+          )}
+        </div>
+      </form>
+      {/* Petite pop-up de confirmation avant la suppression (hors du formulaire : pas de formulaire imbriqué). */}
+      {confirmDelete && deleteAction && (
+        <Modal onClose={() => setConfirmDelete(false)}>
+          <form action={deleteAction} className="stack">
+            <h2>{t('Supprimer ce rendez-vous ?')}</h2>
+            <p className="sub">{t('Il disparaîtra de l’agenda. Le patient n’est pas prévenu automatiquement.')}</p>
+            <input type="hidden" name="id" value={values.id} />
+            <div className="row">
+              <SubmitButton className="btn danger">Supprimer</SubmitButton>
+              <button type="button" className="btn" onClick={() => setConfirmDelete(false)}>
+                {t('Annuler')}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </>
   );
 }
 

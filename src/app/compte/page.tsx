@@ -24,6 +24,11 @@ export default async function ComptePage() {
     <AppShell ctx={ctx}>
       <div className="page-head">
         <div>
+          {ctx.profile.role === 'ortho' && (
+            <p className="hint">
+              <Link href="/ortho/reglages">← {t('Réglages du cabinet')}</Link>
+            </p>
+          )}
           <h1>{t('Mon compte')}</h1>
           <p className="sub">
             {t('Connecté avec')} <b>{ctx.email}</b>
